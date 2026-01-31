@@ -2,7 +2,7 @@
 Filters for the Congress API.
 """
 
-import django_filters
+import django_filters  # type: ignore[import-untyped]
 
 from apps.congress.models import Bill, Member, Vote
 

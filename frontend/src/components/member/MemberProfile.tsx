@@ -12,6 +12,7 @@ import {
   getResultLabel,
   getChamberShortName,
 } from "@/lib/utils";
+import { routes } from "@/lib/routes";
 
 interface MemberProfileProps {
   member: MemberDetail;
@@ -25,9 +26,9 @@ function RecentVoteItem({ vote }: { vote: MemberRecentVote }) {
           <p className="text-sm text-gray-700 truncate">{vote.description}</p>
           <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
             <span>{formatDate(vote.date)}</span>
-            {vote.bill_display_number && (
+            {vote.bill_display_number && vote.bill_id && (
               <Link
-                href={`/legislation/${vote.bill_id}`}
+                href={routes.legislation.detail(vote.bill_id)}
                 className="text-blue-600 hover:text-blue-800"
               >
                 {vote.bill_display_number}

@@ -145,8 +145,11 @@ SIMPLE_JWT = {
     "USER_ID_CLAIM": "user_id",
 }
 
+# Redis
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+
 # Celery
-CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = "django-db"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
@@ -173,7 +176,6 @@ CACHE_TIMEOUTS = {
 }
 
 # External API Keys (loaded from environment)
-PROPUBLICA_API_KEY = os.environ.get("PROPUBLICA_API_KEY")
 CONGRESS_API_KEY = os.environ.get("CONGRESS_API_KEY")
 GOOGLE_CIVIC_API_KEY = os.environ.get("GOOGLE_CIVIC_API_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")

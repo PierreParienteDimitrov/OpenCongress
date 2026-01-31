@@ -151,4 +151,45 @@ export async function getVotesCalendar(
   );
 }
 
+// Client-side pagination functions for infinite scroll
+// These are designed to be called from React Query on the client side
+
+const BROWSER_API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+async function fetchAPIClient<T>(endpoint: string): Promise<T> {
+  const url = `${BROWSER_API_BASE_URL}${endpoint}`;
+
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new APIError(
+      `API request failed: ${response.statusText}`,
+      response.status
+    );
+  }
+
+  return response.json();
+}
+
+export async function getSenatorsPaginated(
+  page: number = 1
+): Promise<PaginatedResponse<MemberListItem>> {
+  return fetchAPIClient<PaginatedResponse<MemberListItem>>(
+    `/members/senators/?page=${page}&ordering=last_name`
+  );
+}
+
+export async function getRepresentativesPaginated(
+  page: number = 1
+): Promise<PaginatedResponse<MemberListItem>> {
+  return fetchAPIClient<PaginatedResponse<MemberListItem>>(
+    `/members/representatives/?page=${page}&ordering=last_name`
+  );
+}
+
 export { APIError };

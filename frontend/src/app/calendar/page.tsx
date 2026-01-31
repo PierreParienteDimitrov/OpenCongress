@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getBillsCalendar, getVotesCalendar } from "@/lib/api";
+import { routes } from "@/lib/routes";
 import type { BillCalendarItem, VoteCalendarItem } from "@/types";
 import {
   formatDateParam,
@@ -83,7 +84,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
             </p>
             {vote.bill && (
               <Link
-                href={`/legislation/${vote.bill}`}
+                href={routes.legislation.detail(vote.bill)}
                 className="text-blue-600 hover:text-blue-800 mt-1 inline-block"
               >
                 {vote.bill_display_number}
@@ -104,7 +105,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
           .map((bill) => (
             <Link
               key={bill.bill_id}
-              href={`/legislation/${bill.bill_id}`}
+              href={routes.legislation.detail(bill.bill_id)}
               className="block p-2 rounded bg-gradient-to-r from-amber-50 to-amber-100/50 border-l-4 border-amber-400 text-xs hover:bg-amber-100 transition-colors"
             >
               <div className="font-medium text-amber-800">
@@ -198,7 +199,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             {/* Week Navigation */}
             <div className="flex items-center gap-4">
               <Link
-                href={`/calendar?week=${formatDateParam(prevWeek)}`}
+                href={routes.calendar.week(formatDateParam(prevWeek))}
                 className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
               >
                 <svg
@@ -223,7 +224,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               </div>
 
               <Link
-                href={`/calendar?week=${formatDateParam(nextWeek)}`}
+                href={routes.calendar.week(formatDateParam(nextWeek))}
                 className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
               >
                 <svg
@@ -242,7 +243,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               </Link>
 
               <Link
-                href="/calendar"
+                href={routes.calendar.index}
                 className="ml-2 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Today

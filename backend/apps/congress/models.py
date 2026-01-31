@@ -69,6 +69,7 @@ class Member(models.Model):
         db_table = "members"
         indexes = [
             models.Index(fields=["chamber", "state"]),
+            models.Index(fields=["state", "district"]),  # For "Find My Rep" queries
             models.Index(fields=["party"]),
             models.Index(fields=["last_name"]),
             models.Index(fields=["is_active"]),
@@ -289,3 +290,51 @@ class MemberVote(models.Model):
 
     def __str__(self):
         return f"{self.member.full_name}: {self.position} on {self.vote.vote_id}"
+
+
+class Committee(models.Model):
+    """A congressional committee."""
+
+    committee_id = models.CharField(max_length=10, primary_key=True)
+    name = models.CharField(max_length=255)
+    chamber = models.CharField(max_length=10, choices=Member.Chamber.choices)
+    url = models.URLField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "committees"
+        ordering = ["chamber", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.chamber})"
+
+
+class CommitteeMember(models.Model):
+    """A member's assignment to a committee."""
+
+    class Role(models.TextChoices):
+        CHAIR = "chair", "Chair"
+        RANKING = "ranking", "Ranking Member"
+        MEMBER = "member", "Member"
+
+    id = models.BigAutoField(primary_key=True)
+    committee = models.ForeignKey(
+        Committee,
+        on_delete=models.CASCADE,
+        related_name="members",
+    )
+    member = models.ForeignKey(
+        Member,
+        on_delete=models.CASCADE,
+        related_name="committee_assignments",
+    )
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.MEMBER)
+
+    class Meta:
+        db_table = "committee_members"
+        unique_together = ("committee", "member")
+
+    def __str__(self):
+        return f"{self.member.full_name} - {self.committee.name} ({self.role})"

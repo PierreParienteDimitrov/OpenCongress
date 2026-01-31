@@ -4,9 +4,9 @@ Django production settings for CongressTrack project.
 
 import os
 
-import sentry_sdk
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.django import DjangoIntegration
+import sentry_sdk  # type: ignore[import-not-found]
+from sentry_sdk.integrations.celery import CeleryIntegration  # type: ignore[import-not-found]
+from sentry_sdk.integrations.django import DjangoIntegration  # type: ignore[import-not-found]
 
 from .base import *  # noqa: F401, F403
 
@@ -31,10 +31,15 @@ DATABASES = {
     }
 }
 
-# CORS
+# CORS - Allow Vercel preview deployments and production domains
 CORS_ALLOWED_ORIGINS = [
     "https://congresstrack.org",
     "https://www.congresstrack.org",
+]
+
+# Allow Vercel preview URLs (*.vercel.app)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
 ]
 CORS_ALLOW_CREDENTIALS = True
 

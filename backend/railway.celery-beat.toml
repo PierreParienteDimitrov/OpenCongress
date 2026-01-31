@@ -1,0 +1,15 @@
+# Railway configuration for Celery Beat Scheduler
+# Deploy this as a separate service named "congresstrack-celery-beat"
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.production"
+
+[deploy]
+startCommand = "celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+# Only run ONE instance of beat scheduler
+
+[deploy.env]
+DJANGO_SETTINGS_MODULE = "config.settings.production"

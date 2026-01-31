@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 
 import { getBill } from "@/lib/api";
+import { routes, getMemberRoute } from "@/lib/routes";
 import {
   formatDate,
   getPartyBgColor,
@@ -120,7 +121,7 @@ export default async function LegislationPage({ params }: PageProps) {
         {/* Header */}
         <div className="mb-6">
           <Link
-            href="/calendar"
+            href={routes.calendar.index}
             className="text-blue-600 hover:text-blue-800 text-sm mb-2 inline-block"
           >
             &larr; Back to Calendar
@@ -147,11 +148,7 @@ export default async function LegislationPage({ params }: PageProps) {
               )}
               <div>
                 <Link
-                  href={
-                    bill.sponsor.chamber === "house"
-                      ? `/representative/${bill.sponsor.bioguide_id}`
-                      : `/senator/${bill.sponsor.bioguide_id}`
-                  }
+                  href={getMemberRoute(bill.sponsor.bioguide_id, bill.sponsor.chamber)}
                   className="text-blue-600 hover:text-blue-800 font-medium"
                 >
                   {bill.sponsor.full_name}
