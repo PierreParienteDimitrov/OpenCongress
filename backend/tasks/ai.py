@@ -109,7 +109,7 @@ def generate_bill_summaries() -> dict:
 
     for bill_id in bills_needing_summaries:
         try:
-            result = generate_bill_summary.delay(bill_id)
+            generate_bill_summary.delay(bill_id)
             processed += 1
         except Exception as e:
             logger.error(f"Failed to queue summary for bill {bill_id}: {e}")
@@ -225,7 +225,7 @@ def generate_member_bios() -> dict:
 
     for bioguide_id in members_needing_bios:
         try:
-            result = generate_member_bio.delay(bioguide_id)
+            generate_member_bio.delay(bioguide_id)
             processed += 1
         except Exception as e:
             logger.error(f"Failed to queue bio for member {bioguide_id}: {e}")
@@ -311,7 +311,7 @@ def generate_weekly_recap(self) -> dict:
         )
 
         # Save the summary
-        summary = WeeklySummary.objects.create(
+        WeeklySummary.objects.create(
             year=year,
             week_number=week_number,
             summary_type="recap",
@@ -404,7 +404,7 @@ def generate_weekly_preview(self) -> dict:
         )
 
         # Save the summary
-        summary = WeeklySummary.objects.create(
+        WeeklySummary.objects.create(
             year=year,
             week_number=week_number,
             summary_type="preview",

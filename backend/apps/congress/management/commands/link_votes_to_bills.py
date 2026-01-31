@@ -7,7 +7,6 @@ Usage:
 """
 
 import os
-import re
 import time
 from datetime import datetime
 from typing import Any

@@ -55,7 +55,7 @@ class CacheService:
         # Clear Django cache keys
         cache_keys = [
             f"weekly_summary_{year}_{week}_{summary_type}",
-            f"weekly_summaries_current",
+            "weekly_summaries_current",
         ]
         for key in cache_keys:
             cache.delete(key)
