@@ -50,8 +50,12 @@ develop-eggs/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Python build artifacts (not frontend/src/lib)
+/lib/
+/lib64/
+backend/lib/
+backend/lib64/
+!frontend/src/lib/
 parts/
 sdist/
 var/
@@ -101,3 +105,6 @@ secrets/
 
 # OS
 Thumbs.db
+
+# Added by ggshield
+.cache_ggshield

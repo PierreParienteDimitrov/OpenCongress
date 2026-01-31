@@ -57,6 +57,9 @@ class Member(models.Model):
 
     # AI-generated content
     ai_bio = models.TextField(blank=True)
+    ai_bio_model = models.CharField(max_length=50, blank=True)
+    ai_bio_created_at = models.DateTimeField(null=True, blank=True)
+    ai_bio_prompt_version = models.CharField(max_length=20, blank=True)
 
     # Status
     is_active = models.BooleanField(default=True)
@@ -145,6 +148,9 @@ class Bill(models.Model):
 
     # AI-generated summary
     ai_summary = models.TextField(blank=True)
+    ai_summary_model = models.CharField(max_length=50, blank=True)
+    ai_summary_created_at = models.DateTimeField(null=True, blank=True)
+    ai_summary_prompt_version = models.CharField(max_length=20, blank=True)
 
     # Sponsor
     sponsor = models.ForeignKey(

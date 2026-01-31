@@ -136,6 +136,33 @@ export interface BillCalendarItem {
   latest_action_text: string;
 }
 
+// Weekly summary types
+export type WeeklySummaryType = "recap" | "preview";
+
+export interface WeeklySummary {
+  id: number;
+  year: number;
+  week_number: number;
+  summary_type: WeeklySummaryType;
+  summary_type_display: string;
+  content: string;
+  model_used: string;
+  prompt_version: string;
+  tokens_used: number;
+  votes_included: string[];
+  bills_included: string[];
+  created_at: string;
+}
+
+export interface WeeklySummaryListItem {
+  id: number;
+  year: number;
+  week_number: number;
+  summary_type: WeeklySummaryType;
+  summary_type_display: string;
+  created_at: string;
+}
+
 // API response types
 export interface PaginatedResponse<T> {
   count: number;

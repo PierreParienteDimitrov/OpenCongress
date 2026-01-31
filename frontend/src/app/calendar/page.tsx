@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ClickableCard } from "./ClickableCard";
 import { getBillsCalendar, getVotesCalendar } from "@/lib/api";
 import { routes } from "@/lib/routes";
 import type { BillCalendarItem, VoteCalendarItem } from "@/types";
@@ -65,9 +66,12 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
       <div className="p-2 space-y-2 overflow-y-auto max-h-[400px]">
         {/* Votes */}
         {votes.map((vote) => (
-          <div
+          <ClickableCard
             key={vote.vote_id}
-            className="p-2 rounded bg-gradient-to-r from-gray-100 to-gray-50 border-l-4 border-gray-400 text-xs"
+            href={vote.bill ? routes.legislation.detail(vote.bill) : routes.vote.detail(vote.vote_id)}
+            itemId={vote.vote_id}
+            itemType="vote"
+            className="block p-2 rounded bg-gradient-to-r from-gray-100 to-gray-50 border-l-4 border-gray-400 text-xs hover:from-gray-200 hover:to-gray-100 transition-colors"
           >
             <div className="flex items-center justify-between mb-1">
               <span className="text-gray-500">
@@ -82,18 +86,15 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
             <p className="text-gray-700 font-medium leading-tight">
               {truncate(vote.description, 60)}
             </p>
-            {vote.bill && (
-              <Link
-                href={routes.legislation.detail(vote.bill)}
-                className="text-blue-600 hover:text-blue-800 mt-1 inline-block"
-              >
+            {vote.bill_display_number && (
+              <div className="text-blue-600 mt-1">
                 {vote.bill_display_number}
-              </Link>
+              </div>
             )}
             <div className="mt-1 text-gray-500">
               {vote.total_yea}Y - {vote.total_nay}N
             </div>
-          </div>
+          </ClickableCard>
         ))}
 
         {/* Bills with action (no vote) */}
@@ -103,9 +104,11 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
               !votes.some((v) => v.bill === bill.bill_id)
           )
           .map((bill) => (
-            <Link
+            <ClickableCard
               key={bill.bill_id}
               href={routes.legislation.detail(bill.bill_id)}
+              itemId={bill.bill_id}
+              itemType="bill"
               className="block p-2 rounded bg-gradient-to-r from-amber-50 to-amber-100/50 border-l-4 border-amber-400 text-xs hover:bg-amber-100 transition-colors"
             >
               <div className="font-medium text-amber-800">
@@ -114,7 +117,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
               <p className="text-gray-700 leading-tight mt-1">
                 {truncate(bill.short_title || bill.latest_action_text, 60)}
               </p>
-            </Link>
+            </ClickableCard>
           ))}
 
         {/* Empty state */}

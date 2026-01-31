@@ -14,7 +14,25 @@ export default function Home() {
           </p>
         </header>
 
-        <nav className="grid w-full gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <nav className="grid w-full gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <Link
+            href={routes.thisWeek.index}
+            className="group flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📰</span>
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                This Week
+              </h2>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              AI-generated summaries of the week in review and the week ahead in Congress.
+            </p>
+            <span className="mt-auto text-sm font-medium text-blue-600 group-hover:underline dark:text-blue-400">
+              Read Summary →
+            </span>
+          </Link>
+
           <Link
             href={routes.calendar.index}
             className="group flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"

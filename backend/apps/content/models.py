@@ -57,6 +57,36 @@ class TrendReport(models.Model):
         ]
 
 
+class WeeklySummary(models.Model):
+    """Weekly recap and preview summaries."""
+
+    class SummaryType(models.TextChoices):
+        RECAP = "recap", "Week in Review"
+        PREVIEW = "preview", "Week Ahead"
+
+    id = models.BigAutoField(primary_key=True)
+    year = models.IntegerField()
+    week_number = models.IntegerField()
+    summary_type = models.CharField(max_length=10, choices=SummaryType.choices)
+    content = models.TextField()
+    model_used = models.CharField(max_length=50)
+    prompt_version = models.CharField(max_length=20)
+    tokens_used = models.IntegerField(default=0)
+    votes_included = models.JSONField(default=list)
+    bills_included = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "weekly_summaries"
+        unique_together = ["year", "week_number", "summary_type"]
+        indexes = [
+            models.Index(fields=["year", "week_number"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_summary_type_display()} - Week {self.week_number}, {self.year}"
+
+
 class NewsLink(models.Model):
     """News articles related to bills or votes."""
 

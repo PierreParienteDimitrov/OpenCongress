@@ -12,6 +12,8 @@ import type {
   PaginatedResponse,
   VoteCalendarItem,
   VoteSummary,
+  WeeklySummary,
+  WeeklySummaryListItem,
 } from "@/types";
 
 const API_BASE_URL =
@@ -148,6 +150,32 @@ export async function getVotesCalendar(
   return fetchAPI<PaginatedResponse<VoteCalendarItem>>(
     `/votes/calendar/?date_from=${dateFrom}&date_to=${dateTo}`,
     { next: { revalidate: 300 } }
+  );
+}
+
+// Weekly summary endpoints
+export async function getCurrentWeeklySummaries(): Promise<WeeklySummary[]> {
+  return fetchAPI<WeeklySummary[]>("/content/weekly-summaries/current/", {
+    next: { revalidate: 900 }, // 15 minutes
+  });
+}
+
+export async function getWeeklySummaryByWeek(
+  year: number,
+  week: number
+): Promise<WeeklySummary[]> {
+  return fetchAPI<WeeklySummary[]>(
+    `/content/weekly-summaries/week/${year}/${week}/`,
+    { next: { revalidate: 86400 } } // 24 hours
+  );
+}
+
+export async function getWeeklySummaries(): Promise<
+  PaginatedResponse<WeeklySummaryListItem>
+> {
+  return fetchAPI<PaginatedResponse<WeeklySummaryListItem>>(
+    "/content/weekly-summaries/",
+    { next: { revalidate: 900 } }
   );
 }
 
