@@ -9,7 +9,8 @@ class UserAdmin(BaseUserAdmin):
     list_display = ["username", "email", "state", "is_active", "date_joined"]
     list_filter = ["is_active", "is_staff", "state"]
     search_fields = ["username", "email"]
-    fieldsets = BaseUserAdmin.fieldsets + (
+    fieldsets = [
+        *((BaseUserAdmin.fieldsets or [])),
         (
             "CongressTrack",
             {
@@ -22,7 +23,7 @@ class UserAdmin(BaseUserAdmin):
                 )
             },
         ),
-    )
+    ]
 
 
 @admin.register(UserFollow)
