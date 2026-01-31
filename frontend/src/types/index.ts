@@ -1,0 +1,145 @@
+/**
+ * TypeScript types for Congress data matching API responses.
+ */
+
+// Member types
+export interface MemberListItem {
+  bioguide_id: string;
+  full_name: string;
+  party: "D" | "R" | "I";
+  chamber: "house" | "senate";
+  state: string;
+  district: number | null;
+  photo_url: string;
+}
+
+export interface MemberRecentVote {
+  vote_id: string;
+  date: string;
+  question: string;
+  description: string;
+  result: VoteResult;
+  position: VotePosition;
+  bill_id: string | null;
+  bill_display_number: string | null;
+}
+
+export interface MemberDetail extends MemberListItem {
+  first_name: string;
+  last_name: string;
+  phone: string;
+  office_address: string;
+  website_url: string;
+  contact_url: string;
+  twitter_handle: string;
+  facebook_id: string;
+  youtube_id: string;
+  ai_bio: string;
+  term_start: string | null;
+  term_end: string | null;
+  is_active: boolean;
+  recent_votes: MemberRecentVote[];
+  sponsored_bills_count: number;
+}
+
+// Bill types
+export interface BillListItem {
+  bill_id: string;
+  display_number: string;
+  bill_type: BillType;
+  short_title: string;
+  title: string;
+  sponsor_name: string | null;
+  sponsor_id: string | null;
+  introduced_date: string | null;
+  latest_action_date: string | null;
+  latest_action_text: string;
+  has_vote: boolean;
+}
+
+export interface BillDetail {
+  bill_id: string;
+  display_number: string;
+  bill_type: BillType;
+  number: number;
+  congress: number;
+  title: string;
+  short_title: string;
+  summary_text: string;
+  summary_html: string;
+  ai_summary: string;
+  sponsor: MemberListItem | null;
+  introduced_date: string | null;
+  latest_action_date: string | null;
+  latest_action_text: string;
+  congress_url: string;
+  votes: VoteSummary[];
+}
+
+export type BillType =
+  | "hr"
+  | "s"
+  | "hjres"
+  | "sjres"
+  | "hconres"
+  | "sconres"
+  | "hres"
+  | "sres";
+
+// Vote types
+export type VoteResult = "passed" | "failed" | "agreed" | "rejected";
+export type VotePosition = "yea" | "nay" | "present" | "not_voting";
+
+export interface VoteSummary {
+  vote_id: string;
+  chamber: "house" | "senate";
+  date: string;
+  time: string | null;
+  question: string;
+  result: VoteResult;
+  total_yea: number;
+  total_nay: number;
+  total_present: number;
+  total_not_voting: number;
+  dem_yea: number;
+  dem_nay: number;
+  rep_yea: number;
+  rep_nay: number;
+  ind_yea: number;
+  ind_nay: number;
+  is_bipartisan: boolean;
+}
+
+export interface VoteCalendarItem {
+  vote_id: string;
+  chamber: "house" | "senate";
+  date: string;
+  time: string | null;
+  question: string;
+  description: string;
+  result: VoteResult;
+  total_yea: number;
+  total_nay: number;
+  bill: string | null;
+  bill_display_number: string | null;
+  bill_short_title: string | null;
+  is_bipartisan: boolean;
+}
+
+export interface BillCalendarItem {
+  bill_id: string;
+  display_number: string;
+  short_title: string;
+  sponsor_name: string | null;
+  sponsor_id: string | null;
+  latest_action_date: string | null;
+  latest_action_text: string;
+}
+
+// API response types
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
