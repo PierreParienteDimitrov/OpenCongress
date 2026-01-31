@@ -86,6 +86,24 @@ export default function Home() {
               Browse Representatives →
             </span>
           </Link>
+
+          <Link
+            href={routes.documentation.index}
+            className="group flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📖</span>
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                Documentation
+              </h2>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              Learn how OpenCongress works, our data sources, and technology.
+            </p>
+            <span className="mt-auto text-sm font-medium text-blue-600 group-hover:underline dark:text-blue-400">
+              Learn More →
+            </span>
+          </Link>
         </nav>
 
         <footer className="mt-auto text-center text-sm text-zinc-500 dark:text-zinc-500">
