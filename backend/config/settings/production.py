@@ -85,9 +85,10 @@ X_FRAME_OPTIONS = "DENY"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Sentry
-if os.environ.get("SENTRY_DSN"):
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN and SENTRY_DSN.startswith("https://"):
     sentry_sdk.init(
-        dsn=os.environ.get("SENTRY_DSN"),
+        dsn=SENTRY_DSN,
         integrations=[
             DjangoIntegration(),
             CeleryIntegration(),
