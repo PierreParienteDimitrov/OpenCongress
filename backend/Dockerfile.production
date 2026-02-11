@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 COPY requirements/base.txt requirements/production.txt ./requirements/
 RUN pip install --no-cache-dir -r requirements/production.txt
 
-# Copy project
+# Copy project files
 COPY . .
 
 # Collect static files (use production settings and dummy key for build phase)
