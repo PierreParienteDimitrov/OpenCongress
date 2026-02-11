@@ -42,21 +42,33 @@ async function fetchAPI<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  const response = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-    },
-    ...options,
-  });
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      ...options,
+    });
 
-  if (!response.ok) {
-    throw new APIError(
-      `API request failed: ${response.statusText}`,
-      response.status
+    if (!response.ok) {
+      throw new APIError(
+        `API request failed: ${response.statusText}`,
+        response.status
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    // During build time (no backend available), return empty defaults
+    // so pages can pre-render with fallback state and revalidate at runtime
+    if (error instanceof APIError) {
+      throw error;
+    }
+    console.warn(
+      `[API] Backend unreachable for ${endpoint}, returning empty default`
     );
+    return { count: 0, next: null, previous: null, results: [] } as unknown as T;
   }
-
-  return response.json();
 }
 
 // Member endpoints
