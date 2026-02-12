@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("congress", "0002_bill_ai_summary_created_at_bill_ai_summary_model_and_more"),
     ]

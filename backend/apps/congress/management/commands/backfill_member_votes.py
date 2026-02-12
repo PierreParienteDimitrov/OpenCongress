@@ -177,9 +177,7 @@ class Command(BaseCommand):
 
             try:
                 member = Member.objects.get(bioguide_id=bioguide_id)
-                MemberVote.objects.create(
-                    vote=vote, member=member, position=position
-                )
+                MemberVote.objects.create(vote=vote, member=member, position=position)
                 created += 1
             except Member.DoesNotExist:
                 pass
@@ -223,14 +221,10 @@ class Command(BaseCommand):
                 continue
 
             try:
-                MemberVote.objects.create(
-                    vote=vote, member=member, position=position
-                )
+                MemberVote.objects.create(vote=vote, member=member, position=position)
                 created += 1
             except Exception as e:
-                self.stderr.write(
-                    f"    Error for {last_name} ({state}): {e}"
-                )
+                self.stderr.write(f"    Error for {last_name} ({state}): {e}")
 
         return created
 
@@ -257,9 +251,9 @@ class Command(BaseCommand):
 
             cache[f"{last_name.lower()}_{state_abbrev}"] = member
             if first_name:
-                cache[
-                    f"{first_name.lower()}_{last_name.lower()}_{state_abbrev}"
-                ] = member
+                cache[f"{first_name.lower()}_{last_name.lower()}_{state_abbrev}"] = (
+                    member
+                )
 
         self.stdout.write(f"  Senator cache: {len(cache)} entries")
         return cache
@@ -275,9 +269,7 @@ class Command(BaseCommand):
         if key in self.senator_cache:
             return self.senator_cache[key]
 
-        full_key = (
-            f"{first_name.lower()}_{last_name.lower()}_{state_normalized}"
-        )
+        full_key = f"{first_name.lower()}_{last_name.lower()}_{state_normalized}"
         if full_key in self.senator_cache:
             return self.senator_cache[full_key]
 
