@@ -3,6 +3,7 @@ FROM python:3.12-slim
 # Build version: 2026-02-12-v2
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE=config.settings.production
 
 WORKDIR /app
 
@@ -19,10 +20,8 @@ RUN pip install --no-cache-dir -r requirements/production.txt
 # Copy project files
 COPY . .
 
-# Collect static files (use production settings and dummy key for build phase)
-RUN DJANGO_SETTINGS_MODULE=config.settings.production \
-    SECRET_KEY=build-only-dummy-key \
-    python manage.py collectstatic --noinput
+# Collect static files (dummy key needed since SECRET_KEY isn't available at build time)
+RUN SECRET_KEY=build-only-dummy-key python manage.py collectstatic --noinput
 
 # Expose port
 EXPOSE 8000

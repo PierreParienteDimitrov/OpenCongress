@@ -1,4 +1,4 @@
-# Railway configuration for Celery Beat Scheduler
+# Railway configuration for Celery Worker
 # https://docs.railway.app/reference/config-as-code
 
 [build]
@@ -6,6 +6,6 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.production"
 
 [deploy]
-startCommand = "celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+startCommand = "celery -A config.celery worker --loglevel=info --concurrency=4 -Q sync,ai,notifications"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
