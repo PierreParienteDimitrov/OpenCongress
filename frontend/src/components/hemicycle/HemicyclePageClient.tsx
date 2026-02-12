@@ -73,7 +73,7 @@ export default function HemicyclePageClient({
               <span>Yea</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-full border border-zinc-300 bg-white dark:border-zinc-500 dark:bg-zinc-900" />
+              <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: "#18181b" }} />
               <span>Nay</span>
             </div>
             <div className="flex items-center gap-1.5">

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-import { getVote } from "@/lib/api";
+import { getVote, getSeatVoteOverlay } from "@/lib/api";
 import { routes } from "@/lib/routes";
 import {
   formatDate,
@@ -9,6 +9,7 @@ import {
   getResultLabel,
   getChamberName,
 } from "@/lib/utils";
+import HemicycleChart from "@/components/hemicycle/HemicycleChart";
 
 export const revalidate = 86400; // 24 hours
 
@@ -40,6 +41,8 @@ export default async function VotePage({ params }: PageProps) {
   } catch {
     notFound();
   }
+
+  const overlaySeats = await getSeatVoteOverlay(vote.chamber, vote.vote_id);
 
   const totalVotes = vote.total_yea + vote.total_nay;
   const yeaPercent = totalVotes > 0 ? (vote.total_yea / totalVotes) * 100 : 0;
@@ -192,6 +195,45 @@ export default async function VotePage({ params }: PageProps) {
             </div>
           )}
         </div>
+
+        {/* Hemicycle Seat Map */}
+        {overlaySeats.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+              Seat Map
+            </h2>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-full border border-gray-300 bg-white" />
+                <span>Yea</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: "#18181b" }} />
+                <span>Nay</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-full bg-yellow-500" />
+                <span>Present</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-3 w-3 rounded-full bg-gray-500" />
+                <span>Not Voting</span>
+              </div>
+              <div className="ml-2 flex items-center gap-1.5 border-l border-gray-300 pl-3">
+                <span className="text-gray-400">
+                  Aura = party color
+                </span>
+              </div>
+            </div>
+            <div className="h-[400px]">
+              <HemicycleChart
+                chamber={vote.chamber}
+                seats={overlaySeats}
+                showVoteOverlay
+              />
+            </div>
+          </div>
+        )}
 
         {/* Vote ID */}
         <div className="bg-white rounded-lg shadow-sm p-6">

@@ -26,16 +26,12 @@ const SEAT_RADIUS = {
   house: 4.5,
 };
 
-// Nay uses the card background color so dots "disappear" behind the party aura.
-// We expose it as a CSS variable so it adapts to dark mode.
-const NAY_COLOR_VAR = "var(--hemicycle-bg)";
-
 // Inner dot color when vote overlay is active
 function getVotePositionFillColor(position: VotePosition | null): string {
   if (!position) return "#d1d5db"; // gray-300 for no data
   const colors: Record<VotePosition, string> = {
     yea: "#ffffff",    // white = voted yes
-    nay: NAY_COLOR_VAR, // matches card background via CSS variable
+    nay: "#18181b",    // dark = voted no
     present: "#eab308", // yellow-500
     not_voting: "#6b7280", // gray-500
   };

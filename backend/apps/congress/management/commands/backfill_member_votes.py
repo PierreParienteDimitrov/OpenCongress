@@ -136,7 +136,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"    -> {count} member votes created")
             else:
                 errors += 1
-                self.stdout.write(self.style.WARNING(f"    -> 0 member votes"))
+                self.stdout.write(self.style.WARNING("    -> 0 member votes"))
 
         self.stdout.write(
             self.style.SUCCESS(
