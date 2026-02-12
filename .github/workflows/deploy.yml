@@ -69,7 +69,10 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.test
           SECRET_KEY: test-secret-key-for-ci
         run: |
-          pytest -v --tb=short; ec=$?
+          set +e
+          pytest -v --tb=short
+          ec=$?
+          set -e
           if [ $ec -eq 5 ]; then echo "No tests collected, skipping."; exit 0; fi
           exit $ec
 
