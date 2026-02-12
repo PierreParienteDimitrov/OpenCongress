@@ -244,18 +244,24 @@ async function fetchAPIClient<T>(endpoint: string): Promise<T> {
 }
 
 export async function getSenatorsPaginated(
-  page: number = 1
+  page: number = 1,
+  search: string = ""
 ): Promise<PaginatedResponse<MemberListItem>> {
+  const params = new URLSearchParams({ page: String(page), ordering: "last_name" });
+  if (search) params.set("search", search);
   return fetchAPIClient<PaginatedResponse<MemberListItem>>(
-    `/members/senators/?page=${page}&ordering=last_name`
+    `/members/senators/?${params}`
   );
 }
 
 export async function getRepresentativesPaginated(
-  page: number = 1
+  page: number = 1,
+  search: string = ""
 ): Promise<PaginatedResponse<MemberListItem>> {
+  const params = new URLSearchParams({ page: String(page), ordering: "last_name" });
+  if (search) params.set("search", search);
   return fetchAPIClient<PaginatedResponse<MemberListItem>>(
-    `/members/representatives/?page=${page}&ordering=last_name`
+    `/members/representatives/?${params}`
   );
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Search } from "lucide-react";
 import Link from "next/link";
 
 import type { MemberListItem, PaginatedResponse } from "@/types";
@@ -20,7 +21,7 @@ import { Button } from "@/components/ui/button";
 interface MemberListProps {
   chamber: "senate" | "house";
   initialData: PaginatedResponse<MemberListItem>;
-  fetchFn: (page: number) => Promise<PaginatedResponse<MemberListItem>>;
+  fetchFn: (page: number, search: string) => Promise<PaginatedResponse<MemberListItem>>;
 }
 
 function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "senate" | "house" }) {
@@ -100,26 +101,43 @@ function MemberCardSkeleton() {
 
 export default function MemberList({ chamber, initialData, fetchFn }: MemberListProps) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Debounce search input by 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const isSearching = debouncedSearch.length > 0;
 
   const {
     data,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetching,
     status,
   } = useInfiniteQuery({
-    queryKey: ["members", chamber],
+    queryKey: ["members", chamber, debouncedSearch],
     queryFn: async ({ pageParam }) => {
-      return fetchFn(pageParam);
+      return fetchFn(pageParam, debouncedSearch);
     },
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => {
       return lastPage.next ? allPages.length + 1 : undefined;
     },
-    initialData: {
-      pages: [initialData],
-      pageParams: [1],
-    },
+    ...(isSearching
+      ? {}
+      : {
+          initialData: {
+            pages: [initialData],
+            pageParams: [1],
+          },
+        }),
   });
 
   // Intersection Observer for infinite scroll
@@ -155,9 +173,23 @@ export default function MemberList({ chamber, initialData, fetchFn }: MemberList
 
   return (
     <div>
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search by name or state..."
+          className="h-10 w-full rounded-md border border-input bg-card pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50"
+        />
+      </div>
+
       {/* Count */}
       <p className="mb-4 text-sm text-muted-foreground">
-        Showing {allMembers.length} of {totalCount} members
+        {isFetching && !isFetchingNextPage
+          ? "Searching..."
+          : `Showing ${allMembers.length} of ${totalCount} members`}
       </p>
 
       {/* Grid */}
