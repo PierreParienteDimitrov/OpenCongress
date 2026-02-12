@@ -102,7 +102,9 @@ def generate_bill_summaries() -> dict:
 
     bills_needing_summaries = Bill.objects.filter(
         Q(ai_summary="") | ~Q(ai_summary_prompt_version=BILL_SUMMARY_VERSION)
-    ).values_list("bill_id", flat=True)[:50]  # Process up to 50 per run
+    ).values_list("bill_id", flat=True)[
+        :50
+    ]  # Process up to 50 per run
 
     processed = 0
     errors = 0
