@@ -67,7 +67,9 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 CORS_ALLOW_CREDENTIALS = True
 
 # Security
-SECURE_SSL_REDIRECT = True
+# SSL is terminated at Railway's load balancer — don't redirect at the app level
+# or internal healthchecks will fail (they hit http://localhost internally)
+SECURE_SSL_REDIRECT = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
