@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI Pipeline
 
 on:
   push:
@@ -6,16 +6,7 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
 jobs:
-  # ============================================
-  # STAGE 1: Test & Build (parallel)
-  # ============================================
   test-backend:
     name: Test Backend
     runs-on: ubuntu-latest
@@ -28,7 +19,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD || 'testpassword123' }}
+          POSTGRES_PASSWORD: testpassword123
           POSTGRES_DB: test_congresstrack
         ports:
           - 5432:5432
@@ -73,7 +64,7 @@ jobs:
 
       - name: Run tests
         env:
-          DATABASE_URL: postgresql://postgres:${{ secrets.CI_POSTGRES_PASSWORD || 'testpassword123' }}@localhost:5432/test_congresstrack
+          DATABASE_URL: postgresql://postgres:testpassword123@localhost:5432/test_congresstrack
           REDIS_URL: redis://localhost:6379/0
           DJANGO_SETTINGS_MODULE: config.settings.test
           SECRET_KEY: test-secret-key-for-ci
@@ -108,115 +99,4 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: https://api.congresstrack.org/api/v1
-
-  # ============================================
-  # STAGE 2: Deploy Backend (Railway)
-  # ============================================
-  deploy-backend:
-    name: Deploy Backend
-    needs: [test-backend, test-frontend]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    outputs:
-      backend_url: ${{ steps.deploy.outputs.backend_url }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy Django API
-        id: deploy
-        run: |
-          cd backend
-          railway up --service congresstrack-api --detach
-
-          # Get the deployment URL
-          BACKEND_URL=$(railway domain --service congresstrack-api)
-          echo "backend_url=https://${BACKEND_URL}" >> $GITHUB_OUTPUT
-          echo "Backend URL: https://${BACKEND_URL}"
-
-      - name: Run database migrations
-        run: |
-          cd backend
-          railway run --service congresstrack-api python manage.py migrate --noinput
-
-      - name: Deploy Celery Worker
-        run: |
-          cd backend
-          railway up --service congresstrack-celery --detach
-
-      - name: Deploy Celery Beat
-        run: |
-          cd backend
-          railway up --service congresstrack-celery-beat --detach
-
-      - name: Health check
-        id: health_check
-        run: |
-          BACKEND_URL="${{ steps.deploy.outputs.backend_url }}"
-          echo "Waiting for backend to be healthy..."
-
-          MAX_ATTEMPTS=30
-          ATTEMPT=0
-
-          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            ATTEMPT=$((ATTEMPT + 1))
-            echo "Attempt $ATTEMPT of $MAX_ATTEMPTS..."
-
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${BACKEND_URL}/api/health/" || echo "000")
-
-            if [ "$HTTP_STATUS" = "200" ]; then
-              echo "Backend is healthy!"
-              exit 0
-            fi
-
-            echo "Health check returned $HTTP_STATUS, waiting 10s..."
-            sleep 10
-          done
-
-          echo "Backend health check failed after $MAX_ATTEMPTS attempts"
-          exit 1
-
-  # ============================================
-  # STAGE 3: Deploy Frontend (Vercel)
-  # ============================================
-  deploy-frontend:
-    name: Deploy Frontend
-    needs: [deploy-backend]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Pull Vercel Environment
-        run: |
-          cd frontend
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Build for Production
-        run: |
-          cd frontend
-          vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          NEXT_PUBLIC_API_URL: ${{ needs.deploy-backend.outputs.backend_url }}/api/v1
-
-      - name: Deploy to Vercel
-        run: |
-          cd frontend
-          vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deployment Summary
-        run: |
-          echo "## Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Service | URL |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend API | ${{ needs.deploy-backend.outputs.backend_url }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | https://congresstrack.vercel.app |" >> $GITHUB_STEP_SUMMARY
+          NEXT_PUBLIC_API_URL: https://api.opencongress.app/api/v1
