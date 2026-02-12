@@ -56,8 +56,8 @@ else:
 
 # CORS - Allow Vercel preview deployments and production domains
 CORS_ALLOWED_ORIGINS = [
-    "https://congresstrack.org",
-    "https://www.congresstrack.org",
+    "https://opencongress.app",
+    "https://www.opencongress.app",
 ]
 
 # Allow Vercel preview URLs (*.vercel.app)
