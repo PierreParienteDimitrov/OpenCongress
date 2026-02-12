@@ -47,9 +47,7 @@ class AIService:
             text = response.text.strip()
             tokens = response.usage_metadata.total_token_count
 
-            logger.info(
-                f"Generated completion with {tokens} tokens using {self.MODEL}"
-            )
+            logger.info(f"Generated completion with {tokens} tokens using {self.MODEL}")
 
             return text, tokens
 

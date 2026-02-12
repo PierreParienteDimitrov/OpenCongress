@@ -84,7 +84,9 @@ class WeeklySummary(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.get_summary_type_display()} - Week {self.week_number}, {self.year}"
+        return (
+            f"{self.get_summary_type_display()} - Week {self.week_number}, {self.year}"
+        )
 
 
 class NewsLink(models.Model):

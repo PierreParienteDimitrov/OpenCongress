@@ -33,7 +33,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         api_key = os.environ.get("CONGRESS_API_KEY")
         if not api_key:
-            self.stderr.write(self.style.ERROR("CONGRESS_API_KEY not set in environment"))
+            self.stderr.write(
+                self.style.ERROR("CONGRESS_API_KEY not set in environment")
+            )
             return
 
         self.stdout.write("Fetching current members from Congress.gov...")

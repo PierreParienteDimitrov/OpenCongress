@@ -43,15 +43,11 @@ class MemberViewSet(viewsets.ReadOnlyModelViewSet):
             return MemberDetailSerializer
         return MemberListSerializer
 
-    @method_decorator(
-        cache_page(settings.CACHE_TIMEOUTS.get("member_list", 60 * 60))
-    )
+    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("member_list", 60 * 60)))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @method_decorator(
-        cache_page(settings.CACHE_TIMEOUTS.get("member_detail", 60 * 60))
-    )
+    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("member_detail", 60 * 60)))
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
 
@@ -72,9 +68,7 @@ class MemberViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=["get"])
-    @method_decorator(
-        cache_page(settings.CACHE_TIMEOUTS.get("member_list", 60 * 60))
-    )
+    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("member_list", 60 * 60)))
     def senators(self, request):
         """Get all Senate members."""
         queryset = self.filter_queryset(
@@ -170,9 +164,7 @@ class VoteViewSet(viewsets.ReadOnlyModelViewSet):
             return VoteCalendarSerializer
         return VoteSummarySerializer
 
-    @method_decorator(
-        cache_page(settings.CACHE_TIMEOUTS.get("vote_list", 60 * 5))
-    )
+    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("vote_list", 60 * 5)))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 

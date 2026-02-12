@@ -185,9 +185,7 @@ class VoteCalendarSerializer(serializers.ModelSerializer):
     bill_display_number = serializers.CharField(
         source="bill.display_number", allow_null=True
     )
-    bill_short_title = serializers.CharField(
-        source="bill.short_title", allow_null=True
-    )
+    bill_short_title = serializers.CharField(source="bill.short_title", allow_null=True)
 
     class Meta:
         model = Vote

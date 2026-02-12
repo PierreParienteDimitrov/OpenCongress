@@ -45,7 +45,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         api_key = os.environ.get("CONGRESS_API_KEY")
         if not api_key:
-            self.stderr.write(self.style.ERROR("CONGRESS_API_KEY not set in environment"))
+            self.stderr.write(
+                self.style.ERROR("CONGRESS_API_KEY not set in environment")
+            )
             return
 
         congress = options["congress"]
@@ -76,7 +78,9 @@ class Command(BaseCommand):
     ) -> tuple[int, int]:
         """Fetch votes for a chamber and return counts."""
         chamber_endpoint = "house-vote" if chamber == "house" else "senate-vote"
-        response_key = "houseRollCallVotes" if chamber == "house" else "senateRollCallVotes"
+        response_key = (
+            "houseRollCallVotes" if chamber == "house" else "senateRollCallVotes"
+        )
 
         url = f"{self.CONGRESS_API_BASE}/{chamber_endpoint}/{congress}"
         params = {
@@ -108,7 +112,9 @@ class Command(BaseCommand):
                 if votes_created >= limit:
                     break
 
-                v_created, mv_created = self._process_vote(api_key, vote_data, chamber, congress)
+                v_created, mv_created = self._process_vote(
+                    api_key, vote_data, chamber, congress
+                )
                 votes_created += v_created
                 member_votes_created += mv_created
 
@@ -163,7 +169,9 @@ class Command(BaseCommand):
         vote_date = None
         if date_str:
             try:
-                vote_date = datetime.fromisoformat(date_str.replace("Z", "+00:00")).date()
+                vote_date = datetime.fromisoformat(
+                    date_str.replace("Z", "+00:00")
+                ).date()
             except ValueError:
                 try:
                     vote_date = datetime.strptime(date_str[:10], "%Y-%m-%d").date()
@@ -218,8 +226,14 @@ class Command(BaseCommand):
         # Calculate totals
         total_yea = dem_totals["yea"] + rep_totals["yea"] + ind_totals["yea"]
         total_nay = dem_totals["nay"] + rep_totals["nay"] + ind_totals["nay"]
-        total_present = dem_totals["present"] + rep_totals["present"] + ind_totals["present"]
-        total_not_voting = dem_totals["not_voting"] + rep_totals["not_voting"] + ind_totals["not_voting"]
+        total_present = (
+            dem_totals["present"] + rep_totals["present"] + ind_totals["present"]
+        )
+        total_not_voting = (
+            dem_totals["not_voting"]
+            + rep_totals["not_voting"]
+            + ind_totals["not_voting"]
+        )
 
         # Determine if bipartisan
         dem_majority = dem_totals["yea"] > dem_totals["nay"]
@@ -264,16 +278,28 @@ class Command(BaseCommand):
         )
 
         # Fetch and process member votes
-        member_votes_created = self._fetch_member_votes(api_key, vote, chamber, congress, session, roll_call)
+        member_votes_created = self._fetch_member_votes(
+            api_key, vote, chamber, congress, session, roll_call
+        )
 
         return 1, member_votes_created
 
     def _fetch_member_votes(
-        self, api_key: str, vote: Vote, chamber: str, congress: int, session: int, roll_call: int
+        self,
+        api_key: str,
+        vote: Vote,
+        chamber: str,
+        congress: int,
+        session: int,
+        roll_call: int,
     ) -> int:
         """Fetch and save individual member votes."""
         chamber_endpoint = "house-vote" if chamber == "house" else "senate-vote"
-        response_key = "houseRollCallVoteMemberVotes" if chamber == "house" else "senateRollCallVoteMemberVotes"
+        response_key = (
+            "houseRollCallVoteMemberVotes"
+            if chamber == "house"
+            else "senateRollCallVoteMemberVotes"
+        )
 
         url = f"{self.CONGRESS_API_BASE}/{chamber_endpoint}/{congress}/{session}/{roll_call}/members"
         params = {"api_key": api_key, "format": "json"}

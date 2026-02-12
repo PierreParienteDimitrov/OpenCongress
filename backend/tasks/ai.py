@@ -140,9 +140,9 @@ def generate_member_bio(self, bioguide_id: str) -> dict:
     from services import AIService, CacheService
 
     try:
-        member = Member.objects.prefetch_related("committee_assignments__committee").get(
-            bioguide_id=bioguide_id
-        )
+        member = Member.objects.prefetch_related(
+            "committee_assignments__committee"
+        ).get(bioguide_id=bioguide_id)
     except Member.DoesNotExist:
         logger.error(f"Member not found: {bioguide_id}")
         return {"success": False, "error": "Member not found"}
@@ -151,9 +151,7 @@ def generate_member_bio(self, bioguide_id: str) -> dict:
         ai_service = AIService()
 
         # Get committee names
-        committees = [
-            ca.committee.name for ca in member.committee_assignments.all()
-        ]
+        committees = [ca.committee.name for ca in member.committee_assignments.all()]
 
         # Count recent bills
         recent_bills_count = member.sponsored_bills.count()
@@ -214,11 +212,11 @@ def generate_member_bios() -> dict:
     from prompts import MEMBER_BIO_VERSION
 
     # Find active members without bios or with outdated prompt versions
-    members_needing_bios = Member.objects.filter(
-        is_active=True
-    ).filter(
-        Q(ai_bio="") | ~Q(ai_bio_prompt_version=MEMBER_BIO_VERSION)
-    ).values_list("bioguide_id", flat=True)[:50]  # Process up to 50 per run
+    members_needing_bios = (
+        Member.objects.filter(is_active=True)
+        .filter(Q(ai_bio="") | ~Q(ai_bio_prompt_version=MEMBER_BIO_VERSION))
+        .values_list("bioguide_id", flat=True)[:50]
+    )  # Process up to 50 per run
 
     processed = 0
     errors = 0
@@ -273,18 +271,24 @@ def generate_weekly_recap(self) -> dict:
         ai_service = AIService()
 
         # Get votes from this week
-        votes = Vote.objects.filter(
-            date__gte=week_start, date__lte=week_end
-        ).select_related("bill").order_by("-date", "-time")[:20]
+        votes = (
+            Vote.objects.filter(date__gte=week_start, date__lte=week_end)
+            .select_related("bill")
+            .order_by("-date", "-time")[:20]
+        )
 
-        votes_summary = "\n".join(
-            [
-                f"- {v.date}: {v.description} - {v.result.upper()} "
-                f"(Yea: {v.total_yea}, Nay: {v.total_nay})"
-                f"{' [Bipartisan]' if v.is_bipartisan else ''}"
-                for v in votes
-            ]
-        ) if votes else "No votes recorded this week."
+        votes_summary = (
+            "\n".join(
+                [
+                    f"- {v.date}: {v.description} - {v.result.upper()} "
+                    f"(Yea: {v.total_yea}, Nay: {v.total_nay})"
+                    f"{' [Bipartisan]' if v.is_bipartisan else ''}"
+                    for v in votes
+                ]
+            )
+            if votes
+            else "No votes recorded this week."
+        )
 
         vote_ids = [v.vote_id for v in votes]
 
@@ -293,12 +297,16 @@ def generate_weekly_recap(self) -> dict:
             latest_action_date__gte=week_start, latest_action_date__lte=week_end
         ).order_by("-latest_action_date")[:15]
 
-        bills_summary = "\n".join(
-            [
-                f"- {b.display_number}: {b.short_title or b.title[:100]} - {b.latest_action_text}"
-                for b in bills
-            ]
-        ) if bills else "No significant bill activity this week."
+        bills_summary = (
+            "\n".join(
+                [
+                    f"- {b.display_number}: {b.short_title or b.title[:100]} - {b.latest_action_text}"
+                    for b in bills
+                ]
+            )
+            if bills
+            else "No significant bill activity this week."
+        )
 
         bill_ids = [b.bill_id for b in bills]
 
@@ -384,12 +392,16 @@ def generate_weekly_preview(self) -> dict:
             latest_action_date__gte=today - timedelta(days=14)
         ).order_by("-latest_action_date")[:10]
 
-        pending_bills_summary = "\n".join(
-            [
-                f"- {b.display_number}: {b.short_title or b.title[:100]}"
-                for b in pending_bills
-            ]
-        ) if pending_bills else "No bills currently pending action."
+        pending_bills_summary = (
+            "\n".join(
+                [
+                    f"- {b.display_number}: {b.short_title or b.title[:100]}"
+                    for b in pending_bills
+                ]
+            )
+            if pending_bills
+            else "No bills currently pending action."
+        )
 
         bill_ids = [b.bill_id for b in pending_bills]
 

@@ -164,19 +164,26 @@ export async function getVotesCalendar(
 
 // Weekly summary endpoints
 export async function getCurrentWeeklySummaries(): Promise<WeeklySummary[]> {
-  return fetchAPI<WeeklySummary[]>("/content/weekly-summaries/current/", {
-    next: { revalidate: 900 }, // 15 minutes
-  });
+  const data = await fetchAPI<WeeklySummary[]>(
+    "/content/weekly-summaries/current/",
+    {
+      next: { revalidate: 900 }, // 15 minutes
+    }
+  );
+  // fetchAPI fallback returns a paginated object on failure; ensure we return an array
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getWeeklySummaryByWeek(
   year: number,
   week: number
 ): Promise<WeeklySummary[]> {
-  return fetchAPI<WeeklySummary[]>(
+  const data = await fetchAPI<WeeklySummary[]>(
     `/content/weekly-summaries/week/${year}/${week}/`,
     { next: { revalidate: 86400 } } // 24 hours
   );
+  // fetchAPI fallback returns a paginated object on failure; ensure we return an array
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getWeeklySummaries(): Promise<

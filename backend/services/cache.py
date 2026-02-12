@@ -48,9 +48,7 @@ class CacheService:
         CacheService._trigger_isr_revalidation(f"/{route}/{bioguide_id}")
 
     @staticmethod
-    def invalidate_weekly_summary(
-        year: int, week: int, summary_type: str
-    ) -> None:
+    def invalidate_weekly_summary(year: int, week: int, summary_type: str) -> None:
         """Invalidate cache for a weekly summary and trigger ISR."""
         # Clear Django cache keys
         cache_keys = [
@@ -60,7 +58,9 @@ class CacheService:
         for key in cache_keys:
             cache.delete(key)
 
-        logger.info(f"Invalidated cache for weekly summary {year}-W{week} {summary_type}")
+        logger.info(
+            f"Invalidated cache for weekly summary {year}-W{week} {summary_type}"
+        )
 
         # Trigger ISR revalidation for this-week page
         CacheService._trigger_isr_revalidation("/this-week")

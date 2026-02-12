@@ -5,7 +5,14 @@ from .models import Bill, Member, MemberVote, Seat, Vote
 
 @admin.register(Member)
 class MemberAdmin(admin.ModelAdmin):
-    list_display = ["bioguide_id", "full_name", "party", "chamber", "state", "is_active"]
+    list_display = [
+        "bioguide_id",
+        "full_name",
+        "party",
+        "chamber",
+        "state",
+        "is_active",
+    ]
     list_filter = ["chamber", "party", "state", "is_active"]
     search_fields = ["bioguide_id", "full_name", "last_name"]
     ordering = ["last_name"]

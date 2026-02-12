@@ -35,7 +35,9 @@ class Command(BaseCommand):
         total = Seat.objects.count()
         assigned = Seat.objects.exclude(member=None).count()
         self.stdout.write(
-            self.style.SUCCESS(f"Done! {total} seats created, {assigned} assigned to members")
+            self.style.SUCCESS(
+                f"Done! {total} seats created, {assigned} assigned to members"
+            )
         )
 
     def _generate_house_seats(self) -> list:
@@ -45,14 +47,14 @@ class Command(BaseCommand):
         # Hemicycle configuration
         # Total seats per row increases as you go back
         rows_config = [
-            35,   # Row 1 (front, closest to center)
+            35,  # Row 1 (front, closest to center)
             42,
             49,
             55,
             60,
             65,
             69,
-            60,   # Row 8
+            60,  # Row 8
         ]
 
         # We need 435 seats total, adjust last row
@@ -162,9 +164,9 @@ class Command(BaseCommand):
     def _assign_members_to_seats(self):
         """Assign members to seats based on party and seniority."""
         for chamber in ["house", "senate"]:
-            members = Member.objects.filter(
-                chamber=chamber, is_active=True
-            ).order_by("party", "-seniority_date", "last_name")
+            members = Member.objects.filter(chamber=chamber, is_active=True).order_by(
+                "party", "-seniority_date", "last_name"
+            )
 
             # Get seats by section
             dem_seats = list(

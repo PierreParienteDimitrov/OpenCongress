@@ -10,7 +10,7 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ["is_active", "is_staff", "state"]
     search_fields = ["username", "email"]
     fieldsets = [
-        *((BaseUserAdmin.fieldsets or [])),
+        *(BaseUserAdmin.fieldsets or []),
         (
             "CongressTrack",
             {

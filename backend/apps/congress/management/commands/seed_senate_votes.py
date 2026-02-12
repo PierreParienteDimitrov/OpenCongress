@@ -21,21 +21,62 @@ from apps.congress.models import Bill, Member, MemberVote, Vote
 
 # US state name to abbreviation mapping
 STATE_ABBREVS = {
-    "alabama": "al", "alaska": "ak", "arizona": "az", "arkansas": "ar",
-    "california": "ca", "colorado": "co", "connecticut": "ct", "delaware": "de",
-    "florida": "fl", "georgia": "ga", "hawaii": "hi", "idaho": "id",
-    "illinois": "il", "indiana": "in", "iowa": "ia", "kansas": "ks",
-    "kentucky": "ky", "louisiana": "la", "maine": "me", "maryland": "md",
-    "massachusetts": "ma", "michigan": "mi", "minnesota": "mn", "mississippi": "ms",
-    "missouri": "mo", "montana": "mt", "nebraska": "ne", "nevada": "nv",
-    "new hampshire": "nh", "new jersey": "nj", "new mexico": "nm", "new york": "ny",
-    "north carolina": "nc", "north dakota": "nd", "ohio": "oh", "oklahoma": "ok",
-    "oregon": "or", "pennsylvania": "pa", "rhode island": "ri", "south carolina": "sc",
-    "south dakota": "sd", "tennessee": "tn", "texas": "tx", "utah": "ut",
-    "vermont": "vt", "virginia": "va", "washington": "wa", "west virginia": "wv",
-    "wisconsin": "wi", "wyoming": "wy", "district of columbia": "dc",
-    "puerto rico": "pr", "guam": "gu", "virgin islands": "vi",
-    "american samoa": "as", "northern mariana islands": "mp",
+    "alabama": "al",
+    "alaska": "ak",
+    "arizona": "az",
+    "arkansas": "ar",
+    "california": "ca",
+    "colorado": "co",
+    "connecticut": "ct",
+    "delaware": "de",
+    "florida": "fl",
+    "georgia": "ga",
+    "hawaii": "hi",
+    "idaho": "id",
+    "illinois": "il",
+    "indiana": "in",
+    "iowa": "ia",
+    "kansas": "ks",
+    "kentucky": "ky",
+    "louisiana": "la",
+    "maine": "me",
+    "maryland": "md",
+    "massachusetts": "ma",
+    "michigan": "mi",
+    "minnesota": "mn",
+    "mississippi": "ms",
+    "missouri": "mo",
+    "montana": "mt",
+    "nebraska": "ne",
+    "nevada": "nv",
+    "new hampshire": "nh",
+    "new jersey": "nj",
+    "new mexico": "nm",
+    "new york": "ny",
+    "north carolina": "nc",
+    "north dakota": "nd",
+    "ohio": "oh",
+    "oklahoma": "ok",
+    "oregon": "or",
+    "pennsylvania": "pa",
+    "rhode island": "ri",
+    "south carolina": "sc",
+    "south dakota": "sd",
+    "tennessee": "tn",
+    "texas": "tx",
+    "utah": "ut",
+    "vermont": "vt",
+    "virginia": "va",
+    "washington": "wa",
+    "west virginia": "wv",
+    "wisconsin": "wi",
+    "wyoming": "wy",
+    "district of columbia": "dc",
+    "puerto rico": "pr",
+    "guam": "gu",
+    "virgin islands": "vi",
+    "american samoa": "as",
+    "northern mariana islands": "mp",
 }
 
 
@@ -70,13 +111,17 @@ class Command(BaseCommand):
         session = options["session"]
         limit = options["limit"]
 
-        self.stdout.write(f"Fetching Senate votes for Congress {congress}, Session {session}...")
+        self.stdout.write(
+            f"Fetching Senate votes for Congress {congress}, Session {session}..."
+        )
 
         # Build member lookup cache (last_name + state -> member)
         self.member_cache = self._build_member_cache()
         self.stdout.write(f"  Cached {len(self.member_cache)} senators for matching")
 
-        votes_created, member_votes_created = self._fetch_votes(congress, session, limit)
+        votes_created, member_votes_created = self._fetch_votes(
+            congress, session, limit
+        )
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -164,7 +209,9 @@ class Command(BaseCommand):
 
         return votes_created, member_votes_created
 
-    def _process_vote(self, vote_elem: ET.Element, congress: int, session: int) -> tuple[int, int]:
+    def _process_vote(
+        self, vote_elem: ET.Element, congress: int, session: int
+    ) -> tuple[int, int]:
         """Process a single vote from the list and fetch its details."""
         # Get roll call number from vote_number element
         vote_number_text = self._get_text(vote_elem, "vote_number")
@@ -283,7 +330,9 @@ class Command(BaseCommand):
 
         return 1, member_votes_created
 
-    def _parse_member_votes(self, members_elem: ET.Element | None) -> tuple[list[dict], dict]:
+    def _parse_member_votes(
+        self, members_elem: ET.Element | None
+    ) -> tuple[list[dict], dict]:
         """Parse member votes and calculate party totals."""
         party_totals = {
             "D": {"yea": 0, "nay": 0, "present": 0, "not_voting": 0},
@@ -306,13 +355,15 @@ class Command(BaseCommand):
             position = self._map_vote_cast(vote_cast)
 
             # Store member vote data for later creation
-            member_votes_data.append({
-                "last_name": last_name,
-                "first_name": first_name,
-                "party": party,
-                "state": state,
-                "position": position,
-            })
+            member_votes_data.append(
+                {
+                    "last_name": last_name,
+                    "first_name": first_name,
+                    "party": party,
+                    "state": state,
+                    "position": position,
+                }
+            )
 
             # Update party totals
             party_key = party if party in party_totals else "I"
@@ -353,7 +404,9 @@ class Command(BaseCommand):
 
         return created
 
-    def _find_member(self, last_name: str, first_name: str, state: str) -> Member | None:
+    def _find_member(
+        self, last_name: str, first_name: str, state: str
+    ) -> Member | None:
         """Find a member in the cache by name and state."""
         # Try primary lookup: last_name + state
         key = f"{last_name.lower()}_{state.lower()}"
@@ -429,8 +482,8 @@ class Command(BaseCommand):
         # Try various formats
         formats = [
             "%B %d, %Y, %I:%M %p",  # "January 9, 2025, 02:54 PM"
-            "%B %d, %Y",            # "January 9, 2025"
-            "%Y-%m-%d",             # "2025-01-09"
+            "%B %d, %Y",  # "January 9, 2025"
+            "%Y-%m-%d",  # "2025-01-09"
         ]
 
         for fmt in formats:

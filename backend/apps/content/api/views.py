@@ -51,9 +51,7 @@ class WeeklySummaryViewSet(viewsets.ReadOnlyModelViewSet):
         today = date.today()
         year, week_number, _ = today.isocalendar()
 
-        summaries = WeeklySummary.objects.filter(
-            year=year, week_number=week_number
-        )
+        summaries = WeeklySummary.objects.filter(year=year, week_number=week_number)
 
         # If no summaries for current week, try previous week
         if not summaries.exists():
@@ -63,14 +61,14 @@ class WeeklySummaryViewSet(viewsets.ReadOnlyModelViewSet):
                 )
             else:
                 # First week of year, check last week of previous year
-                summaries = WeeklySummary.objects.filter(
-                    year=year - 1, week_number=52
-                )
+                summaries = WeeklySummary.objects.filter(year=year - 1, week_number=52)
 
         serializer = WeeklySummarySerializer(summaries, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=["get"], url_path="week/(?P<year>[0-9]+)/(?P<week>[0-9]+)")
+    @action(
+        detail=False, methods=["get"], url_path="week/(?P<year>[0-9]+)/(?P<week>[0-9]+)"
+    )
     @method_decorator(cache_page(60 * 60 * 24))  # Cache for 24 hours
     def week(self, request, year=None, week=None):
         """

@@ -301,7 +301,7 @@ class MemberVote(models.Model):
 class Committee(models.Model):
     """A congressional committee."""
 
-    committee_id = models.CharField(max_length=10, primary_key=True)
+    committee_id = models.CharField(max_length=20, primary_key=True)
     name = models.CharField(max_length=255)
     chamber = models.CharField(max_length=10, choices=Member.Chamber.choices)
     url = models.URLField(blank=True)

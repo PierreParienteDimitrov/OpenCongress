@@ -43,7 +43,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.api_key = os.environ.get("CONGRESS_API_KEY", "")
         if not self.api_key:
-            self.stderr.write(self.style.ERROR("CONGRESS_API_KEY not set in environment"))
+            self.stderr.write(
+                self.style.ERROR("CONGRESS_API_KEY not set in environment")
+            )
             return
 
         limit = options["limit"]
@@ -130,7 +132,9 @@ class Command(BaseCommand):
 
         return "not_found"
 
-    def _find_or_create_bill(self, vote_detail: dict, congress: int, dry_run: bool) -> Bill | None:
+    def _find_or_create_bill(
+        self, vote_detail: dict, congress: int, dry_run: bool
+    ) -> Bill | None:
         """Extract bill info from vote detail, find or create matching Bill."""
         leg_type = vote_detail.get("legislationType", "")
         leg_number = vote_detail.get("legislationNumber")
@@ -160,7 +164,9 @@ class Command(BaseCommand):
             self.bills_created += 1
         return bill
 
-    def _fetch_and_create_bill(self, bill_type: str, number: int, congress: int) -> Bill | None:
+    def _fetch_and_create_bill(
+        self, bill_type: str, number: int, congress: int
+    ) -> Bill | None:
         """Fetch bill details from API and create Bill record."""
         url = f"{self.CONGRESS_API_BASE}/bill/{congress}/{bill_type}/{number}"
         params = {"api_key": self.api_key, "format": "json"}
@@ -171,7 +177,9 @@ class Command(BaseCommand):
             response.raise_for_status()
             data = response.json()
         except Exception as e:
-            self.stderr.write(f"    Error fetching bill {bill_type}{number}-{congress}: {e}")
+            self.stderr.write(
+                f"    Error fetching bill {bill_type}{number}-{congress}: {e}"
+            )
             return None
 
         bill_data = data.get("bill", {})
@@ -196,7 +204,9 @@ class Command(BaseCommand):
             action_date_str = latest_action.get("actionDate")
             if action_date_str:
                 try:
-                    latest_action_date = datetime.strptime(action_date_str, "%Y-%m-%d").date()
+                    latest_action_date = datetime.strptime(
+                        action_date_str, "%Y-%m-%d"
+                    ).date()
                 except ValueError:
                     pass
             latest_action_text = latest_action.get("text", "")
