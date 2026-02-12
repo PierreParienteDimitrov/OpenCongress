@@ -6,7 +6,7 @@ from django.conf import settings
 from django.db.models import OuterRef, Subquery
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from django_filters.rest_framework import DjangoFilterBackend
+from django_filters.rest_framework import DjangoFilterBackend  # type: ignore[import-untyped]
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
