@@ -12,7 +12,10 @@ from .base import *  # noqa: F401, F403
 
 DEBUG = False
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",") + [
+    "api.opencongress.app",
+    "congresstrack-api-production.up.railway.app",
+]
 
 # Database - PostgreSQL
 # Railway provides DATABASE_URL; parse it if available, otherwise fall back to individual vars
