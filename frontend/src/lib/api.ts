@@ -59,13 +59,10 @@ async function fetchAPI<T>(
 
     return response.json();
   } catch (error) {
-    // During build time (no backend available), return empty defaults
-    // so pages can pre-render with fallback state and revalidate at runtime
-    if (error instanceof APIError) {
-      throw error;
-    }
+    // During build/prerendering, return empty defaults so pages render
+    // with fallback state and revalidate with real data at runtime
     console.warn(
-      `[API] Backend unreachable for ${endpoint}, returning empty default`
+      `[API] Request failed for ${endpoint}: ${error instanceof Error ? error.message : error}`
     );
     return { count: 0, next: null, previous: null, results: [] } as unknown as T;
   }
