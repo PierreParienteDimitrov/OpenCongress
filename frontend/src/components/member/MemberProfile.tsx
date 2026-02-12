@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { GridContainer } from "@/components/layout/GridContainer";
 import type { MemberDetail, MemberRecentVote } from "@/types";
 import {
+  cn,
   formatDate,
   getPartyBgColor,
   getPartyName,
@@ -13,6 +15,8 @@ import {
   getChamberShortName,
 } from "@/lib/utils";
 import { routes } from "@/lib/routes";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface MemberProfileProps {
   member: MemberDetail;
@@ -23,13 +27,13 @@ function RecentVoteItem({ vote }: { vote: MemberRecentVote }) {
     <div className="border-b last:border-b-0 py-3">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-700 truncate">{vote.description}</p>
-          <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+          <p className="text-sm text-foreground/80 truncate">{vote.description}</p>
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{formatDate(vote.date)}</span>
             {vote.bill_display_number && vote.bill_id && (
               <Link
                 href={routes.legislation.detail(vote.bill_id)}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-accent hover:text-accent/80"
               >
                 {vote.bill_display_number}
               </Link>
@@ -85,10 +89,10 @@ export default function MemberProfile({ member }: MemberProfileProps) {
   ].filter(Boolean) as Array<{ label: string; url: string; icon: React.ReactNode }>;
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <main className="min-h-screen bg-background">
+      <GridContainer className="py-8">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Photo */}
             <div className="shrink-0">
@@ -99,8 +103,8 @@ export default function MemberProfile({ member }: MemberProfileProps) {
                   className="w-32 h-32 md:w-40 md:h-40 rounded-lg object-cover"
                 />
               ) : (
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-lg bg-gray-200 flex items-center justify-center">
-                  <span className="text-4xl text-gray-400">
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-lg bg-secondary flex items-center justify-center">
+                  <span className="text-4xl text-muted-foreground/60">
                     {member.first_name[0]}
                     {member.last_name[0]}
                   </span>
@@ -110,7 +114,7 @@ export default function MemberProfile({ member }: MemberProfileProps) {
 
             {/* Info */}
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-3xl font-bold text-foreground mb-2">
                 {member.full_name}
               </h1>
 
@@ -120,18 +124,18 @@ export default function MemberProfile({ member }: MemberProfileProps) {
                 >
                   {getPartyName(member.party)}
                 </span>
-                <span className="text-gray-600">
+                <span className="text-muted-foreground">
                   {getChamberShortName(member.chamber)}
                 </span>
-                <span className="text-gray-400">&middot;</span>
-                <span className="text-gray-600">
+                <span className="text-muted-foreground/60">&middot;</span>
+                <span className="text-muted-foreground">
                   {getMemberLocation(member.state, member.district, member.chamber)}
                 </span>
               </div>
 
               {/* Term info */}
               {(member.term_start || member.term_end) && (
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   Term:{" "}
                   {member.term_start && formatDate(member.term_start)}
                   {member.term_start && member.term_end && " - "}
@@ -148,7 +152,7 @@ export default function MemberProfile({ member }: MemberProfileProps) {
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                      className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                       title={link.label}
                     >
                       {link.icon}
@@ -161,18 +165,18 @@ export default function MemberProfile({ member }: MemberProfileProps) {
         </div>
 
         {/* Contact Info */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             Contact Information
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {member.phone && (
               <div>
-                <span className="text-sm text-gray-500">Phone</span>
+                <span className="text-sm text-muted-foreground">Phone</span>
                 <p className="font-medium">
                   <a
                     href={`tel:${member.phone}`}
-                    className="text-blue-600 hover:text-blue-800"
+                    className="text-accent hover:text-accent/80"
                   >
                     {member.phone}
                   </a>
@@ -181,21 +185,21 @@ export default function MemberProfile({ member }: MemberProfileProps) {
             )}
             {member.office_address && (
               <div>
-                <span className="text-sm text-gray-500">Office</span>
-                <p className="font-medium text-gray-700">
+                <span className="text-sm text-muted-foreground">Office</span>
+                <p className="font-medium text-foreground/80">
                   {member.office_address}
                 </p>
               </div>
             )}
             {member.website_url && (
               <div>
-                <span className="text-sm text-gray-500">Website</span>
+                <span className="text-sm text-muted-foreground">Website</span>
                 <p>
                   <a
                     href={member.website_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800"
+                    className="text-accent hover:text-accent/80"
                   >
                     Official Website
                   </a>
@@ -204,13 +208,13 @@ export default function MemberProfile({ member }: MemberProfileProps) {
             )}
             {member.contact_url && (
               <div>
-                <span className="text-sm text-gray-500">Contact Form</span>
+                <span className="text-sm text-muted-foreground">Contact Form</span>
                 <p>
                   <a
                     href={member.contact_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800"
+                    className="text-accent hover:text-accent/80"
                   >
                     Send a Message
                   </a>
@@ -222,37 +226,37 @@ export default function MemberProfile({ member }: MemberProfileProps) {
 
         {/* Bio */}
         {member.ai_bio && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">About</h2>
-            <p className="text-gray-700 whitespace-pre-wrap">{member.ai_bio}</p>
-            <p className="text-xs text-gray-400 mt-2">AI-generated biography</p>
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-foreground mb-3">About</h2>
+            <p className="text-foreground/80 whitespace-pre-wrap">{member.ai_bio}</p>
+            <p className="text-xs text-muted-foreground/60 mt-2">AI-generated biography</p>
           </div>
         )}
 
         {/* Stats */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             Legislative Activity
           </h2>
           <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-3xl font-bold text-gray-900">
+            <div className="text-center p-4 bg-background rounded-lg">
+              <p className="text-3xl font-bold text-foreground">
                 {member.sponsored_bills_count}
               </p>
-              <p className="text-sm text-gray-500">Bills Sponsored</p>
+              <p className="text-sm text-muted-foreground">Bills Sponsored</p>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <p className="text-3xl font-bold text-gray-900">
+            <div className="text-center p-4 bg-background rounded-lg">
+              <p className="text-3xl font-bold text-foreground">
                 {member.recent_votes.length}
               </p>
-              <p className="text-sm text-gray-500">Recent Votes</p>
+              <p className="text-sm text-muted-foreground">Recent Votes</p>
             </div>
           </div>
         </div>
 
         {/* Recent Votes */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className="bg-card rounded-lg shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">
             Recent Votes
           </h2>
           {member.recent_votes.length > 0 ? (
@@ -262,12 +266,12 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-center py-4">
+            <p className="text-muted-foreground text-center py-4">
               No recent votes recorded.
             </p>
           )}
         </div>
-      </div>
+      </GridContainer>
     </main>
   );
 }

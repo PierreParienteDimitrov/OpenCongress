@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ClickableCard } from "./ClickableCard";
 import { getBillsCalendar, getVotesCalendar } from "@/lib/api";
+import { GridContainer } from "@/components/layout/GridContainer";
 import { routes } from "@/lib/routes";
 import type { BillCalendarItem, VoteCalendarItem } from "@/types";
 import {
@@ -47,19 +48,19 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
 
   return (
     <div
-      className={`min-h-[200px] border-r last:border-r-0 ${isToday ? "bg-blue-50" : "bg-white"}`}
+      className={`min-h-[200px] border-r last:border-r-0 ${isToday ? "bg-blue-50" : "bg-card"}`}
     >
       {/* Day header */}
       <div
-        className={`p-2 border-b text-center ${isToday ? "bg-blue-100" : "bg-gray-50"}`}
+        className={`p-2 border-b text-center ${isToday ? "bg-blue-100" : "bg-secondary"}`}
       >
-        <div className="text-xs text-gray-500 uppercase">{dayName}</div>
+        <div className="text-xs text-muted-foreground uppercase">{dayName}</div>
         <div
-          className={`text-lg font-semibold ${isToday ? "text-blue-600" : "text-gray-900"}`}
+          className={`text-lg font-semibold ${isToday ? "text-accent" : "text-foreground"}`}
         >
           {dayNumber}
         </div>
-        <div className="text-xs text-gray-400">{monthName}</div>
+        <div className="text-xs text-muted-foreground/60">{monthName}</div>
       </div>
 
       {/* Content */}
@@ -71,10 +72,10 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
             href={vote.bill ? routes.legislation.detail(vote.bill) : routes.vote.detail(vote.vote_id)}
             itemId={vote.vote_id}
             itemType="vote"
-            className="block p-2 rounded bg-gradient-to-r from-gray-100 to-gray-50 border-l-4 border-gray-400 text-xs hover:from-gray-200 hover:to-gray-100 transition-colors"
+            className="block p-2 rounded bg-gradient-to-r from-secondary to-secondary/50 border-l-4 border-muted-foreground text-xs hover:from-muted hover:to-secondary transition-colors"
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-gray-500">
+              <span className="text-muted-foreground">
                 {getChamberShortName(vote.chamber)}
               </span>
               <span
@@ -83,15 +84,15 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
                 {getResultLabel(vote.result)}
               </span>
             </div>
-            <p className="text-gray-700 font-medium leading-tight">
+            <p className="text-foreground/80 font-medium leading-tight">
               {truncate(vote.description, 60)}
             </p>
             {vote.bill_display_number && (
-              <div className="text-blue-600 mt-1">
+              <div className="text-accent mt-1">
                 {vote.bill_display_number}
               </div>
             )}
-            <div className="mt-1 text-gray-500">
+            <div className="mt-1 text-muted-foreground">
               {vote.total_yea}Y - {vote.total_nay}N
             </div>
           </ClickableCard>
@@ -114,7 +115,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
               <div className="font-medium text-amber-800">
                 {bill.display_number}
               </div>
-              <p className="text-gray-700 leading-tight mt-1">
+              <p className="text-foreground/80 leading-tight mt-1">
                 {truncate(bill.short_title || bill.latest_action_text, 60)}
               </p>
             </ClickableCard>
@@ -122,7 +123,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
 
         {/* Empty state */}
         {votes.length === 0 && bills.length === 0 && (
-          <p className="text-gray-400 text-xs text-center py-4">No activity</p>
+          <p className="text-muted-foreground/60 text-xs text-center py-4">No activity</p>
         )}
       </div>
     </div>
@@ -190,12 +191,12 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   };
 
   return (
-    <main className="min-h-screen bg-gray-100">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+    <main className="min-h-screen bg-background">
+      <GridContainer className="py-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div className="bg-card rounded-lg shadow-sm p-4 mb-6">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold text-foreground">
               Legislative Calendar
             </h1>
 
@@ -203,7 +204,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             <div className="flex items-center gap-4">
               <Link
                 href={routes.calendar.week(formatDateParam(prevWeek))}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-background text-muted-foreground transition-colors"
               >
                 <svg
                   className="w-5 h-5"
@@ -221,14 +222,14 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               </Link>
 
               <div className="text-center">
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-foreground">
                   {formatWeekRange(weekStart, weekEnd)}
                 </span>
               </div>
 
               <Link
                 href={routes.calendar.week(formatDateParam(nextWeek))}
-                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-background text-muted-foreground transition-colors"
               >
                 <svg
                   className="w-5 h-5"
@@ -247,7 +248,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
 
               <Link
                 href={routes.calendar.index}
-                className="ml-2 px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="ml-2 px-3 py-1 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
               >
                 Today
               </Link>
@@ -256,21 +257,21 @@ export default async function CalendarPage({ searchParams }: PageProps) {
         </div>
 
         {/* Legend */}
-        <div className="bg-white rounded-lg shadow-sm p-3 mb-4">
+        <div className="bg-card rounded-lg shadow-sm p-3 mb-4">
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded border-l-4 border-gray-400 bg-gray-100" />
-              <span className="text-gray-600">Vote</span>
+              <div className="w-3 h-3 rounded border-l-4 border-muted-foreground bg-background" />
+              <span className="text-muted-foreground">Vote</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded border-l-4 border-amber-400 bg-amber-50" />
-              <span className="text-gray-600">Bill Activity</span>
+              <span className="text-muted-foreground">Bill Activity</span>
             </div>
           </div>
         </div>
 
         {/* Calendar Grid */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-card rounded-lg shadow-sm overflow-hidden">
           <div className="grid grid-cols-7 divide-x border-b">
             {weekDates.map((date) => {
               const dateKey = formatDateParam(date);
@@ -291,32 +292,32 @@ export default async function CalendarPage({ searchParams }: PageProps) {
 
         {/* Summary Stats */}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow-sm p-4 text-center">
-            <p className="text-3xl font-bold text-gray-900">
+          <div className="bg-card rounded-lg shadow-sm p-4 text-center">
+            <p className="text-3xl font-bold text-foreground">
               {votesResponse.results.length}
             </p>
-            <p className="text-sm text-gray-500">Votes This Week</p>
+            <p className="text-sm text-muted-foreground">Votes This Week</p>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4 text-center">
-            <p className="text-3xl font-bold text-gray-900">
+          <div className="bg-card rounded-lg shadow-sm p-4 text-center">
+            <p className="text-3xl font-bold text-foreground">
               {billsResponse.results.length}
             </p>
-            <p className="text-sm text-gray-500">Bills With Activity</p>
+            <p className="text-sm text-muted-foreground">Bills With Activity</p>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4 text-center">
+          <div className="bg-card rounded-lg shadow-sm p-4 text-center">
             <p className="text-3xl font-bold text-green-600">
               {votesResponse.results.filter((v) => v.result === "passed" || v.result === "agreed").length}
             </p>
-            <p className="text-sm text-gray-500">Passed/Agreed</p>
+            <p className="text-sm text-muted-foreground">Passed/Agreed</p>
           </div>
-          <div className="bg-white rounded-lg shadow-sm p-4 text-center">
+          <div className="bg-card rounded-lg shadow-sm p-4 text-center">
             <p className="text-3xl font-bold text-red-600">
               {votesResponse.results.filter((v) => v.result === "failed" || v.result === "rejected").length}
             </p>
-            <p className="text-sm text-gray-500">Failed/Rejected</p>
+            <p className="text-sm text-muted-foreground">Failed/Rejected</p>
           </div>
         </div>
-      </div>
+      </GridContainer>
     </main>
   );
 }

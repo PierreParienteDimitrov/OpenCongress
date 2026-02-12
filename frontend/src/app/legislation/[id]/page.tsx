@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 
 import { getBill } from "@/lib/api";
+import { GridContainer } from "@/components/layout/GridContainer";
 import { routes, getMemberRoute } from "@/lib/routes";
 import {
   formatDate,
@@ -38,9 +39,9 @@ function VoteCard({ vote }: { vote: VoteSummary }) {
   const yeaPercent = totalVotes > 0 ? (vote.total_yea / totalVotes) * 100 : 0;
 
   return (
-    <div className="border rounded-lg p-4 bg-white shadow-sm">
+    <div className="border rounded-lg p-4 bg-card shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-muted-foreground">
           {getChamberShortName(vote.chamber)} &middot; {formatDate(vote.date)}
         </span>
         <span className={`px-2 py-1 rounded text-sm font-medium ${getResultBgColor(vote.result)}`}>
@@ -48,11 +49,11 @@ function VoteCard({ vote }: { vote: VoteSummary }) {
         </span>
       </div>
 
-      <p className="text-sm text-gray-700 mb-3">{vote.question}</p>
+      <p className="text-sm text-foreground/80 mb-3">{vote.question}</p>
 
       {/* Vote bar */}
       <div className="mb-3">
-        <div className="flex h-4 rounded-full overflow-hidden bg-gray-200">
+        <div className="flex h-4 rounded-full overflow-hidden bg-secondary">
           <div
             className="bg-green-500 transition-all"
             style={{ width: `${yeaPercent}%` }}
@@ -116,28 +117,28 @@ export default async function LegislationPage({ params }: PageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <main className="min-h-screen bg-background">
+      <GridContainer className="py-8">
         {/* Header */}
         <div className="mb-6">
           <Link
             href={routes.calendar.index}
-            className="text-blue-600 hover:text-blue-800 text-sm mb-2 inline-block"
+            className="text-accent hover:text-accent/80 text-sm mb-2 inline-block"
           >
             &larr; Back to Calendar
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
             {bill.display_number}
           </h1>
-          <h2 className="text-xl text-gray-700">
+          <h2 className="text-xl text-foreground/80">
             {bill.short_title || bill.title}
           </h2>
         </div>
 
         {/* Sponsor */}
         {bill.sponsor && (
-          <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Sponsor</h3>
+          <div className="bg-card rounded-lg shadow-sm p-4 mb-6">
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Sponsor</h3>
             <div className="flex items-center gap-3">
               {bill.sponsor.photo_url && (
                 <img
@@ -149,11 +150,11 @@ export default async function LegislationPage({ params }: PageProps) {
               <div>
                 <Link
                   href={getMemberRoute(bill.sponsor.bioguide_id, bill.sponsor.chamber)}
-                  className="text-blue-600 hover:text-blue-800 font-medium"
+                  className="text-accent hover:text-accent/80 font-medium"
                 >
                   {bill.sponsor.full_name}
                 </Link>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span
                     className={`px-2 py-0.5 rounded text-xs font-medium ${getPartyBgColor(bill.sponsor.party)}`}
                   >
@@ -171,28 +172,28 @@ export default async function LegislationPage({ params }: PageProps) {
         )}
 
         {/* Bill Details */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <span className="text-sm text-gray-500">Congress</span>
+              <span className="text-sm text-muted-foreground">Congress</span>
               <p className="font-medium">{bill.congress}th Congress</p>
             </div>
             <div>
-              <span className="text-sm text-gray-500">Introduced</span>
+              <span className="text-sm text-muted-foreground">Introduced</span>
               <p className="font-medium">{formatDate(bill.introduced_date)}</p>
             </div>
           </div>
 
           {/* Latest Action */}
           <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">
               Latest Action
             </h3>
-            <p className="text-gray-700">
+            <p className="text-foreground/80">
               {bill.latest_action_text || "No action recorded"}
             </p>
             {bill.latest_action_date && (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {formatDate(bill.latest_action_date)}
               </p>
             )}
@@ -201,29 +202,29 @@ export default async function LegislationPage({ params }: PageProps) {
 
         {/* Summary */}
         {(bill.ai_summary || bill.summary_text) && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Summary</h3>
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+            <h3 className="text-lg font-semibold text-foreground mb-3">Summary</h3>
             {bill.ai_summary ? (
               <div>
-                <p className="text-gray-700 whitespace-pre-wrap">
+                <p className="text-foreground/80 whitespace-pre-wrap">
                   {bill.ai_summary}
                 </p>
-                <p className="text-xs text-gray-400 mt-2">AI-generated summary</p>
+                <p className="text-xs text-muted-foreground/60 mt-2">AI-generated summary</p>
               </div>
             ) : bill.summary_html ? (
               <div
-                className="prose prose-sm max-w-none text-gray-700"
+                className="prose prose-sm max-w-none text-foreground/80"
                 dangerouslySetInnerHTML={{ __html: bill.summary_html }}
               />
             ) : (
-              <p className="text-gray-700">{bill.summary_text}</p>
+              <p className="text-foreground/80">{bill.summary_text}</p>
             )}
           </div>
         )}
 
         {/* Votes */}
         <div className="mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">
+          <h3 className="text-lg font-semibold text-foreground mb-3">
             Votes ({bill.votes.length})
           </h3>
           {bill.votes.length > 0 ? (
@@ -233,7 +234,7 @@ export default async function LegislationPage({ params }: PageProps) {
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow-sm p-6 text-center text-gray-500">
+            <div className="bg-card rounded-lg shadow-sm p-6 text-center text-muted-foreground">
               No votes recorded for this legislation yet.
             </div>
           )}
@@ -246,7 +247,7 @@ export default async function LegislationPage({ params }: PageProps) {
               href={bill.congress_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
+              className="inline-flex items-center gap-2 text-accent hover:text-accent/80"
             >
               View on Congress.gov
               <svg
@@ -265,7 +266,7 @@ export default async function LegislationPage({ params }: PageProps) {
             </a>
           </div>
         )}
-      </div>
+      </GridContainer>
     </main>
   );
 }

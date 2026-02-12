@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 
 import { getVote, getSeatVoteOverlay } from "@/lib/api";
+import { GridContainer } from "@/components/layout/GridContainer";
 import { routes } from "@/lib/routes";
 import {
   formatDate,
@@ -48,30 +49,30 @@ export default async function VotePage({ params }: PageProps) {
   const yeaPercent = totalVotes > 0 ? (vote.total_yea / totalVotes) * 100 : 0;
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <main className="min-h-screen bg-background">
+      <GridContainer className="py-8">
         {/* Header */}
         <div className="mb-6">
           <Link
             href={routes.calendar.index}
-            className="text-blue-600 hover:text-blue-800 text-sm mb-2 inline-block"
+            className="text-accent hover:text-accent/80 text-sm mb-2 inline-block"
           >
             &larr; Back to Calendar
           </Link>
           <div className="flex items-center gap-3 mb-2">
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-muted-foreground">
               {getChamberName(vote.chamber)}
             </span>
-            <span className="text-sm text-gray-400">•</span>
-            <span className="text-sm text-gray-500">{formatDate(vote.date)}</span>
+            <span className="text-sm text-muted-foreground/60">•</span>
+            <span className="text-sm text-muted-foreground">{formatDate(vote.date)}</span>
             {vote.time && (
               <>
-                <span className="text-sm text-gray-400">•</span>
-                <span className="text-sm text-gray-500">{vote.time}</span>
+                <span className="text-sm text-muted-foreground/60">•</span>
+                <span className="text-sm text-muted-foreground">{vote.time}</span>
               </>
             )}
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">
+          <h1 className="text-3xl font-bold text-foreground mb-3">
             {vote.question}
           </h1>
           <span
@@ -82,12 +83,12 @@ export default async function VotePage({ params }: PageProps) {
         </div>
 
         {/* Vote Results */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Results</h2>
+        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4">Results</h2>
 
           {/* Vote bar */}
           <div className="mb-6">
-            <div className="flex h-8 rounded-full overflow-hidden bg-gray-200">
+            <div className="flex h-8 rounded-full overflow-hidden bg-secondary">
               <div
                 className="bg-green-500 transition-all flex items-center justify-center text-white text-sm font-medium"
                 style={{ width: `${yeaPercent}%` }}
@@ -105,7 +106,7 @@ export default async function VotePage({ params }: PageProps) {
               <span className="text-green-600 font-medium">
                 Yea: {vote.total_yea}
               </span>
-              <span className="text-gray-500">
+              <span className="text-muted-foreground">
                 Present: {vote.total_present} | Not Voting: {vote.total_not_voting}
               </span>
               <span className="text-red-600 font-medium">
@@ -115,7 +116,7 @@ export default async function VotePage({ params }: PageProps) {
           </div>
 
           {/* Party breakdown */}
-          <h3 className="text-md font-medium text-gray-700 mb-3">Party Breakdown</h3>
+          <h3 className="text-md font-medium text-foreground/80 mb-3">Party Breakdown</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Democrats */}
             <div className="bg-blue-50 rounded-lg p-4">
@@ -130,7 +131,7 @@ export default async function VotePage({ params }: PageProps) {
                   <span className="font-medium">{vote.dem_nay}</span>
                 </div>
               </div>
-              <div className="mt-2 h-2 rounded-full overflow-hidden bg-gray-200">
+              <div className="mt-2 h-2 rounded-full overflow-hidden bg-secondary">
                 <div
                   className="h-full bg-green-500"
                   style={{
@@ -153,7 +154,7 @@ export default async function VotePage({ params }: PageProps) {
                   <span className="font-medium">{vote.rep_nay}</span>
                 </div>
               </div>
-              <div className="mt-2 h-2 rounded-full overflow-hidden bg-gray-200">
+              <div className="mt-2 h-2 rounded-full overflow-hidden bg-secondary">
                 <div
                   className="h-full bg-green-500"
                   style={{
@@ -176,7 +177,7 @@ export default async function VotePage({ params }: PageProps) {
                   <span className="font-medium">{vote.ind_nay}</span>
                 </div>
               </div>
-              <div className="mt-2 h-2 rounded-full overflow-hidden bg-gray-200">
+              <div className="mt-2 h-2 rounded-full overflow-hidden bg-secondary">
                 <div
                   className="h-full bg-green-500"
                   style={{
@@ -198,13 +199,13 @@ export default async function VotePage({ params }: PageProps) {
 
         {/* Hemicycle Seat Map */}
         {overlaySeats.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">
+          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+            <h2 className="text-lg font-semibold text-foreground mb-3">
               Seat Map
             </h2>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-4">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
               <div className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded-full border border-gray-300 bg-white" />
+                <span className="inline-block h-3 w-3 rounded-full border border-border bg-white" />
                 <span>Yea</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -216,11 +217,11 @@ export default async function VotePage({ params }: PageProps) {
                 <span>Present</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded-full bg-gray-500" />
+                <span className="inline-block h-3 w-3 rounded-full bg-background0" />
                 <span>Not Voting</span>
               </div>
-              <div className="ml-2 flex items-center gap-1.5 border-l border-gray-300 pl-3">
-                <span className="text-gray-400">
+              <div className="ml-2 flex items-center gap-1.5 border-l border-border pl-3">
+                <span className="text-muted-foreground/60">
                   Aura = party color
                 </span>
               </div>
@@ -236,12 +237,12 @@ export default async function VotePage({ params }: PageProps) {
         )}
 
         {/* Vote ID */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="text-sm text-gray-500">
+        <div className="bg-card rounded-lg shadow-sm p-6">
+          <div className="text-sm text-muted-foreground">
             Vote ID: <span className="font-mono">{vote.vote_id}</span>
           </div>
         </div>
-      </div>
+      </GridContainer>
     </main>
   );
 }

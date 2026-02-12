@@ -1,26 +1,156 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-source-code-pro: var(--font-source-code-pro);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Grid system */
+  --container-max: var(--grid-max-width);
+  --grid-gutter: var(--grid-gap);
+  --grid-margin: var(--grid-margin-size);
 }
 
-@media (prefers-color-scheme: dark) {
+:root {
+  --radius: 0.625rem;
+
+  /* 12-column grid system tokens */
+  --grid-columns: 12;
+  --grid-margin-size: 16px;
+  --grid-gap: 16px;
+  --grid-max-width: 100%;
+  /* Bloomberg-inspired palette: Grays, Orange, Red, Green */
+  --background: oklch(0.96 0 0); /* Light Gray - #F5F5F5 (main content area) */
+  --foreground: oklch(0.15 0 0); /* Dark Gray/Black - #262626 (primary text) */
+  --card: oklch(1 0 0); /* White - #FFFFFF (card backgrounds) */
+  --card-foreground: oklch(0.15 0 0); /* Dark Gray - #262626 */
+  --popover: oklch(1 0 0); /* White */
+  --popover-foreground: oklch(0.15 0 0); /* Dark Gray */
+  --primary: oklch(0.25 0 0); /* Dark Gray - #404040 (navigation bar) */
+  --primary-foreground: oklch(1 0 0); /* White */
+  --secondary: oklch(0.92 0 0); /* Light Gray - #EBEBEB (secondary surfaces) */
+  --secondary-foreground: oklch(0.15 0 0); /* Dark Gray */
+  --muted: oklch(0.92 0 0); /* Light Gray - #EBEBEB */
+  --muted-foreground: oklch(0.50 0 0); /* Medium Gray - #808080 (secondary text) */
+  --accent: oklch(0.65 0.18 50); /* Orange - #FF8C00 (highlights, links) */
+  --accent-foreground: oklch(1 0 0); /* White */
+  --destructive: oklch(0.55 0.22 25); /* Red - #DC2626 (losses, errors) */
+  --border: oklch(0.88 0 0); /* Light Gray - #E0E0E0 (borders) */
+  --input: oklch(0.92 0 0); /* Light Gray - #EBEBEB */
+  --ring: oklch(0.65 0.18 50); /* Orange */
+  --chart-1: oklch(0.25 0 0); /* Dark Gray */
+  --chart-2: oklch(0.65 0.18 50); /* Orange */
+  --chart-3: oklch(0.60 0.20 145); /* Green - #16A34A (gains, success) */
+  --chart-4: oklch(0.55 0.22 25); /* Red - #DC2626 (losses) */
+  --chart-5: oklch(0.50 0 0); /* Medium Gray - #808080 */
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.75 0.18 50); /* Light Orange - visible on dark backgrounds */
+  --accent-foreground: oklch(0.145 0 0); /* Dark background color for contrast */
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(0.22 0 0);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+}
+
+/* Grid system responsive tokens */
+@media (width >= 768px) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --grid-margin-size: 24px;
+    --grid-gap: 20px;
+  }
+}
+@media (width >= 1024px) {
+  :root {
+    --grid-margin-size: 32px;
+    --grid-gap: 24px;
+  }
+}
+@media (width >= 1280px) {
+  :root {
+    --grid-margin-size: auto;
+    --grid-gap: 24px;
+    --grid-max-width: 1200px;
+  }
+}
+@media (width >= 1440px) {
+  :root {
+    --grid-gap: 32px;
+    --grid-max-width: 1360px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Grid container */
+.grid-container {
+  width: 100%;
+  max-width: var(--grid-max-width);
+  margin-inline: var(--grid-margin-size);
+}
+
+@media (width >= 1280px) {
+  .grid-container {
+    margin-inline: auto;
+  }
+}
+
+.grid-container--grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr));
+  gap: var(--grid-gap);
 }
