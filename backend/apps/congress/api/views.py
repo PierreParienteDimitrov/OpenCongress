@@ -3,13 +3,14 @@ ViewSets for the Congress API.
 """
 
 from django.conf import settings
+from django.db.models import OuterRef, Subquery
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.congress.models import Bill, Member, Vote
+from apps.congress.models import Bill, Member, MemberVote, Seat, Vote
 
 from .filters import BillFilter, MemberFilter, VoteFilter
 from .serializers import (
@@ -18,6 +19,8 @@ from .serializers import (
     BillListSerializer,
     MemberDetailSerializer,
     MemberListSerializer,
+    SeatSerializer,
+    SeatVoteOverlaySerializer,
     VoteCalendarSerializer,
     VoteSummarySerializer,
 )
@@ -201,4 +204,66 @@ class VoteViewSet(viewsets.ReadOnlyModelViewSet):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+
+class SeatViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for hemicycle seat data.
+
+    list: Get all seats for a chamber with member info (party-colored view).
+          Query params: chamber (required: "house" or "senate")
+    vote_overlay: Get all seats annotated with vote positions for a specific vote.
+          Query params: chamber (required), vote_id (required)
+    """
+
+    queryset = Seat.objects.select_related("member").order_by("row", "position")
+    serializer_class = SeatSerializer
+    pagination_class = None  # Return all seats at once (max 435)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        chamber = self.request.query_params.get("chamber")
+        if chamber in ("house", "senate"):
+            queryset = queryset.filter(chamber=chamber)
+        return queryset
+
+    @method_decorator(
+        cache_page(settings.CACHE_TIMEOUTS.get("hemicycle", 60 * 60 * 24))
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @action(detail=False, methods=["get"], url_path="vote-overlay")
+    def vote_overlay(self, request):
+        """Get seats with vote overlay for a specific vote."""
+        chamber = request.query_params.get("chamber")
+        vote_id = request.query_params.get("vote_id")
+
+        if not chamber or chamber not in ("house", "senate"):
+            return Response(
+                {"error": "chamber parameter is required (house or senate)"},
+                status=400,
+            )
+        if not vote_id:
+            return Response(
+                {"error": "vote_id parameter is required"},
+                status=400,
+            )
+
+        vote_position_subquery = Subquery(
+            MemberVote.objects.filter(
+                vote_id=vote_id,
+                member_id=OuterRef("member_id"),
+            ).values("position")[:1]
+        )
+
+        queryset = (
+            Seat.objects.filter(chamber=chamber)
+            .select_related("member")
+            .annotate(vote_position=vote_position_subquery)
+            .order_by("row", "position")
+        )
+
+        serializer = SeatVoteOverlaySerializer(queryset, many=True)
         return Response(serializer.data)

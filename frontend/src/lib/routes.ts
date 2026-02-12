@@ -37,6 +37,14 @@ export const routes = {
     detail: (voteId: string) => `/vote/${voteId}`,
   },
 
+  // Seat Maps (hemicycle)
+  senateSeats: {
+    index: "/senate-seats",
+  },
+  houseSeats: {
+    index: "/house-seats",
+  },
+
   // Documentation
   documentation: {
     index: "/documentation",

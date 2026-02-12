@@ -399,8 +399,10 @@ class Command(BaseCommand):
                     position=mv_data["position"],
                 )
                 created += 1
-            except Exception:
-                pass
+            except Exception as e:
+                self.stderr.write(
+                    f"    Failed to create member vote for {member.bioguide_id}: {e}"
+                )
 
         return created
 
@@ -408,13 +410,17 @@ class Command(BaseCommand):
         self, last_name: str, first_name: str, state: str
     ) -> Member | None:
         """Find a member in the cache by name and state."""
+        # Normalize state to abbreviation
+        state_lower = state.lower()
+        state_normalized = STATE_ABBREVS.get(state_lower, state_lower)
+
         # Try primary lookup: last_name + state
-        key = f"{last_name.lower()}_{state.lower()}"
+        key = f"{last_name.lower()}_{state_normalized}"
         if key in self.member_cache:
             return self.member_cache[key]
 
         # Try full name lookup
-        full_key = f"{first_name.lower()}_{last_name.lower()}_{state.lower()}"
+        full_key = f"{first_name.lower()}_{last_name.lower()}_{state_normalized}"
         if full_key in self.member_cache:
             return self.member_cache[full_key]
 

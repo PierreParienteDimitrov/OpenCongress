@@ -304,14 +304,21 @@ class Command(BaseCommand):
         url = f"{self.CONGRESS_API_BASE}/{chamber_endpoint}/{congress}/{session}/{roll_call}/members"
         params = {"api_key": api_key, "format": "json"}
 
-        try:
-            time.sleep(0.3)
-            response = requests.get(url, params=params, timeout=30)  # type: ignore[arg-type]
-            response.raise_for_status()
-            data = response.json().get(response_key, {})
-        except Exception as e:
-            self.stderr.write(f"    Failed to fetch member votes: {e}")
-            return 0
+        # Retry up to 3 times for transient failures
+        data = {}
+        for attempt in range(3):
+            try:
+                time.sleep(0.5 if attempt == 0 else 2.0)
+                response = requests.get(url, params=params, timeout=30)  # type: ignore[arg-type]
+                response.raise_for_status()
+                data = response.json().get(response_key, {})
+                break
+            except Exception as e:
+                if attempt == 2:
+                    self.stderr.write(
+                        f"    Failed to fetch member votes after 3 attempts: {e}"
+                    )
+                    return 0
 
         positions_map = {
             "yea": "yea",
@@ -343,8 +350,10 @@ class Command(BaseCommand):
                 created += 1
             except Member.DoesNotExist:
                 pass
-            except Exception:
-                pass
+            except Exception as e:
+                self.stderr.write(
+                    f"    Failed to create member vote for {bioguide_id}: {e}"
+                )
 
         return created
 

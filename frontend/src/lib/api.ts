@@ -10,6 +10,8 @@ import type {
   MemberDetail,
   MemberListItem,
   PaginatedResponse,
+  Seat,
+  SeatWithVote,
   VoteCalendarItem,
   VoteSummary,
   WeeklySummary,
@@ -162,6 +164,27 @@ export async function getVotesCalendar(
   );
 }
 
+// Seat endpoints
+export async function getSeats(
+  chamber: "house" | "senate"
+): Promise<Seat[]> {
+  const data = await fetchAPI<Seat[]>(`/seats/?chamber=${chamber}`, {
+    next: { revalidate: 86400 },
+  });
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getSeatVoteOverlay(
+  chamber: "house" | "senate",
+  voteId: string
+): Promise<SeatWithVote[]> {
+  const data = await fetchAPI<SeatWithVote[]>(
+    `/seats/vote-overlay/?chamber=${chamber}&vote_id=${encodeURIComponent(voteId)}`,
+    { next: { revalidate: 86400 } }
+  );
+  return Array.isArray(data) ? data : [];
+}
+
 // Weekly summary endpoints
 export async function getCurrentWeeklySummaries(): Promise<WeeklySummary[]> {
   const data = await fetchAPI<WeeklySummary[]>(
@@ -233,6 +256,15 @@ export async function getRepresentativesPaginated(
 ): Promise<PaginatedResponse<MemberListItem>> {
   return fetchAPIClient<PaginatedResponse<MemberListItem>>(
     `/members/representatives/?page=${page}&ordering=last_name`
+  );
+}
+
+export async function getSeatVoteOverlayClient(
+  chamber: "house" | "senate",
+  voteId: string
+): Promise<SeatWithVote[]> {
+  return fetchAPIClient<SeatWithVote[]>(
+    `/seats/vote-overlay/?chamber=${chamber}&vote_id=${encodeURIComponent(voteId)}`
   );
 }
 

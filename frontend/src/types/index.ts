@@ -163,6 +163,31 @@ export interface WeeklySummaryListItem {
   created_at: string;
 }
 
+// Seat types (for hemicycle visualization)
+export interface SeatMember {
+  bioguide_id: string;
+  full_name: string;
+  party: "D" | "R" | "I";
+  state: string;
+  district: number | null;
+  photo_url: string;
+}
+
+export interface Seat {
+  seat_id: string;
+  chamber: "house" | "senate";
+  section: "democrat" | "republican" | "independent";
+  row: number;
+  position: number;
+  svg_x: number;
+  svg_y: number;
+  member: SeatMember | null;
+}
+
+export interface SeatWithVote extends Seat {
+  vote_position: VotePosition | null;
+}
+
 // API response types
 export interface PaginatedResponse<T> {
   count: number;

@@ -4,7 +4,7 @@ Serializers for the Congress API.
 
 from rest_framework import serializers
 
-from apps.congress.models import Bill, Member, MemberVote, Vote
+from apps.congress.models import Bill, Member, MemberVote, Seat, Vote
 
 
 class MemberListSerializer(serializers.ModelSerializer):
@@ -222,4 +222,59 @@ class BillCalendarSerializer(serializers.ModelSerializer):
             "sponsor_id",
             "latest_action_date",
             "latest_action_text",
+        ]
+
+
+class SeatMemberSerializer(serializers.ModelSerializer):
+    """Lightweight member data embedded inside a seat."""
+
+    class Meta:
+        model = Member
+        fields = [
+            "bioguide_id",
+            "full_name",
+            "party",
+            "state",
+            "district",
+            "photo_url",
+        ]
+
+
+class SeatSerializer(serializers.ModelSerializer):
+    """Serializer for hemicycle seat data (party-colored default view)."""
+
+    member = SeatMemberSerializer(read_only=True)
+
+    class Meta:
+        model = Seat
+        fields = [
+            "seat_id",
+            "chamber",
+            "section",
+            "row",
+            "position",
+            "svg_x",
+            "svg_y",
+            "member",
+        ]
+
+
+class SeatVoteOverlaySerializer(serializers.ModelSerializer):
+    """Serializer for hemicycle seat data with vote position overlay."""
+
+    member = SeatMemberSerializer(read_only=True)
+    vote_position = serializers.CharField(read_only=True, allow_null=True, default=None)
+
+    class Meta:
+        model = Seat
+        fields = [
+            "seat_id",
+            "chamber",
+            "section",
+            "row",
+            "position",
+            "svg_x",
+            "svg_y",
+            "member",
+            "vote_position",
         ]

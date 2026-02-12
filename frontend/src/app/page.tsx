@@ -14,7 +14,7 @@ export default function Home() {
           </p>
         </header>
 
-        <nav className="grid w-full gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <nav className="grid w-full gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <Link
             href={routes.thisWeek.index}
             className="group flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
@@ -84,6 +84,42 @@ export default function Home() {
             </p>
             <span className="mt-auto text-sm font-medium text-blue-600 group-hover:underline dark:text-blue-400">
               Browse Representatives →
+            </span>
+          </Link>
+
+          <Link
+            href={routes.senateSeats.index}
+            className="group flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏛️</span>
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                Senate Seat Map
+              </h2>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              Interactive hemicycle visualization of U.S. Senate seats with vote overlay.
+            </p>
+            <span className="mt-auto text-sm font-medium text-blue-600 group-hover:underline dark:text-blue-400">
+              View Senate Map →
+            </span>
+          </Link>
+
+          <Link
+            href={routes.houseSeats.index}
+            className="group flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 transition-all hover:border-zinc-300 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏠</span>
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                House Seat Map
+              </h2>
+            </div>
+            <p className="text-zinc-600 dark:text-zinc-400">
+              Interactive hemicycle visualization of U.S. House seats with vote overlay.
+            </p>
+            <span className="mt-auto text-sm font-medium text-blue-600 group-hover:underline dark:text-blue-400">
+              View House Map →
             </span>
           </Link>
 
