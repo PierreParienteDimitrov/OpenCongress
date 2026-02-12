@@ -38,6 +38,10 @@
   --container-max: var(--grid-max-width);
   --grid-gutter: var(--grid-gap);
   --grid-margin: var(--grid-margin-size);
+
+  /* Navbar */
+  --color-nav: var(--nav);
+  --color-nav-foreground: var(--nav-foreground);
 }
 
 :root {
@@ -48,6 +52,12 @@
   --grid-margin-size: 16px;
   --grid-gap: 16px;
   --grid-max-width: 100%;
+
+  /* Navbar */
+  --navbar-height: 3.5rem;
+  --nav: oklch(0.25 0 0); /* Always-dark nav bar */
+  --nav-foreground: oklch(1 0 0); /* White text on nav */
+
   /* Bloomberg-inspired palette: Grays, Orange, Red, Green */
   --background: oklch(0.96 0 0); /* Light Gray - #F5F5F5 (main content area) */
   --foreground: oklch(0.15 0 0); /* Dark Gray/Black - #262626 (primary text) */
@@ -75,6 +85,8 @@
 }
 
 .dark {
+  --nav: oklch(0.15 0 0);
+  --nav-foreground: oklch(1 0 0);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);

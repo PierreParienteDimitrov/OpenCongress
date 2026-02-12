@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/card";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background font-sans">
-      <GridContainer className="flex min-h-screen flex-col items-center gap-16 py-16">
+    <div className="flex min-h-[calc(100vh-var(--navbar-height))] items-center justify-center bg-background font-sans">
+      <GridContainer className="flex flex-col items-center gap-16 py-16">
         <header className="flex flex-col items-center gap-4 text-center">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
             OpenCongress

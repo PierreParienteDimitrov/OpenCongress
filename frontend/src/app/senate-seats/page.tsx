@@ -20,7 +20,7 @@ export default async function SenateSeatsPage() {
   ]);
 
   return (
-    <main className="flex h-screen flex-col bg-background">
+    <main className="flex h-[calc(100vh-var(--navbar-height))] flex-col bg-background">
       {/* Header — compact, constrained width */}
       <div className="mx-auto w-full max-w-4xl shrink-0 px-4 pt-4 pb-2 sm:px-6 lg:px-8">
         <Link
