@@ -19,65 +19,10 @@ from django.db import transaction
 
 from apps.congress.models import Bill, Member, MemberVote, Vote
 
-# US state name to abbreviation mapping
-STATE_ABBREVS = {
-    "alabama": "al",
-    "alaska": "ak",
-    "arizona": "az",
-    "arkansas": "ar",
-    "california": "ca",
-    "colorado": "co",
-    "connecticut": "ct",
-    "delaware": "de",
-    "florida": "fl",
-    "georgia": "ga",
-    "hawaii": "hi",
-    "idaho": "id",
-    "illinois": "il",
-    "indiana": "in",
-    "iowa": "ia",
-    "kansas": "ks",
-    "kentucky": "ky",
-    "louisiana": "la",
-    "maine": "me",
-    "maryland": "md",
-    "massachusetts": "ma",
-    "michigan": "mi",
-    "minnesota": "mn",
-    "mississippi": "ms",
-    "missouri": "mo",
-    "montana": "mt",
-    "nebraska": "ne",
-    "nevada": "nv",
-    "new hampshire": "nh",
-    "new jersey": "nj",
-    "new mexico": "nm",
-    "new york": "ny",
-    "north carolina": "nc",
-    "north dakota": "nd",
-    "ohio": "oh",
-    "oklahoma": "ok",
-    "oregon": "or",
-    "pennsylvania": "pa",
-    "rhode island": "ri",
-    "south carolina": "sc",
-    "south dakota": "sd",
-    "tennessee": "tn",
-    "texas": "tx",
-    "utah": "ut",
-    "vermont": "vt",
-    "virginia": "va",
-    "washington": "wa",
-    "west virginia": "wv",
-    "wisconsin": "wi",
-    "wyoming": "wy",
-    "district of columbia": "dc",
-    "puerto rico": "pr",
-    "guam": "gu",
-    "virgin islands": "vi",
-    "american samoa": "as",
-    "northern mariana islands": "mp",
-}
+from apps.congress.api.constants import STATE_ABBREVS
+
+# Build lowercase version for seed command lookups
+_STATE_ABBREVS_LOWER = {k: v.lower() for k, v in STATE_ABBREVS.items()}
 
 
 class Command(BaseCommand):
@@ -153,7 +98,7 @@ class Command(BaseCommand):
 
             # Normalize state to abbreviation
             state = member.state.lower()
-            state_abbrev = STATE_ABBREVS.get(state, state)
+            state_abbrev = _STATE_ABBREVS_LOWER.get(state, state)
 
             # Primary key: last_name + state abbreviation
             key = f"{last_name.lower()}_{state_abbrev}"
@@ -412,7 +357,7 @@ class Command(BaseCommand):
         """Find a member in the cache by name and state."""
         # Normalize state to abbreviation
         state_lower = state.lower()
-        state_normalized = STATE_ABBREVS.get(state_lower, state_lower)
+        state_normalized = _STATE_ABBREVS_LOWER.get(state_lower, state_lower)
 
         # Try primary lookup: last_name + state
         key = f"{last_name.lower()}_{state_normalized}"

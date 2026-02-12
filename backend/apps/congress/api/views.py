@@ -6,13 +6,16 @@ from django.conf import settings
 from django.db.models import OuterRef, Subquery
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
 from apps.congress.models import Bill, Member, MemberVote, Seat, Vote
 
 from .filters import BillFilter, MemberFilter, VoteFilter
+from .search import MemberSearchFilter
 from .serializers import (
     BillCalendarSerializer,
     BillDetailSerializer,
@@ -38,7 +41,7 @@ class MemberViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = Member.objects.filter(is_active=True).order_by("last_name", "first_name")
     filterset_class = MemberFilter
-    search_fields = ["full_name", "last_name", "first_name", "state"]
+    filter_backends = [DjangoFilterBackend, MemberSearchFilter, OrderingFilter]
     ordering_fields = ["full_name", "last_name", "state", "party"]
 
     def get_serializer_class(self):
