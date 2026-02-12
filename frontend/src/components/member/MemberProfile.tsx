@@ -41,16 +41,12 @@ function RecentVoteItem({ vote }: { vote: MemberRecentVote }) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span
-            className={`px-2 py-0.5 rounded text-xs font-medium ${getPositionBgColor(vote.position)}`}
-          >
+          <Badge className={cn(getPositionBgColor(vote.position))}>
             {getPositionLabel(vote.position)}
-          </span>
-          <span
-            className={`px-2 py-0.5 rounded text-xs font-medium ${getResultBgColor(vote.result)}`}
-          >
+          </Badge>
+          <Badge className={cn(getResultBgColor(vote.result))}>
             {getResultLabel(vote.result)}
-          </span>
+          </Badge>
         </div>
       </div>
     </div>
@@ -92,7 +88,7 @@ export default function MemberProfile({ member }: MemberProfileProps) {
     <main className="min-h-screen bg-background">
       <GridContainer className="py-8">
         {/* Header */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+        <Card className="mb-6 p-6 py-6">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Photo */}
             <div className="shrink-0">
@@ -119,11 +115,9 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               </h1>
 
               <div className="flex flex-wrap items-center gap-2 mb-4">
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${getPartyBgColor(member.party)}`}
-                >
+                <Badge className={cn("text-sm px-3 py-1", getPartyBgColor(member.party))}>
                   {getPartyName(member.party)}
-                </span>
+                </Badge>
                 <span className="text-muted-foreground">
                   {getChamberShortName(member.chamber)}
                 </span>
@@ -162,13 +156,14 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               )}
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Contact Info */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">
-            Contact Information
-          </h2>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Contact Information</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {member.phone && (
               <div>
@@ -222,22 +217,28 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               </div>
             )}
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Bio */}
         {member.ai_bio && (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-semibold text-foreground mb-3">About</h2>
-            <p className="text-foreground/80 whitespace-pre-wrap">{member.ai_bio}</p>
-            <p className="text-xs text-muted-foreground/60 mt-2">AI-generated biography</p>
-          </div>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">About</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-foreground/80 whitespace-pre-wrap">{member.ai_bio}</p>
+              <p className="text-xs text-muted-foreground/60 mt-2">AI-generated biography</p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Stats */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">
-            Legislative Activity
-          </h2>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Legislative Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-background rounded-lg">
               <p className="text-3xl font-bold text-foreground">
@@ -252,13 +253,15 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               <p className="text-sm text-muted-foreground">Recent Votes</p>
             </div>
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Recent Votes */}
-        <div className="bg-card rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">
-            Recent Votes
-          </h2>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Recent Votes</CardTitle>
+          </CardHeader>
+          <CardContent>
           {member.recent_votes.length > 0 ? (
             <div>
               {member.recent_votes.map((vote) => (
@@ -270,7 +273,8 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               No recent votes recorded.
             </p>
           )}
-        </div>
+          </CardContent>
+        </Card>
       </GridContainer>
     </main>
   );

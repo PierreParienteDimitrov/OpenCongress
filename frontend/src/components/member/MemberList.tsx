@@ -6,11 +6,16 @@ import Link from "next/link";
 
 import type { MemberListItem, PaginatedResponse } from "@/types";
 import {
+  cn,
   getPartyBgColor,
   getPartyName,
   getMemberLocation,
 } from "@/lib/utils";
 import { getMemberRoute } from "@/lib/routes";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 interface MemberListProps {
   chamber: "senate" | "house";
@@ -20,10 +25,8 @@ interface MemberListProps {
 
 function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "senate" | "house" }) {
   return (
-    <Link
-      href={getMemberRoute(member.bioguide_id, chamber)}
-      className="group flex items-center gap-4 rounded-lg border border-zinc-200 bg-white p-4 transition-all hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
-    >
+    <Link href={getMemberRoute(member.bioguide_id, chamber)}>
+      <Card className="group flex flex-row items-center gap-4 p-4 py-4 transition-all hover:border-muted-foreground/30 hover:shadow-md">
       {/* Photo */}
       <div className="shrink-0">
         {member.photo_url ? (
@@ -34,8 +37,8 @@ function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "sen
             loading="lazy"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700">
-            <span className="text-lg font-medium text-zinc-500 dark:text-zinc-400">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
+            <span className="text-lg font-medium text-muted-foreground">
               {member.full_name
                 .split(" ")
                 .map((n) => n[0])
@@ -48,16 +51,14 @@ function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "sen
 
       {/* Info */}
       <div className="min-w-0 flex-1">
-        <h3 className="truncate font-semibold text-zinc-900 group-hover:text-blue-600 dark:text-zinc-50 dark:group-hover:text-blue-400">
+        <h3 className="truncate font-semibold text-foreground group-hover:text-accent">
           {member.full_name}
         </h3>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${getPartyBgColor(member.party)}`}
-          >
+          <Badge className={cn(getPartyBgColor(member.party))}>
             {getPartyName(member.party)}
-          </span>
-          <span className="text-sm text-zinc-500 dark:text-zinc-400">
+          </Badge>
+          <span className="text-sm text-muted-foreground">
             {getMemberLocation(member.state, member.district, member.chamber)}
           </span>
         </div>
@@ -65,7 +66,7 @@ function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "sen
 
       {/* Arrow */}
       <svg
-        className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-1 group-hover:text-zinc-600 dark:text-zinc-500 dark:group-hover:text-zinc-300"
+        className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-foreground"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -77,22 +78,23 @@ function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "sen
           d="M9 5l7 7-7 7"
         />
       </svg>
+      </Card>
     </Link>
   );
 }
 
 function MemberCardSkeleton() {
   return (
-    <div className="flex items-center gap-4 rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="h-16 w-16 shrink-0 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
+    <Card className="flex flex-row items-center gap-4 p-4 py-4">
+      <Skeleton className="h-16 w-16 shrink-0 rounded-full bg-secondary" />
       <div className="flex-1 space-y-2">
-        <div className="h-5 w-40 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+        <Skeleton className="h-5 w-40 bg-secondary" />
         <div className="flex gap-2">
-          <div className="h-5 w-20 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700" />
-          <div className="h-5 w-32 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+          <Skeleton className="h-5 w-20 rounded-full bg-secondary" />
+          <Skeleton className="h-5 w-32 bg-secondary" />
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -154,7 +156,7 @@ export default function MemberList({ chamber, initialData, fetchFn }: MemberList
   return (
     <div>
       {/* Count */}
-      <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
+      <p className="mb-4 text-sm text-muted-foreground">
         Showing {allMembers.length} of {totalCount} members
       </p>
 
@@ -174,15 +176,12 @@ export default function MemberList({ chamber, initialData, fetchFn }: MemberList
       {/* Load more trigger */}
       <div ref={loadMoreRef} className="mt-8 flex justify-center py-4">
         {hasNextPage && !isFetchingNextPage && (
-          <button
-            onClick={() => fetchNextPage()}
-            className="rounded-lg bg-zinc-100 px-6 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-          >
+          <Button variant="secondary" onClick={() => fetchNextPage()}>
             Load More
-          </button>
+          </Button>
         )}
         {!hasNextPage && allMembers.length > 0 && (
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="text-sm text-muted-foreground">
             All members loaded
           </p>
         )}

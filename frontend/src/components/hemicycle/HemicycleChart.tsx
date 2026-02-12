@@ -185,7 +185,7 @@ export default function HemicycleChart({
 
       {tooltip && (
         <div
-          className="pointer-events-none absolute z-10 rounded-lg bg-zinc-900 px-3 py-2 text-sm text-white shadow-lg"
+          className="pointer-events-none absolute z-10 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground shadow-lg"
           style={{
             left: tooltip.x,
             top: tooltip.y - 60,
@@ -193,7 +193,7 @@ export default function HemicycleChart({
           }}
         >
           <p className="font-semibold">{tooltip.name}</p>
-          <p className="text-zinc-300">
+          <p className="text-primary-foreground/70">
             {getPartyName(tooltip.party)} &mdash;{" "}
             {getMemberLocation(
               tooltip.state,

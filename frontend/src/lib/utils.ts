@@ -2,7 +2,14 @@
  * Utility functions for formatting and display.
  */
 
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
 import type { VotePosition, VoteResult } from "@/types";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // Party utilities
 export function getPartyName(party: string): string {

@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 interface DocSectionProps {
   id: string;
@@ -12,19 +16,21 @@ interface DocSectionProps {
 export function DocSection({ id, title, icon, children }: DocSectionProps) {
   return (
     <section id={id} className="scroll-mt-8">
-      <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-zinc-900">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-            {icon}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-accent/10 text-accent">
+              {icon}
+            </div>
+            <h2 className="text-xl font-semibold text-foreground">
+              {title}
+            </h2>
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-zinc-50">
-            {title}
-          </h2>
-        </div>
-        <div className="text-gray-600 dark:text-zinc-400 leading-relaxed space-y-4">
-          {children}
-        </div>
-      </div>
+          <div className="text-muted-foreground leading-relaxed space-y-4">
+            {children}
+          </div>
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -51,8 +57,8 @@ export function DocSidebarLink({ href, label, isActive }: DocSidebarLinkProps) {
       onClick={handleClick}
       className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
         isActive
-          ? "bg-blue-50 text-blue-700 font-medium dark:bg-blue-900/30 dark:text-blue-400"
-          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          ? "bg-accent/10 text-accent font-medium"
+          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
       }`}
     >
       {label}
@@ -69,10 +75,10 @@ interface InfoCardProps {
 export function InfoCard({ type = "info", title, children }: InfoCardProps) {
   const styles = {
     info: {
-      bg: "bg-blue-50 border-blue-100 dark:bg-blue-900/20 dark:border-blue-900/50",
-      icon: "text-blue-500",
-      title: "text-blue-800 dark:text-blue-300",
-      text: "text-blue-700 dark:text-blue-300/80",
+      bg: "bg-accent/10 border-accent/20",
+      icon: "text-accent",
+      title: "text-accent",
+      text: "text-accent/80",
     },
     warning: {
       bg: "bg-amber-50 border-amber-100 dark:bg-amber-900/20 dark:border-amber-900/50",
@@ -91,29 +97,23 @@ export function InfoCard({ type = "info", title, children }: InfoCardProps) {
   const style = styles[type];
 
   return (
-    <div className={`rounded-lg border p-4 ${style.bg}`}>
-      <div className="flex items-start gap-3">
-        <svg
-          className={`w-5 h-5 mt-0.5 flex-shrink-0 ${style.icon}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
-        <div>
-          {title && (
-            <p className={`font-medium mb-1 ${style.title}`}>{title}</p>
-          )}
-          <div className={`text-sm ${style.text}`}>{children}</div>
-        </div>
-      </div>
-    </div>
+    <Alert className={cn(style.bg)}>
+      <svg
+        className={cn("h-5 w-5", style.icon)}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
+      </svg>
+      {title && <AlertTitle className={cn(style.title)}>{title}</AlertTitle>}
+      <AlertDescription className={cn(style.text)}>{children}</AlertDescription>
+    </Alert>
   );
 }
 
@@ -124,12 +124,12 @@ interface SourceBadgeProps {
 
 export function SourceBadge({ name, official = false }: SourceBadgeProps) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-        official
-          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-          : "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300"
-      }`}
+    <Badge
+      variant={official ? "default" : "secondary"}
+      className={cn(
+        "px-2.5 py-1",
+        official && "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+      )}
     >
       {official && (
         <svg
@@ -145,7 +145,7 @@ export function SourceBadge({ name, official = false }: SourceBadgeProps) {
         </svg>
       )}
       {name}
-    </span>
+    </Badge>
   );
 }
 
@@ -182,7 +182,7 @@ export function DocSidebar({ sections }: DocSidebarProps) {
 
   return (
     <nav className="space-y-1">
-      <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-zinc-500">
+      <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         On this page
       </p>
       {sections.map(({ id, label }) => (

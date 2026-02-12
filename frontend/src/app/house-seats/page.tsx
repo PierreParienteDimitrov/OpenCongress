@@ -20,23 +20,23 @@ export default async function HouseSeatsPage() {
   ]);
 
   return (
-    <main className="flex h-screen flex-col bg-zinc-50 dark:bg-zinc-950">
+    <main className="flex h-screen flex-col bg-background">
       {/* Header — compact, constrained width */}
       <div className="mx-auto w-full max-w-4xl shrink-0 px-4 pt-4 pb-2 sm:px-6 lg:px-8">
         <Link
           href={routes.home}
-          className="inline-flex items-center text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
           &larr; Back to Home
         </Link>
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50 sm:text-3xl">
+        <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
           U.S. House Seat Map
         </h1>
       </div>
 
       {/* Hemicycle — fills remaining viewport */}
       <div className="min-h-0 flex-1 px-4 pb-4">
-        <div className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-sm ">
           <HemicyclePageClient
             chamber="house"
             initialSeats={seats}

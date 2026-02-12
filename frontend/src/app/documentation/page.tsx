@@ -8,6 +8,8 @@ import {
   InfoCard,
   SourceBadge,
 } from "./components";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
 export const metadata = {
   title: "How OpenCongress Works - Documentation",
@@ -240,32 +242,32 @@ export default function DocumentationPage() {
               </p>
 
               <div className="overflow-x-auto mt-4">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 pr-4 font-semibold text-foreground">Data Type</th>
-                      <th className="text-left py-3 pr-4 font-semibold text-foreground">Update Frequency</th>
-                      <th className="text-left py-3 font-semibold text-foreground">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    <tr>
-                      <td className="py-3 pr-4 font-medium">Votes</td>
-                      <td className="py-3 pr-4">Hourly during session</td>
-                      <td className="py-3 text-muted-foreground">9am–9pm ET on weekdays</td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 pr-4 font-medium">Bills</td>
-                      <td className="py-3 pr-4">Daily</td>
-                      <td className="py-3 text-muted-foreground">Every morning</td>
-                    </tr>
-                    <tr>
-                      <td className="py-3 pr-4 font-medium">Members</td>
-                      <td className="py-3 pr-4">Weekly</td>
-                      <td className="py-3 text-muted-foreground">Sunday sync</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data Type</TableHead>
+                      <TableHead>Update Frequency</TableHead>
+                      <TableHead>Notes</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-medium">Votes</TableCell>
+                      <TableCell>Hourly during session</TableCell>
+                      <TableCell className="text-muted-foreground">9am–9pm ET on weekdays</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Bills</TableCell>
+                      <TableCell>Daily</TableCell>
+                      <TableCell className="text-muted-foreground">Every morning</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium">Members</TableCell>
+                      <TableCell>Weekly</TableCell>
+                      <TableCell className="text-muted-foreground">Sunday sync</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
 
               <InfoCard type="info">
@@ -385,17 +387,18 @@ export default function DocumentationPage() {
                     <p className="text-sm text-muted-foreground/60">Explore the code, report issues, or contribute</p>
                   </div>
                 </div>
-                <a
-                  href="https://github.com/OpenCongress"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-card text-foreground px-4 py-2 rounded-lg font-medium hover:bg-secondary transition-colors"
-                >
-                  Visit Repository
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
+                <Button variant="secondary" asChild>
+                  <a
+                    href="https://github.com/OpenCongress"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Visit Repository
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </Button>
               </div>
 
               <h3 className="font-semibold text-foreground mt-6 mb-3">Ways to Contribute</h3>

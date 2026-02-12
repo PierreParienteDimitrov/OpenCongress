@@ -6,6 +6,7 @@ import { GridContainer } from "@/components/layout/GridContainer";
 import { routes } from "@/lib/routes";
 import type { BillCalendarItem, VoteCalendarItem } from "@/types";
 import {
+  cn,
   formatDateParam,
   getWeekDates,
   getWeekStart,
@@ -16,6 +17,9 @@ import {
   getChamberShortName,
   truncate,
 } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export const revalidate = 300; // 5 minutes
 
@@ -78,11 +82,9 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
               <span className="text-muted-foreground">
                 {getChamberShortName(vote.chamber)}
               </span>
-              <span
-                className={`px-1.5 py-0.5 rounded text-xs ${getResultBgColor(vote.result)}`}
-              >
+              <Badge className={cn("px-1.5", getResultBgColor(vote.result))}>
                 {getResultLabel(vote.result)}
-              </span>
+              </Badge>
             </div>
             <p className="text-foreground/80 font-medium leading-tight">
               {truncate(vote.description, 60)}
@@ -194,7 +196,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
     <main className="min-h-screen bg-background">
       <GridContainer className="py-6">
         {/* Header */}
-        <div className="bg-card rounded-lg shadow-sm p-4 mb-6">
+        <Card className="p-4 py-4 mb-6">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-foreground">
               Legislative Calendar
@@ -202,9 +204,9 @@ export default async function CalendarPage({ searchParams }: PageProps) {
 
             {/* Week Navigation */}
             <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" asChild>
               <Link
                 href={routes.calendar.week(formatDateParam(prevWeek))}
-                className="p-2 rounded-lg hover:bg-background text-muted-foreground transition-colors"
               >
                 <svg
                   className="w-5 h-5"
@@ -220,6 +222,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                   />
                 </svg>
               </Link>
+              </Button>
 
               <div className="text-center">
                 <span className="font-medium text-foreground">
@@ -227,9 +230,9 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                 </span>
               </div>
 
+              <Button variant="ghost" size="icon" asChild>
               <Link
                 href={routes.calendar.week(formatDateParam(nextWeek))}
-                className="p-2 rounded-lg hover:bg-background text-muted-foreground transition-colors"
               >
                 <svg
                   className="w-5 h-5"
@@ -245,19 +248,19 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                   />
                 </svg>
               </Link>
+              </Button>
 
-              <Link
-                href={routes.calendar.index}
-                className="ml-2 px-3 py-1 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent/80 transition-colors"
-              >
-                Today
-              </Link>
+              <Button size="sm" className="ml-2 bg-accent text-accent-foreground hover:bg-accent/80" asChild>
+                <Link href={routes.calendar.index}>
+                  Today
+                </Link>
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Legend */}
-        <div className="bg-card rounded-lg shadow-sm p-3 mb-4">
+        <Card className="p-3 py-3 mb-4">
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded border-l-4 border-muted-foreground bg-background" />
@@ -268,10 +271,10 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               <span className="text-muted-foreground">Bill Activity</span>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Calendar Grid */}
-        <div className="bg-card rounded-lg shadow-sm overflow-hidden">
+        <Card className="overflow-hidden p-0 py-0">
           <div className="grid grid-cols-7 divide-x border-b">
             {weekDates.map((date) => {
               const dateKey = formatDateParam(date);
@@ -288,34 +291,34 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               );
             })}
           </div>
-        </div>
+        </Card>
 
         {/* Summary Stats */}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-card rounded-lg shadow-sm p-4 text-center">
+          <Card className="p-4 py-4 text-center">
             <p className="text-3xl font-bold text-foreground">
               {votesResponse.results.length}
             </p>
             <p className="text-sm text-muted-foreground">Votes This Week</p>
-          </div>
-          <div className="bg-card rounded-lg shadow-sm p-4 text-center">
+          </Card>
+          <Card className="p-4 py-4 text-center">
             <p className="text-3xl font-bold text-foreground">
               {billsResponse.results.length}
             </p>
             <p className="text-sm text-muted-foreground">Bills With Activity</p>
-          </div>
-          <div className="bg-card rounded-lg shadow-sm p-4 text-center">
+          </Card>
+          <Card className="p-4 py-4 text-center">
             <p className="text-3xl font-bold text-green-600">
               {votesResponse.results.filter((v) => v.result === "passed" || v.result === "agreed").length}
             </p>
             <p className="text-sm text-muted-foreground">Passed/Agreed</p>
-          </div>
-          <div className="bg-card rounded-lg shadow-sm p-4 text-center">
+          </Card>
+          <Card className="p-4 py-4 text-center">
             <p className="text-3xl font-bold text-red-600">
               {votesResponse.results.filter((v) => v.result === "failed" || v.result === "rejected").length}
             </p>
             <p className="text-sm text-muted-foreground">Failed/Rejected</p>
-          </div>
+          </Card>
         </div>
       </GridContainer>
     </main>

@@ -5,6 +5,7 @@ import { getBill } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
 import { routes, getMemberRoute } from "@/lib/routes";
 import {
+  cn,
   formatDate,
   getPartyBgColor,
   getResultBgColor,
@@ -12,6 +13,8 @@ import {
   getChamberShortName,
 } from "@/lib/utils";
 import type { VoteSummary } from "@/types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export const revalidate = 86400; // 24 hours
 
@@ -39,14 +42,14 @@ function VoteCard({ vote }: { vote: VoteSummary }) {
   const yeaPercent = totalVotes > 0 ? (vote.total_yea / totalVotes) * 100 : 0;
 
   return (
-    <div className="border rounded-lg p-4 bg-card shadow-sm">
+    <Card className="p-4 py-4">
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm text-muted-foreground">
           {getChamberShortName(vote.chamber)} &middot; {formatDate(vote.date)}
         </span>
-        <span className={`px-2 py-1 rounded text-sm font-medium ${getResultBgColor(vote.result)}`}>
+        <Badge className={cn("text-sm px-2 py-1", getResultBgColor(vote.result))}>
           {getResultLabel(vote.result)}
-        </span>
+        </Badge>
       </div>
 
       <p className="text-sm text-foreground/80 mb-3">{vote.question}</p>
@@ -97,12 +100,12 @@ function VoteCard({ vote }: { vote: VoteSummary }) {
 
       {vote.is_bipartisan && (
         <div className="mt-2">
-          <span className="inline-block px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">
+          <Badge className="bg-purple-100 text-purple-700">
             Bipartisan
-          </span>
+          </Badge>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -137,7 +140,7 @@ export default async function LegislationPage({ params }: PageProps) {
 
         {/* Sponsor */}
         {bill.sponsor && (
-          <div className="bg-card rounded-lg shadow-sm p-4 mb-6">
+          <Card className="p-4 py-4 mb-6">
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Sponsor</h3>
             <div className="flex items-center gap-3">
               {bill.sponsor.photo_url && (
@@ -155,11 +158,9 @@ export default async function LegislationPage({ params }: PageProps) {
                   {bill.sponsor.full_name}
                 </Link>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span
-                    className={`px-2 py-0.5 rounded text-xs font-medium ${getPartyBgColor(bill.sponsor.party)}`}
-                  >
+                  <Badge className={cn(getPartyBgColor(bill.sponsor.party))}>
                     {bill.sponsor.party}
-                  </span>
+                  </Badge>
                   <span>
                     {bill.sponsor.state}
                     {bill.sponsor.district !== null &&
@@ -168,11 +169,11 @@ export default async function LegislationPage({ params }: PageProps) {
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Bill Details */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+        <Card className="p-6 py-6 mb-6">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <span className="text-sm text-muted-foreground">Congress</span>
@@ -198,12 +199,15 @@ export default async function LegislationPage({ params }: PageProps) {
               </p>
             )}
           </div>
-        </div>
+        </Card>
 
         {/* Summary */}
         {(bill.ai_summary || bill.summary_text) && (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h3 className="text-lg font-semibold text-foreground mb-3">Summary</h3>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
             {bill.ai_summary ? (
               <div>
                 <p className="text-foreground/80 whitespace-pre-wrap">
@@ -219,7 +223,8 @@ export default async function LegislationPage({ params }: PageProps) {
             ) : (
               <p className="text-foreground/80">{bill.summary_text}</p>
             )}
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Votes */}
@@ -234,9 +239,9 @@ export default async function LegislationPage({ params }: PageProps) {
               ))}
             </div>
           ) : (
-            <div className="bg-card rounded-lg shadow-sm p-6 text-center text-muted-foreground">
+            <Card className="p-6 py-6 text-center text-muted-foreground">
               No votes recorded for this legislation yet.
-            </div>
+            </Card>
           )}
         </div>
 

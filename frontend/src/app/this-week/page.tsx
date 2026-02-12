@@ -3,8 +3,11 @@ import Link from "next/link";
 import { getCurrentWeeklySummaries } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
 import { routes } from "@/lib/routes";
-import { formatDateLong } from "@/lib/utils";
+import { cn, formatDateLong } from "@/lib/utils";
 import type { WeeklySummary } from "@/types";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export const revalidate = 900; // 15 minutes
 
@@ -23,27 +26,23 @@ function SummaryCard({ summary, type }: SummaryCardProps) {
   const isRecap = type === "recap";
 
   return (
-    <div
-      className={`bg-card rounded-lg shadow-sm overflow-hidden border-t-4 ${
-        isRecap ? "border-blue-500" : "border-green-500"
-      }`}
+    <Card
+      className={cn("overflow-hidden border-t-4 gap-0 py-0", isRecap ? "border-blue-500" : "border-green-500")}
     >
       {/* Header */}
-      <div
-        className={`px-6 py-4 ${isRecap ? "bg-blue-50" : "bg-green-50"}`}
+      <CardHeader
+        className={cn("py-4", isRecap ? "bg-blue-50" : "bg-green-50")}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h2
-              className={`text-xl font-bold ${
-                isRecap ? "text-blue-900" : "text-green-900"
-              }`}
+            <CardTitle
+              className={cn("text-xl", isRecap ? "text-blue-900" : "text-green-900")}
             >
               {summary.summary_type_display}
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            </CardTitle>
+            <CardDescription className="mt-1">
               Week {summary.week_number}, {summary.year}
-            </p>
+            </CardDescription>
           </div>
           <div
             className={`p-3 rounded-full ${
@@ -81,18 +80,18 @@ function SummaryCard({ summary, type }: SummaryCardProps) {
             )}
           </div>
         </div>
-      </div>
+      </CardHeader>
 
       {/* Content */}
-      <div className="px-6 py-5">
+      <CardContent className="py-5">
         <div className="prose prose-sm max-w-none text-foreground/80 whitespace-pre-wrap">
           {summary.content}
         </div>
-      </div>
+      </CardContent>
 
       {/* Footer with stats */}
-      <div className="px-6 py-4 bg-secondary border-t">
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+      <CardFooter className="py-4 bg-secondary border-t">
+        <div className="flex w-full items-center justify-between text-sm text-muted-foreground">
           <div className="flex items-center gap-4">
             {summary.votes_included.length > 0 && (
               <span>{summary.votes_included.length} votes included</span>
@@ -105,14 +104,14 @@ function SummaryCard({ summary, type }: SummaryCardProps) {
             Updated {formatDateLong(summary.created_at)}
           </time>
         </div>
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   );
 }
 
 function EmptyState() {
   return (
-    <div className="bg-card rounded-lg shadow-sm p-8 text-center">
+    <Card className="p-8 py-8 text-center">
       <div className="mx-auto w-16 h-16 rounded-full bg-background flex items-center justify-center mb-4">
         <svg
           className="w-8 h-8 text-muted-foreground/60"
@@ -135,7 +134,7 @@ function EmptyState() {
         Weekly summaries are generated automatically. Check back on Saturday for
         the weekly recap and Sunday for the week ahead preview.
       </p>
-    </div>
+    </Card>
   );
 }
 
@@ -152,7 +151,7 @@ export default async function ThisWeekPage() {
     <main className="min-h-screen bg-background">
       <GridContainer className="py-6">
         {/* Header */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
+        <Card className="p-6 py-6 mb-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-foreground">
@@ -164,10 +163,8 @@ export default async function ThisWeekPage() {
                 </p>
               )}
             </div>
-            <Link
-              href={routes.calendar.index}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-background text-foreground/80 rounded-lg hover:bg-muted transition-colors"
-            >
+            <Button variant="outline" asChild>
+            <Link href={routes.calendar.index}>
               <svg
                 className="w-5 h-5"
                 fill="none"
@@ -183,8 +180,9 @@ export default async function ThisWeekPage() {
               </svg>
               Full Calendar
             </Link>
+            </Button>
           </div>
-        </div>
+        </Card>
 
         {/* Summaries */}
         {summaries.length === 0 ? (
@@ -200,31 +198,27 @@ export default async function ThisWeekPage() {
         )}
 
         {/* Info banner */}
-        <div className="mt-8 bg-accent/10 border border-accent/20 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <svg
-              className="w-5 h-5 text-accent mt-0.5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <div>
-              <p className="text-sm text-accent">
-                <strong>About these summaries:</strong> These AI-generated
-                summaries provide a nonpartisan overview of congressional
-                activity. The Week in Review is published on Saturday mornings,
-                and the Week Ahead preview is published on Sunday evenings.
-              </p>
-            </div>
-          </div>
-        </div>
+        <Alert className="mt-8 border-accent/20 bg-accent/10">
+          <svg
+            className="h-5 w-5 text-accent"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <AlertTitle className="text-accent">About these summaries</AlertTitle>
+          <AlertDescription className="text-accent/80">
+            These AI-generated summaries provide a nonpartisan overview of
+            congressional activity. The Week in Review is published on Saturday
+            mornings, and the Week Ahead preview is published on Sunday evenings.
+          </AlertDescription>
+        </Alert>
       </GridContainer>
     </main>
   );

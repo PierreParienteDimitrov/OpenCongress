@@ -5,8 +5,17 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { Seat, SeatWithVote, VoteSummary } from "@/types";
 import { getSeatVoteOverlayClient } from "@/lib/api";
-import { formatDate, getResultLabel, getResultBgColor } from "@/lib/utils";
+import { cn, formatDate, getResultLabel, getResultBgColor } from "@/lib/utils";
 import HemicycleChart from "./HemicycleChart";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface HemicyclePageClientProps {
   chamber: "house" | "senate";
@@ -40,26 +49,29 @@ export default function HemicyclePageClient({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <label
             htmlFor="vote-select"
-            className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            className="text-sm font-medium text-foreground"
           >
             Vote Overlay:
           </label>
-          <select
-            id="vote-select"
-            value={selectedVoteId}
-            onChange={(e) => setSelectedVoteId(e.target.value)}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 max-w-lg"
+          <Select
+            value={selectedVoteId || "__default__"}
+            onValueChange={(value) => setSelectedVoteId(value === "__default__" ? "" : value)}
           >
-            <option value="">Show by party (default)</option>
-            {votes.map((vote) => (
-              <option key={vote.vote_id} value={vote.vote_id}>
-                {formatDate(vote.date)} — {vote.question} (
-                {getResultLabel(vote.result)})
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="max-w-lg">
+              <SelectValue placeholder="Show by party (default)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__default__">Show by party (default)</SelectItem>
+              {votes.map((vote) => (
+                <SelectItem key={vote.vote_id} value={vote.vote_id}>
+                  {formatDate(vote.date)} — {vote.question} (
+                  {getResultLabel(vote.result)})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {isFetching && (
-            <span className="text-sm text-zinc-500 animate-pulse">
+            <span className="text-sm text-muted-foreground animate-pulse">
               Loading overlay...
             </span>
           )}
@@ -67,9 +79,9 @@ export default function HemicyclePageClient({
 
         {/* Legend */}
         {isOverlay ? (
-          <div className="flex flex-wrap gap-4 text-sm text-zinc-700 dark:text-zinc-300">
+          <div className="flex flex-wrap gap-4 text-sm text-foreground">
             <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-full border border-zinc-300 bg-white dark:border-zinc-500" />
+              <span className="inline-block h-3 w-3 rounded-full border border-border bg-card" />
               <span>Yea</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -84,14 +96,14 @@ export default function HemicyclePageClient({
               <span className="inline-block h-3 w-3 rounded-full bg-gray-500" />
               <span>Not Voting</span>
             </div>
-            <div className="ml-2 flex items-center gap-1.5 border-l border-zinc-300 pl-3 dark:border-zinc-600">
-              <span className="text-zinc-500 dark:text-zinc-400">
+            <div className="ml-2 flex items-center gap-1.5 border-l border-border pl-3">
+              <span className="text-muted-foreground">
                 Aura = party color
               </span>
             </div>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-4 text-sm text-zinc-700 dark:text-zinc-300">
+          <div className="flex flex-wrap gap-4 text-sm text-foreground">
             <div className="flex items-center gap-1.5">
               <span
                 className="inline-block h-3 w-3 rounded-full"
@@ -114,7 +126,7 @@ export default function HemicyclePageClient({
               <span>Independent</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-full bg-gray-200 dark:bg-gray-600" />
+              <span className="inline-block h-3 w-3 rounded-full bg-secondary" />
               <span>Vacant</span>
             </div>
           </div>
@@ -122,21 +134,19 @@ export default function HemicyclePageClient({
 
         {/* Selected vote info */}
         {selectedVote && (
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800">
-            <p className="font-medium text-zinc-900 dark:text-zinc-100">
+          <Card className="bg-secondary p-3 py-3 text-sm">
+            <p className="font-medium text-foreground">
               {selectedVote.question}
             </p>
-            <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-muted-foreground">
               {formatDate(selectedVote.date)} &mdash;{" "}
-              <span
-                className={`rounded px-1.5 py-0.5 text-xs font-medium ${getResultBgColor(selectedVote.result)}`}
-              >
+              <Badge className={cn("px-1.5", getResultBgColor(selectedVote.result))}>
                 {getResultLabel(selectedVote.result)}
-              </span>{" "}
+              </Badge>{" "}
               &mdash; Yea: {selectedVote.total_yea}, Nay:{" "}
               {selectedVote.total_nay}
             </p>
-          </div>
+          </Card>
         )}
       </div>
 

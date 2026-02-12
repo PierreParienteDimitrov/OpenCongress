@@ -5,12 +5,15 @@ import { getVote, getSeatVoteOverlay } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
 import { routes } from "@/lib/routes";
 import {
+  cn,
   formatDate,
   getResultBgColor,
   getResultLabel,
   getChamberName,
 } from "@/lib/utils";
 import HemicycleChart from "@/components/hemicycle/HemicycleChart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export const revalidate = 86400; // 24 hours
 
@@ -75,16 +78,17 @@ export default async function VotePage({ params }: PageProps) {
           <h1 className="text-3xl font-bold text-foreground mb-3">
             {vote.question}
           </h1>
-          <span
-            className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getResultBgColor(vote.result)}`}
-          >
+          <Badge className={cn("text-sm px-3 py-1", getResultBgColor(vote.result))}>
             {getResultLabel(vote.result)}
-          </span>
+          </Badge>
         </div>
 
         {/* Vote Results */}
-        <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Results</h2>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Results</CardTitle>
+          </CardHeader>
+          <CardContent>
 
           {/* Vote bar */}
           <div className="mb-6">
@@ -190,19 +194,21 @@ export default async function VotePage({ params }: PageProps) {
 
           {vote.is_bipartisan && (
             <div className="mt-4">
-              <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">
+              <Badge className="bg-purple-100 text-purple-700 text-sm">
                 Bipartisan Vote
-              </span>
+              </Badge>
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Hemicycle Seat Map */}
         {overlaySeats.length > 0 && (
-          <div className="bg-card rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-semibold text-foreground mb-3">
-              Seat Map
-            </h2>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Seat Map</CardTitle>
+            </CardHeader>
+            <CardContent>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block h-3 w-3 rounded-full border border-border bg-white" />
@@ -233,15 +239,16 @@ export default async function VotePage({ params }: PageProps) {
                 showVoteOverlay
               />
             </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Vote ID */}
-        <div className="bg-card rounded-lg shadow-sm p-6">
+        <Card className="p-6 py-6">
           <div className="text-sm text-muted-foreground">
             Vote ID: <span className="font-mono">{vote.vote_id}</span>
           </div>
-        </div>
+        </Card>
       </GridContainer>
     </main>
   );
