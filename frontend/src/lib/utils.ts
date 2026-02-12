@@ -112,9 +112,15 @@ export function getResultBgColor(result: VoteResult): string {
 }
 
 // Date utilities
+// Parse a "YYYY-MM-DD" string as local time (not UTC) to avoid off-by-one day errors.
+function parseDateLocal(dateString: string): Date {
+  const [year, month, day] = dateString.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function formatDate(dateString: string | null): string {
   if (!dateString) return "";
-  const date = new Date(dateString);
+  const date = parseDateLocal(dateString);
   return date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
@@ -124,7 +130,7 @@ export function formatDate(dateString: string | null): string {
 
 export function formatDateLong(dateString: string | null): string {
   if (!dateString) return "";
-  const date = new Date(dateString);
+  const date = parseDateLocal(dateString);
   return date.toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
@@ -181,7 +187,7 @@ export function formatDateParam(date: Date): string {
 
 export function parseWeekParam(param: string | null): Date {
   if (!param) return new Date();
-  const parsed = new Date(param);
+  const parsed = parseDateLocal(param);
   return isNaN(parsed.getTime()) ? new Date() : parsed;
 }
 
