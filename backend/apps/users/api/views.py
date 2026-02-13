@@ -37,9 +37,7 @@ class SocialAuthSyncView(APIView):
         sync_secret = request.headers.get("X-Auth-Sync-Secret")
         expected = getattr(settings, "AUTH_SYNC_SECRET", None)
         if not expected or sync_secret != expected:
-            return Response(
-                {"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN
-            )
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
 
         serializer = SocialAuthSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
