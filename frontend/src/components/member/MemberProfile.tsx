@@ -24,19 +24,19 @@ interface MemberProfileProps {
 
 function RecentVoteItem({ vote }: { vote: MemberRecentVote }) {
   return (
-    <div className="border-b last:border-b-0 py-3">
+    <Link
+      href={routes.vote.detail(vote.vote_id)}
+      className="block border-b last:border-b-0 py-3 -mx-2 px-2 rounded-md transition-colors hover:bg-accent/50"
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="text-sm text-foreground/80 truncate">{vote.description}</p>
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{formatDate(vote.date)}</span>
             {vote.bill_display_number && vote.bill_id && (
-              <Link
-                href={routes.legislation.detail(vote.bill_id)}
-                className="text-accent hover:text-accent/80"
-              >
+              <span className="text-accent">
                 {vote.bill_display_number}
-              </Link>
+              </span>
             )}
           </div>
         </div>
@@ -49,7 +49,7 @@ function RecentVoteItem({ vote }: { vote: MemberRecentVote }) {
           </Badge>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

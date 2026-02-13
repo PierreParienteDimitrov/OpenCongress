@@ -51,70 +51,36 @@ export default function Home() {
             </Card>
           </Link>
 
-          <Link href={routes.senator.index} className="group">
+          <Link href={routes.senate.index} className="group">
             <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">🏛️</span>
                 <h2 className="text-xl font-semibold text-foreground">
-                  Senators
+                  Senate
                 </h2>
               </div>
               <p className="text-muted-foreground">
-                Explore senator profiles, voting records, and sponsored legislation.
+                Explore the 100 U.S. Senate seats, state map, and senator profiles.
               </p>
               <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                Browse Senators →
+                Explore Senate →
               </span>
             </Card>
           </Link>
 
-          <Link href={routes.representative.index} className="group">
+          <Link href={routes.house.index} className="group">
             <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">🏠</span>
                 <h2 className="text-xl font-semibold text-foreground">
-                  Representatives
+                  House
                 </h2>
               </div>
               <p className="text-muted-foreground">
-                Explore representative profiles, voting records, and sponsored legislation.
+                Explore the 435 U.S. House seats, district map, and representative profiles.
               </p>
               <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                Browse Representatives →
-              </span>
-            </Card>
-          </Link>
-
-          <Link href={routes.senateSeats.index} className="group">
-            <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏛️</span>
-                <h2 className="text-xl font-semibold text-foreground">
-                  Senate Seat Map
-                </h2>
-              </div>
-              <p className="text-muted-foreground">
-                Interactive hemicycle visualization of U.S. Senate seats with vote overlay.
-              </p>
-              <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                View Senate Map →
-              </span>
-            </Card>
-          </Link>
-
-          <Link href={routes.houseSeats.index} className="group">
-            <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏠</span>
-                <h2 className="text-xl font-semibold text-foreground">
-                  House Seat Map
-                </h2>
-              </div>
-              <p className="text-muted-foreground">
-                Interactive hemicycle visualization of U.S. House seats with vote overlay.
-              </p>
-              <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                View House Map →
+                Explore House →
               </span>
             </Card>
           </Link>

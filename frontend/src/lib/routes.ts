@@ -20,14 +20,14 @@ export const routes = {
     archive: (year: number, week: number) => `/this-week/${year}/${week}`,
   },
 
-  // Members
-  senator: {
-    index: "/senator",
-    detail: (bioguideId: string) => `/senator/${bioguideId}`,
+  // Chambers (members + seats + map)
+  senate: {
+    index: "/senate",
+    detail: (bioguideId: string) => `/senate/${bioguideId}`,
   },
-  representative: {
-    index: "/representative",
-    detail: (bioguideId: string) => `/representative/${bioguideId}`,
+  house: {
+    index: "/house",
+    detail: (bioguideId: string) => `/house/${bioguideId}`,
   },
 
   // Legislation
@@ -38,14 +38,6 @@ export const routes = {
   // Votes
   vote: {
     detail: (voteId: string) => `/vote/${voteId}`,
-  },
-
-  // Seat Maps (hemicycle)
-  senateSeats: {
-    index: "/senate-seats",
-  },
-  houseSeats: {
-    index: "/house-seats",
   },
 
   // Documentation
@@ -60,6 +52,6 @@ export function getMemberRoute(
   chamber: "senate" | "house"
 ): string {
   return chamber === "senate"
-    ? routes.senator.detail(bioguideId)
-    : routes.representative.detail(bioguideId);
+    ? routes.senate.detail(bioguideId)
+    : routes.house.detail(bioguideId);
 }

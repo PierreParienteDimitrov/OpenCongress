@@ -45,7 +45,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0rem;
 
   /* 12-column grid system tokens */
   --grid-columns: 12;

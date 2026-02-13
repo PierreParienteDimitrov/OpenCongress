@@ -14,17 +14,17 @@ export async function generateMetadata({ params }: PageProps) {
   try {
     const member = await getMember(id);
     return {
-      title: `Rep. ${member.full_name} (${member.party}-${member.state})`,
-      description: `Profile and voting record for Representative ${member.full_name}`,
+      title: `Sen. ${member.full_name} (${member.party}-${member.state})`,
+      description: `Profile and voting record for Senator ${member.full_name}`,
     };
   } catch {
     return {
-      title: "Representative Not Found",
+      title: "Senator Not Found",
     };
   }
 }
 
-export default async function RepresentativePage({ params }: PageProps) {
+export default async function SenatorPage({ params }: PageProps) {
   const { id } = await params;
 
   let member;
@@ -34,9 +34,9 @@ export default async function RepresentativePage({ params }: PageProps) {
     notFound();
   }
 
-  // Redirect to correct route if this is a senator
-  if (member.chamber === "senate") {
-    redirect(`/senator/${id}`);
+  // Redirect to correct route if this is a representative
+  if (member.chamber === "house") {
+    redirect(`/house/${id}`);
   }
 
   return <MemberProfile member={member} />;

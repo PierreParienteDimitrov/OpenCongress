@@ -2,10 +2,11 @@
 ViewSets for the Congress API.
 """
 
+import json
 import logging
 import re
+from pathlib import Path
 
-import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import OuterRef, Subquery
@@ -35,65 +36,12 @@ from .serializers import (
 
 logger = logging.getLogger(__name__)
 
-# FIPS → state postal code mapping for zip lookup
-FIPS_TO_STATE: dict[str, str] = {
-    "01": "AL",
-    "02": "AK",
-    "04": "AZ",
-    "05": "AR",
-    "06": "CA",
-    "08": "CO",
-    "09": "CT",
-    "10": "DE",
-    "11": "DC",
-    "12": "FL",
-    "13": "GA",
-    "15": "HI",
-    "16": "ID",
-    "17": "IL",
-    "18": "IN",
-    "19": "IA",
-    "20": "KS",
-    "21": "KY",
-    "22": "LA",
-    "23": "ME",
-    "24": "MD",
-    "25": "MA",
-    "26": "MI",
-    "27": "MN",
-    "28": "MS",
-    "29": "MO",
-    "30": "MT",
-    "31": "NE",
-    "32": "NV",
-    "33": "NH",
-    "34": "NJ",
-    "35": "NM",
-    "36": "NY",
-    "37": "NC",
-    "38": "ND",
-    "39": "OH",
-    "40": "OK",
-    "41": "OR",
-    "42": "PA",
-    "44": "RI",
-    "45": "SC",
-    "46": "SD",
-    "47": "TN",
-    "48": "TX",
-    "49": "UT",
-    "50": "VT",
-    "51": "VA",
-    "53": "WA",
-    "54": "WV",
-    "55": "WI",
-    "56": "WY",
-    "60": "AS",
-    "66": "GU",
-    "69": "MP",
-    "72": "PR",
-    "78": "VI",
-}
+# Static ZCTA → congressional-district mapping (119th Congress).
+# Source: https://github.com/OpenSourceActivismTech/us-zipcodes-congress
+# Each entry: {"state": "NY", "districts": [10]}
+_ZCTA_CD_PATH = Path(__file__).resolve().parent.parent / "data" / "zcta_cd119.json"
+with open(_ZCTA_CD_PATH) as _f:
+    ZCTA_CD: dict[str, dict] = json.load(_f)
 
 STATE_NAMES: dict[str, str] = {
     "AL": "Alabama",
@@ -215,7 +163,7 @@ class MemberViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="zip-lookup")
     def zip_lookup(self, request):
-        """Look up congressional district by zip code using Census Geocoder API."""
+        """Look up congressional district by zip code using local ZCTA data."""
         zip_code = request.query_params.get("zip", "").strip()
 
         if not zip_code or not re.match(r"^\d{5}$", zip_code):
@@ -230,75 +178,32 @@ class MemberViewSet(viewsets.ReadOnlyModelViewSet):
         if cached is not None:
             return Response(cached)
 
-        # Call Census Geocoder API
-        census_url = "https://geocoding.geo.census.gov/geocoder/geographies/address"
-        params = {
-            "street": "",
-            "city": "",
-            "state": "",
-            "zip": zip_code,
-            "benchmark": "Public_AR_Current",
-            "vintage": "Current_Current",
-            "format": "json",
-        }
-
-        try:
-            resp = requests.get(census_url, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-        except Exception:
-            logger.exception("Census Geocoder API call failed for zip=%s", zip_code)
-            return Response(
-                {"error": "Failed to look up zip code"},
-                status=502,
-            )
-
-        # Parse response for congressional district info
-        matches = data.get("result", {}).get("addressMatches", [])
-        if not matches:
+        # Look up in static ZCTA → CD mapping
+        entry = ZCTA_CD.get(zip_code)
+        if not entry:
             return Response(
                 {"error": "No results found for this zip code"},
                 status=404,
             )
 
-        # Get geographic data from first match
-        geographies = matches[0].get("geographies", {})
-        cd_list = geographies.get("119th Congressional Districts", [])
-
-        if not cd_list:
-            return Response(
-                {"error": "No congressional district found for this zip code"},
-                status=404,
-            )
-
-        cd_info = cd_list[0]
-        state_fips = cd_info.get("STATE", "")
-        district_str = cd_info.get("CD119", "00")
-
-        state_code = FIPS_TO_STATE.get(state_fips)
-        if not state_code:
-            return Response(
-                {"error": "Could not resolve state for this zip code"},
-                status=404,
-            )
-
-        district_num = int(district_str) if district_str else 0
+        state_code = entry["state"]
+        districts = entry["districts"]
 
         # Find matching members
         members = Member.objects.filter(is_active=True, state=state_code)
-        # For house members, filter by district; for senators, include all
-        house_members = list(
-            members.filter(chamber=Member.Chamber.HOUSE, district=district_num)
-        )
         senate_members = list(members.filter(chamber=Member.Chamber.SENATE))
+        house_members = list(
+            members.filter(chamber=Member.Chamber.HOUSE, district__in=districts)
+        )
         all_members = senate_members + house_members
 
         serializer = MemberListSerializer(all_members, many=True)
 
+        # Use the first district as the primary (most zip codes have one)
         result = {
             "state": state_code,
             "state_name": STATE_NAMES.get(state_code, state_code),
-            "district": district_num,
+            "district": districts[0] if len(districts) == 1 else None,
             "members": serializer.data,
         }
 

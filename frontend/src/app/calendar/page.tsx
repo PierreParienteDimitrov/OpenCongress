@@ -52,11 +52,11 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
 
   return (
     <div
-      className={`min-h-[200px] border-r last:border-r-0 ${isToday ? "bg-blue-50" : "bg-card"}`}
+      className={`min-h-[200px] border-r last:border-r-0 ${isToday ? "bg-accent/10" : "bg-card"}`}
     >
       {/* Day header */}
       <div
-        className={`p-2 border-b text-center ${isToday ? "bg-blue-100" : "bg-secondary"}`}
+        className={`p-2 border-b text-center ${isToday ? "bg-accent/15" : "bg-secondary"}`}
       >
         <div className="text-xs text-muted-foreground uppercase">{dayName}</div>
         <div
@@ -112,9 +112,9 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
               href={routes.legislation.detail(bill.bill_id)}
               itemId={bill.bill_id}
               itemType="bill"
-              className="block p-2 rounded bg-gradient-to-r from-amber-50 to-amber-100/50 border-l-4 border-amber-400 text-xs hover:bg-amber-100 transition-colors"
+              className="block p-2 bg-accent/10 border-l-4 border-accent text-xs hover:bg-accent/20 transition-colors"
             >
-              <div className="font-medium text-amber-800">
+              <div className="font-medium text-accent">
                 {bill.display_number}
               </div>
               <p className="text-foreground/80 leading-tight mt-1">
@@ -250,7 +250,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               </Link>
               </Button>
 
-              <Button size="sm" className="ml-2 bg-accent text-accent-foreground hover:bg-accent/80" asChild>
+              <Button variant="outline" size="sm" className="ml-2" asChild>
                 <Link href={routes.calendar.index}>
                   Today
                 </Link>
@@ -263,11 +263,11 @@ export default async function CalendarPage({ searchParams }: PageProps) {
         <Card className="p-3 py-3 mb-4">
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded border-l-4 border-muted-foreground bg-background" />
+              <div className="w-3 h-3 border-l-4 border-muted-foreground bg-secondary" />
               <span className="text-muted-foreground">Vote</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded border-l-4 border-amber-400 bg-amber-50" />
+              <div className="w-3 h-3 border-l-4 border-accent bg-accent/10" />
               <span className="text-muted-foreground">Bill Activity</span>
             </div>
           </div>
