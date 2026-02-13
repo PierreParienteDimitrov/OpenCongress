@@ -1,5 +1,11 @@
-import NextAuth from "next-auth";
+import NextAuth, { type User } from "next-auth";
 import Google from "next-auth/providers/google";
+
+interface DjangoUser extends User {
+  djangoAccessToken?: string;
+  djangoRefreshToken?: string;
+  djangoUserId?: string;
+}
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
@@ -39,9 +45,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (!res.ok) return false;
 
           const data = await res.json();
-          (user as any).djangoAccessToken = data.access;
-          (user as any).djangoRefreshToken = data.refresh;
-          (user as any).djangoUserId = String(data.user.id);
+          (user as DjangoUser).djangoAccessToken = data.access;
+          (user as DjangoUser).djangoRefreshToken = data.refresh;
+          (user as DjangoUser).djangoUserId = String(data.user.id);
         } catch {
           return false;
         }
@@ -52,9 +58,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       // Initial sign-in: persist Django tokens
       if (user) {
-        token.djangoAccessToken = (user as any).djangoAccessToken;
-        token.djangoRefreshToken = (user as any).djangoRefreshToken;
-        token.djangoUserId = (user as any).djangoUserId;
+        token.djangoAccessToken = (user as DjangoUser).djangoAccessToken;
+        token.djangoRefreshToken = (user as DjangoUser).djangoRefreshToken;
+        token.djangoUserId = (user as DjangoUser).djangoUserId;
         // Access token expires in ~55 minutes (buffer before 60min lifetime)
         token.accessTokenExpires = Date.now() + 55 * 60 * 1000;
         token.error = undefined;
