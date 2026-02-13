@@ -9,7 +9,9 @@ import type { Topology } from "topojson-specification";
 import type { MemberListItem } from "@/types";
 import { FIPS_TO_STATE } from "@/lib/fips";
 import { getPartyColor } from "@/lib/utils";
+import { routes } from "@/lib/routes";
 import MapTooltip, { type MapTooltipMember } from "./MapTooltip";
+import { useViewTransitionRouter } from "./useViewTransitionRouter";
 
 const SPLIT_COLOR = "#8B5CF6"; // violet-500 for split-party states
 const EMPTY_COLOR = "#d1d5db"; // gray-300
@@ -28,6 +30,7 @@ interface StateFeature {
 
 export default function SenateMap({ members, focusedState }: SenateMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { push } = useViewTransitionRouter();
   const [features, setFeatures] = useState<StateFeature[]>([]);
   const [tooltip, setTooltip] = useState<{
     x: number;
@@ -165,6 +168,11 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
               stroke="#ffffff"
               strokeWidth={0.5}
               opacity={isHighlighted ? 1 : 0.2}
+              style={
+                stateCode
+                  ? { viewTransitionName: `state-${stateCode}` }
+                  : undefined
+              }
               className="cursor-pointer transition-opacity hover:opacity-80"
               onMouseEnter={(e) => handleMouseEnter(feat, e)}
               onMouseMove={(e) => {
@@ -182,6 +190,11 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
                 );
               }}
               onMouseLeave={handleMouseLeave}
+              onClick={() => {
+                if (stateCode) {
+                  push(routes.senate.state(stateCode));
+                }
+              }}
             />
           );
         })}

@@ -24,10 +24,12 @@ export const routes = {
   senate: {
     index: "/senate",
     detail: (bioguideId: string) => `/senate/${bioguideId}`,
+    state: (stateCode: string) => `/senate/state/${stateCode}`,
   },
   house: {
     index: "/house",
     detail: (bioguideId: string) => `/house/${bioguideId}`,
+    district: (districtId: string) => `/house/district/${districtId}`,
   },
 
   // Legislation

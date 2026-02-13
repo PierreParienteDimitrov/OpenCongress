@@ -5,13 +5,12 @@ import { geoAlbersUsa, geoPath } from "d3-geo";
 import type { GeoPermissibleObjects } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
-import { useRouter } from "next/navigation";
-
 import type { MemberListItem } from "@/types";
 import { FIPS_TO_STATE } from "@/lib/fips";
 import { getPartyColor } from "@/lib/utils";
-import { getMemberRoute } from "@/lib/routes";
+import { routes } from "@/lib/routes";
 import MapTooltip, { type MapTooltipMember } from "./MapTooltip";
+import { useViewTransitionRouter } from "./useViewTransitionRouter";
 
 const EMPTY_COLOR = "#d1d5db"; // gray-300
 
@@ -33,7 +32,7 @@ interface DistrictFeature {
 
 export default function DistrictMap({ members, focusedState }: DistrictMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const router = useRouter();
+  const { push } = useViewTransitionRouter();
   const [features, setFeatures] = useState<DistrictFeature[]>([]);
   const [tooltip, setTooltip] = useState<{
     x: number;
@@ -110,12 +109,12 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
 
   const handleClick = useCallback(
     (feat: DistrictFeature) => {
-      const member = getMemberForDistrict(feat);
-      if (member) {
-        router.push(getMemberRoute(member.bioguide_id, "house"));
-      }
+      const stateCode = FIPS_TO_STATE[feat.properties.STATEFP];
+      if (!stateCode) return;
+      const districtNum = parseInt(feat.properties.CD119FP, 10);
+      push(routes.house.district(`${stateCode}-${districtNum}`));
     },
-    [getMemberForDistrict, router]
+    [push]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -189,6 +188,8 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
           const stateCode = FIPS_TO_STATE[feat.properties.STATEFP];
           const isHighlighted = !focusedState || stateCode === focusedState;
 
+          const districtNum = parseInt(feat.properties.CD119FP, 10);
+
           return (
             <path
               key={feat.properties.GEOID}
@@ -197,6 +198,13 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
               stroke="#ffffff"
               strokeWidth={0.3}
               opacity={isHighlighted ? 1 : 0.2}
+              style={
+                stateCode
+                  ? {
+                      viewTransitionName: `district-${stateCode}-${districtNum}`,
+                    }
+                  : undefined
+              }
               className="cursor-pointer transition-opacity hover:opacity-80"
               onMouseEnter={(e) => handleMouseEnter(feat, e)}
               onMouseMove={(e) => {
