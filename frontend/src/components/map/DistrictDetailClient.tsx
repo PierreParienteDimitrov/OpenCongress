@@ -67,7 +67,7 @@ export default function DistrictDetailClient({
               stateCode={stateCode}
               highlightDistrict={districtNum}
               members={stateMembers}
-              viewTransitionName={`district-${stateCode}-${districtNum}`}
+              viewTransitionName="geo-shape"
               className="w-full"
             />
           </div>
@@ -75,9 +75,9 @@ export default function DistrictDetailClient({
           {/* Right: Metadata sidebar */}
           <motion.div
             className="md:col-span-5"
-            initial={{ opacity: 0, x: 30 }}
+            initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2, duration: 0.4, ease: "easeOut" }}
+            transition={{ delay: 0.35, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
           >
             {/* Representative */}
             <h2 className="mb-3 text-lg font-semibold text-foreground">

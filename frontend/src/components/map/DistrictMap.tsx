@@ -34,6 +34,7 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
   const svgRef = useRef<SVGSVGElement>(null);
   const { push } = useViewTransitionRouter();
   const [features, setFeatures] = useState<DistrictFeature[]>([]);
+  const [activeDistrict, setActiveDistrict] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
@@ -112,7 +113,11 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
       const stateCode = FIPS_TO_STATE[feat.properties.STATEFP];
       if (!stateCode) return;
       const districtNum = parseInt(feat.properties.CD119FP, 10);
-      push(routes.house.district(`${stateCode}-${districtNum}`));
+      const districtId = `${stateCode}-${districtNum}`;
+      setActiveDistrict(districtId);
+      requestAnimationFrame(() => {
+        push(routes.house.district(districtId));
+      });
     },
     [push]
   );
@@ -199,10 +204,8 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
               strokeWidth={0.3}
               opacity={isHighlighted ? 1 : 0.2}
               style={
-                stateCode
-                  ? {
-                      viewTransitionName: `district-${stateCode}-${districtNum}`,
-                    }
+                activeDistrict === `${stateCode}-${districtNum}`
+                  ? { viewTransitionName: `geo-shape` }
                   : undefined
               }
               className="cursor-pointer transition-opacity hover:opacity-80"

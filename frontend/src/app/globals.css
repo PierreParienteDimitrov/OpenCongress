@@ -168,12 +168,44 @@
 }
 
 /* View Transitions API — cross-page map animations */
-::view-transition-group(*) {
-  animation-duration: 0.5s;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+
+/* Root page cross-fade: slow, smooth dissolve */
+::view-transition-old(root) {
+  animation: vt-fade-out 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 0.3s;
+  animation: vt-fade-in 0.6s cubic-bezier(0.0, 0, 0.2, 1) forwards;
+}
+
+/* Named geo-shape: slower morph with dramatic easing */
+::view-transition-group(geo-shape) {
+  animation-duration: 0.7s;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+::view-transition-old(geo-shape) {
+  animation: none;
+  opacity: 1;
+}
+
+::view-transition-new(geo-shape) {
+  animation: none;
+  opacity: 1;
+}
+
+/* Prevent root from interfering with the named shape */
+::view-transition-image-pair(root) {
+  isolation: auto;
+}
+
+@keyframes vt-fade-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes vt-fade-in {
+  0% { opacity: 0; }
+  40% { opacity: 0; }
+  100% { opacity: 1; }
 }

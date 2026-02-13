@@ -32,6 +32,7 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { push } = useViewTransitionRouter();
   const [features, setFeatures] = useState<StateFeature[]>([]);
+  const [activeState, setActiveState] = useState<string | null>(null);
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
@@ -169,8 +170,8 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
               strokeWidth={0.5}
               opacity={isHighlighted ? 1 : 0.2}
               style={
-                stateCode
-                  ? { viewTransitionName: `state-${stateCode}` }
+                stateCode && activeState === stateCode
+                  ? { viewTransitionName: `geo-shape` }
                   : undefined
               }
               className="cursor-pointer transition-opacity hover:opacity-80"
@@ -192,7 +193,12 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
               onMouseLeave={handleMouseLeave}
               onClick={() => {
                 if (stateCode) {
-                  push(routes.senate.state(stateCode));
+                  setActiveState(stateCode);
+                  // Small delay to let React re-render with viewTransitionName
+                  // before starting the transition
+                  requestAnimationFrame(() => {
+                    push(routes.senate.state(stateCode));
+                  });
                 }
               }}
             />
