@@ -16,6 +16,7 @@ import type {
   VoteSummary,
   WeeklySummary,
   WeeklySummaryListItem,
+  ZipLookupResult,
 } from "@/types";
 
 const API_BASE_URL =
@@ -26,7 +27,10 @@ interface FetchOptions {
     revalidate?: number;
     tags?: string[];
   };
+  cache?: RequestCache;
 }
+
+const isDev = process.env.NODE_ENV === "development";
 
 class APIError extends Error {
   status: number;
@@ -45,12 +49,13 @@ async function fetchAPI<T>(
   const url = `${API_BASE_URL}${endpoint}`;
 
   try {
-    const response = await fetch(url, {
+    const fetchOptions: RequestInit = {
       headers: {
         "Content-Type": "application/json",
       },
-      ...options,
-    });
+      ...(isDev ? { cache: "no-store" as const } : options),
+    };
+    const response = await fetch(url, fetchOptions);
 
     if (!response.ok) {
       throw new APIError(
@@ -271,6 +276,30 @@ export async function getSeatVoteOverlayClient(
 ): Promise<SeatWithVote[]> {
   return fetchAPIClient<SeatWithVote[]>(
     `/seats/vote-overlay/?chamber=${chamber}&vote_id=${encodeURIComponent(voteId)}`
+  );
+}
+
+// Unpaginated member fetches for map views
+export async function getAllSenators(): Promise<MemberListItem[]> {
+  const data = await fetchAPI<PaginatedResponse<MemberListItem>>(
+    "/members/senators/?page_size=500&ordering=last_name",
+    { next: { revalidate: 3600 } }
+  );
+  return data.results ?? [];
+}
+
+export async function getAllRepresentatives(): Promise<MemberListItem[]> {
+  const data = await fetchAPI<PaginatedResponse<MemberListItem>>(
+    "/members/representatives/?page_size=500&ordering=last_name",
+    { next: { revalidate: 3600 } }
+  );
+  return data.results ?? [];
+}
+
+// Zip code lookup (client-side)
+export async function lookupZipCode(zip: string): Promise<ZipLookupResult> {
+  return fetchAPIClient<ZipLookupResult>(
+    `/members/zip-lookup/?zip=${encodeURIComponent(zip)}`
   );
 }
 

@@ -1,10 +1,11 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { getSenators } from "@/lib/api";
+import { getSenators, getAllSenators } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
 import { routes } from "@/lib/routes";
-import SenatorList from "./SenatorList";
+import SenatorsPageClient from "./SenatorsPageClient";
 
 export const metadata: Metadata = {
   title: "U.S. Senators - OpenCongress",
@@ -15,7 +16,10 @@ export const dynamic = "force-dynamic";
 export const revalidate = 3600; // 1 hour
 
 export default async function SenatorsPage() {
-  const initialData = await getSenators({ ordering: "last_name" });
+  const [initialData, allSenators] = await Promise.all([
+    getSenators({ ordering: "last_name" }),
+    getAllSenators(),
+  ]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -49,8 +53,13 @@ export default async function SenatorsPage() {
           </p>
         </div>
 
-        {/* Member List */}
-        <SenatorList initialData={initialData} />
+        {/* Tabbed content: List + Map */}
+        <Suspense>
+          <SenatorsPageClient
+            initialData={initialData}
+            allMembers={allSenators}
+          />
+        </Suspense>
       </GridContainer>
     </main>
   );

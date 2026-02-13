@@ -67,8 +67,11 @@ class Command(BaseCommand):
             if chamber == "house of representatives":
                 chamber = "house"
 
-            # Extract district from current term
-            district = current_term.get("district")
+            # Extract district from member data (top-level field in Congress API)
+            # At-large districts (single-rep states/territories) have no district field
+            district = member_data.get("district")
+            if district is None and chamber == "house":
+                district = 0
 
             defaults = {
                 "full_name": member_data.get("name", ""),

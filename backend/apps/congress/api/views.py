@@ -2,7 +2,12 @@
 ViewSets for the Congress API.
 """
 
+import logging
+import re
+
+import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.db.models import OuterRef, Subquery
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -27,6 +32,127 @@ from .serializers import (
     VoteCalendarSerializer,
     VoteSummarySerializer,
 )
+
+logger = logging.getLogger(__name__)
+
+# FIPS → state postal code mapping for zip lookup
+FIPS_TO_STATE: dict[str, str] = {
+    "01": "AL",
+    "02": "AK",
+    "04": "AZ",
+    "05": "AR",
+    "06": "CA",
+    "08": "CO",
+    "09": "CT",
+    "10": "DE",
+    "11": "DC",
+    "12": "FL",
+    "13": "GA",
+    "15": "HI",
+    "16": "ID",
+    "17": "IL",
+    "18": "IN",
+    "19": "IA",
+    "20": "KS",
+    "21": "KY",
+    "22": "LA",
+    "23": "ME",
+    "24": "MD",
+    "25": "MA",
+    "26": "MI",
+    "27": "MN",
+    "28": "MS",
+    "29": "MO",
+    "30": "MT",
+    "31": "NE",
+    "32": "NV",
+    "33": "NH",
+    "34": "NJ",
+    "35": "NM",
+    "36": "NY",
+    "37": "NC",
+    "38": "ND",
+    "39": "OH",
+    "40": "OK",
+    "41": "OR",
+    "42": "PA",
+    "44": "RI",
+    "45": "SC",
+    "46": "SD",
+    "47": "TN",
+    "48": "TX",
+    "49": "UT",
+    "50": "VT",
+    "51": "VA",
+    "53": "WA",
+    "54": "WV",
+    "55": "WI",
+    "56": "WY",
+    "60": "AS",
+    "66": "GU",
+    "69": "MP",
+    "72": "PR",
+    "78": "VI",
+}
+
+STATE_NAMES: dict[str, str] = {
+    "AL": "Alabama",
+    "AK": "Alaska",
+    "AZ": "Arizona",
+    "AR": "Arkansas",
+    "CA": "California",
+    "CO": "Colorado",
+    "CT": "Connecticut",
+    "DE": "Delaware",
+    "DC": "District of Columbia",
+    "FL": "Florida",
+    "GA": "Georgia",
+    "HI": "Hawaii",
+    "ID": "Idaho",
+    "IL": "Illinois",
+    "IN": "Indiana",
+    "IA": "Iowa",
+    "KS": "Kansas",
+    "KY": "Kentucky",
+    "LA": "Louisiana",
+    "ME": "Maine",
+    "MD": "Maryland",
+    "MA": "Massachusetts",
+    "MI": "Michigan",
+    "MN": "Minnesota",
+    "MS": "Mississippi",
+    "MO": "Missouri",
+    "MT": "Montana",
+    "NE": "Nebraska",
+    "NV": "Nevada",
+    "NH": "New Hampshire",
+    "NJ": "New Jersey",
+    "NM": "New Mexico",
+    "NY": "New York",
+    "NC": "North Carolina",
+    "ND": "North Dakota",
+    "OH": "Ohio",
+    "OK": "Oklahoma",
+    "OR": "Oregon",
+    "PA": "Pennsylvania",
+    "RI": "Rhode Island",
+    "SC": "South Carolina",
+    "SD": "South Dakota",
+    "TN": "Tennessee",
+    "TX": "Texas",
+    "UT": "Utah",
+    "VT": "Vermont",
+    "VA": "Virginia",
+    "WA": "Washington",
+    "WV": "West Virginia",
+    "WI": "Wisconsin",
+    "WY": "Wyoming",
+    "AS": "American Samoa",
+    "GU": "Guam",
+    "MP": "Northern Mariana Islands",
+    "PR": "Puerto Rico",
+    "VI": "U.S. Virgin Islands",
+}
 
 
 class MemberViewSet(viewsets.ReadOnlyModelViewSet):
@@ -86,6 +212,100 @@ class MemberViewSet(viewsets.ReadOnlyModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = MemberListSerializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="zip-lookup")
+    def zip_lookup(self, request):
+        """Look up congressional district by zip code using Census Geocoder API."""
+        zip_code = request.query_params.get("zip", "").strip()
+
+        if not zip_code or not re.match(r"^\d{5}$", zip_code):
+            return Response(
+                {"error": "A valid 5-digit zip code is required"},
+                status=400,
+            )
+
+        # Check cache first (30 days)
+        cache_key = f"zip_lookup:{zip_code}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        # Call Census Geocoder API
+        census_url = "https://geocoding.geo.census.gov/geocoder/geographies/address"
+        params = {
+            "street": "",
+            "city": "",
+            "state": "",
+            "zip": zip_code,
+            "benchmark": "Public_AR_Current",
+            "vintage": "Current_Current",
+            "format": "json",
+        }
+
+        try:
+            resp = requests.get(census_url, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception:
+            logger.exception("Census Geocoder API call failed for zip=%s", zip_code)
+            return Response(
+                {"error": "Failed to look up zip code"},
+                status=502,
+            )
+
+        # Parse response for congressional district info
+        matches = data.get("result", {}).get("addressMatches", [])
+        if not matches:
+            return Response(
+                {"error": "No results found for this zip code"},
+                status=404,
+            )
+
+        # Get geographic data from first match
+        geographies = matches[0].get("geographies", {})
+        cd_list = geographies.get("119th Congressional Districts", [])
+
+        if not cd_list:
+            return Response(
+                {"error": "No congressional district found for this zip code"},
+                status=404,
+            )
+
+        cd_info = cd_list[0]
+        state_fips = cd_info.get("STATE", "")
+        district_str = cd_info.get("CD119", "00")
+
+        state_code = FIPS_TO_STATE.get(state_fips)
+        if not state_code:
+            return Response(
+                {"error": "Could not resolve state for this zip code"},
+                status=404,
+            )
+
+        district_num = int(district_str) if district_str else 0
+
+        # Find matching members
+        members = Member.objects.filter(is_active=True, state=state_code)
+        # For house members, filter by district; for senators, include all
+        house_members = list(
+            members.filter(chamber=Member.Chamber.HOUSE, district=district_num)
+        )
+        senate_members = list(members.filter(chamber=Member.Chamber.SENATE))
+        all_members = senate_members + house_members
+
+        serializer = MemberListSerializer(all_members, many=True)
+
+        result = {
+            "state": state_code,
+            "state_name": STATE_NAMES.get(state_code, state_code),
+            "district": district_num,
+            "members": serializer.data,
+        }
+
+        # Cache for 30 days
+        cache.set(cache_key, result, 60 * 60 * 24 * 30)
+
+        return Response(result)
 
 
 class BillViewSet(viewsets.ReadOnlyModelViewSet):

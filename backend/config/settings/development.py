@@ -36,3 +36,11 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # Disable throttling in development
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []  # noqa: F405
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {}  # noqa: F405
+
+# Disable caching in development so changes are reflected immediately
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
+    }
+}
+CACHE_TIMEOUTS = {key: 0 for key in CACHE_TIMEOUTS}  # noqa: F405

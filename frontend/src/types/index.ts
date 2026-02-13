@@ -188,6 +188,14 @@ export interface SeatWithVote extends Seat {
   vote_position: VotePosition | null;
 }
 
+// Zip code lookup types
+export interface ZipLookupResult {
+  state: string;
+  state_name: string;
+  district: number | null;
+  members: MemberListItem[];
+}
+
 // API response types
 export interface PaginatedResponse<T> {
   count: number;

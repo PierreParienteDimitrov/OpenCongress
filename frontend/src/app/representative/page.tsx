@@ -1,10 +1,11 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { getRepresentatives } from "@/lib/api";
+import { getRepresentatives, getAllRepresentatives } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
 import { routes } from "@/lib/routes";
-import RepresentativeList from "./RepresentativeList";
+import RepresentativesPageClient from "./RepresentativesPageClient";
 
 export const metadata: Metadata = {
   title: "U.S. Representatives - OpenCongress",
@@ -15,7 +16,10 @@ export const dynamic = "force-dynamic";
 export const revalidate = 3600; // 1 hour
 
 export default async function RepresentativesPage() {
-  const initialData = await getRepresentatives({ ordering: "last_name" });
+  const [initialData, allRepresentatives] = await Promise.all([
+    getRepresentatives({ ordering: "last_name" }),
+    getAllRepresentatives(),
+  ]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -49,8 +53,13 @@ export default async function RepresentativesPage() {
           </p>
         </div>
 
-        {/* Member List */}
-        <RepresentativeList initialData={initialData} />
+        {/* Tabbed content: List + Map */}
+        <Suspense>
+          <RepresentativesPageClient
+            initialData={initialData}
+            allMembers={allRepresentatives}
+          />
+        </Suspense>
       </GridContainer>
     </main>
   );
