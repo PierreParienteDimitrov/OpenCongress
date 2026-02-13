@@ -5,6 +5,9 @@
 export const routes = {
   home: "/",
 
+  // Auth
+  login: "/login",
+
   // Calendar
   calendar: {
     index: "/calendar",

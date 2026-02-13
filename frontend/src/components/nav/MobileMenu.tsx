@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +20,7 @@ import { navLinks } from "./NavLinks";
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -67,12 +69,34 @@ export function MobileMenu() {
         </nav>
 
         <SheetFooter className="border-t border-nav-foreground/10 p-4">
-          <Button
-            variant="outline"
-            className="w-full border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10"
-          >
-            Login
-          </Button>
+          {session ? (
+            <div className="w-full space-y-2">
+              <p className="text-xs text-nav-foreground/60 truncate px-1">
+                {session.user.email}
+              </p>
+              <Button
+                variant="outline"
+                className="w-full border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10"
+                onClick={() => {
+                  setOpen(false);
+                  signOut();
+                }}
+              >
+                <LogOut className="mr-2 size-4" />
+                Sign out
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10"
+              asChild
+            >
+              <Link href="/login" onClick={() => setOpen(false)}>
+                Login
+              </Link>
+            </Button>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>

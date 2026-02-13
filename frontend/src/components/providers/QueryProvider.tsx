@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
+import { SessionProvider } from "./SessionProvider";
 
 export default function QueryProvider({
   children,
@@ -28,7 +29,11 @@ export default function QueryProvider({
       enableSystem={true}
       disableTransitionOnChange={false}
     >
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <SessionProvider>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </SessionProvider>
     </ThemeProvider>
   );
 }

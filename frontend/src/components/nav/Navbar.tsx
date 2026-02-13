@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { routes } from "@/lib/routes";
 import { GridContainer } from "@/components/layout/GridContainer";
-import { Button } from "@/components/ui/button";
 import { ActiveLink } from "./ActiveLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { MobileMenu } from "./MobileMenu";
+import { UserMenu } from "./UserMenu";
 import { navLinks } from "./NavLinks";
 
 export function Navbar() {
@@ -30,15 +30,10 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Right: Theme toggle + Login + Mobile menu */}
+        {/* Right: Theme toggle + User menu + Mobile menu */}
         <div className="flex items-center gap-1">
           <ThemeToggle />
-          <Button
-            variant="ghost"
-            className="hidden sm:inline-flex text-nav-foreground/70 hover:text-nav-foreground hover:bg-nav-foreground/10"
-          >
-            Login
-          </Button>
+          <UserMenu />
           <MobileMenu />
         </div>
       </GridContainer>

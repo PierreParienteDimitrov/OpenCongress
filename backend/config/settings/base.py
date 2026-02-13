@@ -116,7 +116,7 @@ REST_FRAMEWORK = {
         "rest_framework.filters.SearchFilter",
         "rest_framework.filters.OrderingFilter",
     ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "DEFAULT_PAGINATION_CLASS": "apps.congress.api.pagination.StandardPagination",
     "PAGE_SIZE": 50,
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
@@ -182,6 +182,9 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 # Frontend integration (for ISR revalidation)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 REVALIDATION_SECRET = os.environ.get("REVALIDATION_SECRET", "dev-secret")
+
+# Auth sync secret (shared between Next.js Auth.js and Django for social auth)
+AUTH_SYNC_SECRET = os.environ.get("AUTH_SYNC_SECRET", "dev-auth-sync-secret")
 
 # API Documentation
 SPECTACULAR_SETTINGS = {
