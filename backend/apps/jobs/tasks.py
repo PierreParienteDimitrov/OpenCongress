@@ -279,3 +279,117 @@ def run_sync_recent_votes(self, job_run_id: int):
     except Exception as e:
         logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
         _fail_job(job_run_id, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Seed command wrapper tasks (management commands run via call_command)
+# ---------------------------------------------------------------------------
+
+
+def _run_management_command(job_run_id, command_name, detail_msg, **kwargs):
+    """Generic helper to run a Django management command as a job."""
+    import io
+
+    from django.core.management import call_command
+
+    try:
+        _start_job(job_run_id, 1)
+        _update_progress(job_run_id, 0, detail_msg)
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        call_command(command_name, stdout=stdout, stderr=stderr, **kwargs)
+
+        output = stdout.getvalue()
+        errors = stderr.getvalue()
+
+        _update_progress(job_run_id, 1, "Complete")
+        _complete_job(
+            job_run_id,
+            1,
+            0,
+            {"stdout": output[-2000:], "stderr": errors[-2000:] if errors else ""},
+        )
+
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_seed_bills(self, job_run_id: int):
+    """Seed HR and S bills for Congress 119 (up to 5000)."""
+    _run_management_command(
+        job_run_id,
+        "seed_bills",
+        "Seeding bills from Congress.gov...",
+        congress=119,
+        limit=5000,
+    )
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_seed_votes(self, job_run_id: int):
+    """Seed House and Senate votes for Congress 119."""
+    _run_management_command(
+        job_run_id,
+        "seed_votes",
+        "Seeding votes from Congress.gov...",
+        congress=119,
+        limit=2000,
+        chamber="both",
+    )
+
+
+@shared_task(bind=True, time_limit=3600, soft_time_limit=3400)
+def run_seed_senate_votes(self, job_run_id: int):
+    """Seed Senate votes from Senate.gov XML."""
+    _run_management_command(
+        job_run_id,
+        "seed_senate_votes",
+        "Seeding Senate votes from Senate.gov...",
+        congress=119,
+        session=1,
+        limit=500,
+    )
+
+
+@shared_task(bind=True, time_limit=1800, soft_time_limit=1700)
+def run_seed_committees(self, job_run_id: int):
+    """Seed committees and member assignments."""
+    _run_management_command(
+        job_run_id,
+        "seed_committees",
+        "Seeding committees from Congress.gov...",
+        congress=119,
+    )
+
+
+@shared_task(bind=True, time_limit=600, soft_time_limit=550)
+def run_seed_members(self, job_run_id: int):
+    """Seed all current members from Congress.gov."""
+    _run_management_command(
+        job_run_id,
+        "seed_members",
+        "Seeding members from Congress.gov...",
+    )
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_backfill_member_votes(self, job_run_id: int):
+    """Backfill member vote records for votes missing them."""
+    _run_management_command(
+        job_run_id,
+        "backfill_member_votes",
+        "Backfilling member votes...",
+    )
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_link_votes_to_bills(self, job_run_id: int):
+    """Link votes to their related bills."""
+    _run_management_command(
+        job_run_id,
+        "link_votes_to_bills",
+        "Linking votes to bills...",
+    )

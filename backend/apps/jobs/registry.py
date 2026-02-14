@@ -52,4 +52,61 @@ JOB_REGISTRY = {
             "Sync recent votes from House (Congress.gov) and Senate (Senate.gov)."
         ),
     },
+    # --- Seed commands (data import from Congress.gov) ---
+    "seed_bills": {
+        "label": "Seed Bills from Congress.gov",
+        "task": "apps.jobs.tasks.run_seed_bills",
+        "queue": "sync",
+        "description": (
+            "Import HR and S bills for Congress 119 from Congress.gov API "
+            "(fetches up to 5000 bills)."
+        ),
+    },
+    "seed_votes": {
+        "label": "Seed Votes from Congress.gov",
+        "task": "apps.jobs.tasks.run_seed_votes",
+        "queue": "sync",
+        "description": (
+            "Import House and Senate votes for Congress 119 from Congress.gov API "
+            "(fetches up to 2000 votes)."
+        ),
+    },
+    "seed_senate_votes": {
+        "label": "Seed Senate Votes from Senate.gov",
+        "task": "apps.jobs.tasks.run_seed_senate_votes",
+        "queue": "sync",
+        "description": (
+            "Import Senate votes for Congress 119 Session 1 from Senate.gov XML."
+        ),
+    },
+    "seed_committees": {
+        "label": "Seed Committees from Congress.gov",
+        "task": "apps.jobs.tasks.run_seed_committees",
+        "queue": "sync",
+        "description": ("Import committees and member assignments for Congress 119."),
+    },
+    "seed_members": {
+        "label": "Seed Members from Congress.gov",
+        "task": "apps.jobs.tasks.run_seed_members",
+        "queue": "sync",
+        "description": (
+            "Import all current members from Congress.gov API + social media data."
+        ),
+    },
+    "backfill_member_votes": {
+        "label": "Backfill Member Votes",
+        "task": "apps.jobs.tasks.run_backfill_member_votes",
+        "queue": "sync",
+        "description": (
+            "Backfill individual member vote records for votes that are missing them."
+        ),
+    },
+    "link_votes_to_bills": {
+        "label": "Link Votes to Bills",
+        "task": "apps.jobs.tasks.run_link_votes_to_bills",
+        "queue": "sync",
+        "description": (
+            "Link Vote records to their related Bill records using Congress.gov API."
+        ),
+    },
 }
