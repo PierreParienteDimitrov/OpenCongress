@@ -20,7 +20,7 @@ export const CHAT_MODELS: ChatModel[] = [
   { id: "gpt-4o", provider: "openai", label: "GPT-4o" },
   { id: "gpt-4o-mini", provider: "openai", label: "GPT-4o Mini" },
   {
-    id: "gemini-2.5-pro-preview-05-06",
+    id: "gemini-2.5-pro",
     provider: "google",
     label: "Gemini 2.5 Pro",
   },
