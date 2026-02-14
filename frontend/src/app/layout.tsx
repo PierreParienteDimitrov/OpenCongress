@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono, Source_Code_Pro } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
@@ -38,7 +39,9 @@ export default function RootLayout({
         <QueryProvider>
           <Navbar />
           <div className="flex-1">{children}</div>
-          <ChatInterface />
+          <Suspense>
+            <ChatInterface />
+          </Suspense>
         </QueryProvider>
       </body>
     </html>

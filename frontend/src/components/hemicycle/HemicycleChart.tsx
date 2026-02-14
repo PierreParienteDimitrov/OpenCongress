@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import type { ZoomTransform } from "d3-zoom";
 
 import type { Seat, SeatWithVote, VotePosition } from "@/types";
 import { getMemberRoute } from "@/lib/routes";
@@ -16,7 +17,7 @@ import {
 // House: center=(400,350), max radius=420 → coords span ~(-20..820, -70..350)
 // Senate: center=(400,300), max radius=260 → coords span ~(-60..860, 40..300)
 // Adding padding around the full range to prevent clipping.
-const VIEWBOX = {
+export const VIEWBOX = {
   senate: { minX: -70, minY: 30, width: 940, height: 290 },
   house: { minX: -30, minY: -80, width: 860, height: 450 },
 };
@@ -57,6 +58,12 @@ interface HemicycleChartProps {
   chamber: "house" | "senate";
   seats: Seat[] | SeatWithVote[];
   showVoteOverlay?: boolean;
+  /** Callback ref from useMapZoom — enables d3-zoom on the SVG */
+  svgRef?: (node: SVGSVGElement | null) => void;
+  /** Ref for the <g> that receives the zoom transform */
+  gRef?: React.RefObject<SVGGElement | null>;
+  /** Current d3-zoom transform (for adjusting stroke widths & tooltip) */
+  zoomTransform?: ZoomTransform;
 }
 
 // Hover radius multiplier — enlarges the seat to show the photo
@@ -65,10 +72,16 @@ const HOVER_RADIUS = {
   house: 14,
 };
 
+// Party color overlay opacity on default photo seats (low enough to see face)
+const PHOTO_OVERLAY_OPACITY = 0.45;
+
 export default function HemicycleChart({
   chamber,
   seats,
   showVoteOverlay = false,
+  svgRef: externalSvgRef,
+  gRef: externalGRef,
+  zoomTransform,
 }: HemicycleChartProps) {
   const router = useRouter();
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
@@ -76,6 +89,7 @@ export default function HemicycleChart({
 
   const viewBox = VIEWBOX[chamber];
   const seatRadius = SEAT_RADIUS[chamber];
+  const k = zoomTransform?.k ?? 1; // current zoom scale
 
   const handleSeatClick = useCallback(
     (seat: Seat | SeatWithVote) => {
@@ -120,12 +134,26 @@ export default function HemicycleChart({
   return (
     <div className="relative h-full w-full">
       <svg
+        ref={externalSvgRef}
         viewBox={`${viewBox.minX} ${viewBox.minY} ${viewBox.width} ${viewBox.height}`}
-        className="h-full w-full"
+        className={`h-full w-full ${externalSvgRef ? "cursor-grab touch-none" : ""}`}
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label={`${chamber === "senate" ? "Senate" : "House"} hemicycle seating chart`}
       >
+        <g ref={externalGRef}>
+        {/* Clip path definitions for all member seats (photos) */}
+        <defs>
+          {seats.map((seat) => {
+            if (!seat.member) return null;
+            return (
+              <clipPath key={`clip-${seat.seat_id}`} id={`seat-clip-${seat.seat_id}`}>
+                <circle cx={seat.svg_x} cy={seat.svg_y} r={seatRadius} />
+              </clipPath>
+            );
+          })}
+        </defs>
+
         {seats.map((seat) => {
           const isOverlay =
             showVoteOverlay && seat.member && "vote_position" in seat;
@@ -163,22 +191,63 @@ export default function HemicycleChart({
                   opacity={0.35}
                 />
               )}
-              {/* Inner dot — party color normally, vote position in overlay */}
-              <circle
-                cx={seat.svg_x}
-                cy={seat.svg_y}
-                r={seatRadius}
-                fill={
-                  isOverlay
-                    ? getVotePositionFillColor(
-                        (seat as SeatWithVote).vote_position
-                      )
-                    : partyColor
-                }
-                stroke={isOverlay ? partyColor : seat.member ? "#ffffff" : "none"}
-                strokeWidth={isOverlay ? 0.8 : seat.member ? 0.5 : 0}
-                opacity={isHovered ? 0 : 1}
-              />
+
+              {seat.member && !isOverlay ? (
+                /* Default view: member photo with party color tint */
+                <g opacity={isHovered ? 0 : 1}>
+                  {/* White background behind photo */}
+                  <circle
+                    cx={seat.svg_x}
+                    cy={seat.svg_y}
+                    r={seatRadius}
+                    fill="#ffffff"
+                  />
+                  {/* Member photo clipped to seat circle */}
+                  <image
+                    href={seat.member.photo_url}
+                    x={seat.svg_x - seatRadius}
+                    y={seat.svg_y - seatRadius}
+                    width={seatRadius * 2}
+                    height={seatRadius * 2}
+                    clipPath={`url(#seat-clip-${seat.seat_id})`}
+                    preserveAspectRatio="xMidYMid slice"
+                  />
+                  {/* Party color overlay — low opacity to see the face */}
+                  <circle
+                    cx={seat.svg_x}
+                    cy={seat.svg_y}
+                    r={seatRadius}
+                    fill={partyColor}
+                    opacity={PHOTO_OVERLAY_OPACITY}
+                  />
+                  {/* Border ring */}
+                  <circle
+                    cx={seat.svg_x}
+                    cy={seat.svg_y}
+                    r={seatRadius}
+                    fill="none"
+                    stroke={partyColor}
+                    strokeWidth={0.5 / k}
+                  />
+                </g>
+              ) : (
+                /* Vote overlay mode or vacant seat: solid circle */
+                <circle
+                  cx={seat.svg_x}
+                  cy={seat.svg_y}
+                  r={seatRadius}
+                  fill={
+                    isOverlay
+                      ? getVotePositionFillColor(
+                          (seat as SeatWithVote).vote_position
+                        )
+                      : partyColor
+                  }
+                  stroke={isOverlay ? partyColor : seat.member ? "#ffffff" : "none"}
+                  strokeWidth={(isOverlay ? 0.8 : seat.member ? 0.5 : 0) / k}
+                  opacity={isHovered ? 0 : 1}
+                />
+              )}
             </g>
           );
         })}
@@ -230,11 +299,12 @@ export default function HemicycleChart({
                   r={r}
                   fill="none"
                   stroke={partyColor}
-                  strokeWidth={1.5}
+                  strokeWidth={1.5 / k}
                 />
               </g>
             );
           })()}
+        </g>
       </svg>
 
       {tooltip && (

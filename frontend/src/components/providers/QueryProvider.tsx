@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { useState } from "react";
 import { SessionProvider } from "./SessionProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default function QueryProvider({
   children,
@@ -31,7 +32,9 @@ export default function QueryProvider({
     >
       <SessionProvider>
         <QueryClientProvider client={queryClient}>
-          {children}
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
         </QueryClientProvider>
       </SessionProvider>
     </ThemeProvider>

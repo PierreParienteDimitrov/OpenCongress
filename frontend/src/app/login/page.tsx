@@ -1,22 +1,33 @@
 "use client";
 
+import { Suspense } from "react";
 import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { GridContainer } from "@/components/layout/GridContainer";
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
 
   // Redirect if already logged in
   useEffect(() => {
     if (session) {
-      router.push("/");
+      router.push(callbackUrl);
     }
-  }, [session, router]);
+  }, [session, router, callbackUrl]);
 
   return (
     <GridContainer className="flex justify-center py-12">
@@ -31,7 +42,7 @@ export default function LoginPage() {
           <Button
             variant="outline"
             className="w-full cursor-pointer"
-            onClick={() => signIn("google", { callbackUrl: "/" })}
+            onClick={() => signIn("google", { callbackUrl })}
           >
             <GoogleIcon />
             Sign in with Google

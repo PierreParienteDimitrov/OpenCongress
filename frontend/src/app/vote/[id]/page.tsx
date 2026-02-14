@@ -12,7 +12,7 @@ import {
   getResultLabel,
   getChamberName,
 } from "@/lib/utils";
-import HemicycleChart from "@/components/hemicycle/HemicycleChart";
+import HemicycleWithZoom from "@/components/hemicycle/HemicycleWithZoom";
 import VoteMemberTable from "@/components/vote/VoteMemberTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -200,7 +200,7 @@ export default async function VotePage({ params }: PageProps) {
               </div>
             </div>
             <div className="h-[400px]">
-              <HemicycleChart
+              <HemicycleWithZoom
                 chamber={vote.chamber}
                 seats={overlaySeats}
                 showVoteOverlay

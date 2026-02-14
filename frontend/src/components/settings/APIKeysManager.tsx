@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Key, Check, AlertCircle, Loader2 } from "lucide-react";
+import { Trash2, Key, Check, AlertCircle, Loader2, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,27 @@ const PROVIDERS = [
   },
   { value: "openai", label: "OpenAI (GPT)", placeholder: "sk-..." },
   { value: "google", label: "Google (Gemini)", placeholder: "AIza..." },
+] as const;
+
+const PROVIDER_DOCS = [
+  {
+    provider: "anthropic",
+    label: "Anthropic (Claude)",
+    url: "https://console.anthropic.com/settings/keys",
+    description: "Create an API key in the Anthropic Console",
+  },
+  {
+    provider: "openai",
+    label: "OpenAI (GPT)",
+    url: "https://platform.openai.com/api-keys",
+    description: "Generate a key in the OpenAI Platform dashboard",
+  },
+  {
+    provider: "google",
+    label: "Google (Gemini)",
+    url: "https://aistudio.google.com/apikey",
+    description: "Get a free API key from Google AI Studio",
+  },
 ] as const;
 
 export function APIKeysManager() {
@@ -83,14 +104,47 @@ export function APIKeysManager() {
   };
 
   return (
-    <Card>
-      <CardHeader className="py-4">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Key className="size-5" />
-          AI Provider API Keys
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="py-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <ExternalLink className="size-5" />
+            How to Get Your API Keys
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            You need an API key from at least one provider to use the AI
+            assistant. Click the links below to create one.
+          </p>
+          {PROVIDER_DOCS.map((doc) => (
+            <a
+              key={doc.provider}
+              href={doc.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between rounded-lg border p-3 hover:bg-secondary transition-colors"
+            >
+              <div>
+                <p className="font-medium text-sm">{doc.label}</p>
+                <p className="text-xs text-muted-foreground">
+                  {doc.description}
+                </p>
+              </div>
+              <ExternalLink className="size-4 text-muted-foreground shrink-0 ml-2" />
+            </a>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="py-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Key className="size-5" />
+            AI Provider API Keys
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Add your own API key for at least one provider to use the AI chat
           assistant. Keys are encrypted at rest and never sent back to the
@@ -235,6 +289,7 @@ export function APIKeysManager() {
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

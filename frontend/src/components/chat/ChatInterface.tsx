@@ -1,42 +1,95 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   MessageSquare,
-  Send,
   Settings,
-  Loader2,
+  LogIn,
+  X,
+  Maximize2,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  useLocalRuntime,
+  AssistantRuntimeProvider,
+  useAui,
+  useAuiState,
+} from "@assistant-ui/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { fetchAPIKeys, streamChat, type ConfiguredAPIKey } from "@/lib/api-client";
+import { Thread } from "@/components/assistant-ui/thread";
+import { fetchAPIKeys, type ConfiguredAPIKey } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 import { useChatContext } from "@/lib/chat-context";
+import { createDjangoChatAdapter } from "./ChatModelAdapter";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
+// ── Panel constants ──
+const DEFAULT_WIDTH = 400;
+const DEFAULT_HEIGHT = 560;
+const MIN_WIDTH = 320;
+const MIN_HEIGHT = 400;
+const PANEL_MARGIN = 24;
+
+function getDefaultPosition(width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT) {
+  if (typeof window === "undefined") return { x: 0, y: 0 };
+  return {
+    x: window.innerWidth - width - PANEL_MARGIN,
+    y: window.innerHeight - height - PANEL_MARGIN - 72,
+  };
 }
 
+// ── Clear chat button (must be inside AssistantRuntimeProvider) ──
+function ClearChatButton() {
+  const aui = useAui();
+  const isEmpty = useAuiState((s) => s.thread.isEmpty);
+
+  if (isEmpty) return null;
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-7 cursor-pointer text-muted-foreground"
+      onClick={(e) => {
+        e.stopPropagation();
+        aui.threads().switchToNewThread();
+      }}
+      title="Clear chat"
+    >
+      <RotateCcw className="size-3.5" />
+    </Button>
+  );
+}
+
+// ── Main component ──
 export function ChatInterface() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const pageContext = useChatContext();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [selectedProviderOverride, setSelectedProvider] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [selectedProviderOverride, setSelectedProvider] = useState<
+    string | null
+  >(null);
+
+  // Panel state
+  const [panelSize, setPanelSize] = useState({
+    width: DEFAULT_WIDTH,
+    height: DEFAULT_HEIGHT,
+  });
+  const [panelPosition, setPanelPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [panelKey, setPanelKey] = useState(0);
+  const dragControls = useDragControls();
+  const isResizing = useRef(false);
 
   const { data: apiKeys = [] } = useQuery<ConfiguredAPIKey[]>({
     queryKey: ["api-keys"],
@@ -44,249 +97,403 @@ export function ChatInterface() {
     enabled: !!session,
   });
 
-  // Derive selected provider: use override if set and still valid, else first available
+  // Derive selected provider
   const selectedProvider = useMemo(() => {
-    if (selectedProviderOverride && apiKeys.some((k) => k.provider === selectedProviderOverride)) {
+    if (
+      selectedProviderOverride &&
+      apiKeys.some((k) => k.provider === selectedProviderOverride)
+    ) {
       return selectedProviderOverride;
     }
     return apiKeys.length > 0 ? apiKeys[0].provider : null;
   }, [apiKeys, selectedProviderOverride]);
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // Set default position on first open (client-side only)
+  useEffect(() => {
+    if (isOpen && !panelPosition) {
+      setPanelPosition(getDefaultPosition(panelSize.width, panelSize.height));
+    }
+  }, [isOpen, panelPosition, panelSize.width, panelSize.height]);
+
+  // Auto-open chat when returning from login with chatOpen=true
+  useEffect(() => {
+    if (searchParams.get("chatOpen") === "true") {
+      setIsOpen(true);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("chatOpen");
+      const newQuery = params.toString();
+      router.replace(newQuery ? `${pathname}?${newQuery}` : pathname, {
+        scroll: false,
+      });
+    }
+  }, [searchParams, router, pathname]);
+
+  // Viewport resize safety — clamp panel position
+  useEffect(() => {
+    const handleResize = () => {
+      setPanelPosition((prev) => {
+        if (!prev) return prev;
+        return {
+          x: Math.min(prev.x, window.innerWidth - 100),
+          y: Math.min(prev.y, window.innerHeight - 100),
+        };
+      });
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(scrollToBottom, [messages, scrollToBottom]);
+  // Build login URL
+  const buildLoginUrl = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("chatOpen", "true");
+    const returnUrl = `${pathname}?${params.toString()}`;
+    return `/login?callbackUrl=${encodeURIComponent(returnUrl)}`;
+  }, [pathname, searchParams]);
 
-  // Focus input when sheet opens
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
+  // Reset panel position/size
+  const resetPanel = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPanelSize({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
+    setPanelPosition(getDefaultPosition());
+    setPanelKey((k) => k + 1);
+  }, []);
+
+  // Resize handler
+  const startResize = useCallback(
+    (e: React.MouseEvent, direction: "se" | "e" | "s") => {
+      e.preventDefault();
+      e.stopPropagation();
+      isResizing.current = true;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startWidth = panelSize.width;
+      const startHeight = panelSize.height;
+
+      document.body.classList.add("select-none");
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+
+        setPanelSize({
+          width:
+            direction === "s"
+              ? startWidth
+              : Math.max(MIN_WIDTH, startWidth + dx),
+          height:
+            direction === "e"
+              ? startHeight
+              : Math.max(MIN_HEIGHT, startHeight + dy),
+        });
+      };
+
+      const onMouseUp = () => {
+        isResizing.current = false;
+        document.body.classList.remove("select-none");
+        document.removeEventListener("mousemove", onMouseMove);
+        document.removeEventListener("mouseup", onMouseUp);
+      };
+
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    },
+    [panelSize.width, panelSize.height],
+  );
+
+  // Context label for welcome message
+  const contextLabel = useMemo(() => {
+    switch (pageContext?.type) {
+      case "bill":
+        return "this bill";
+      case "vote":
+        return "this vote";
+      case "member":
+        return "this member";
+      default:
+        return "congressional activity";
     }
-  }, [isOpen]);
+  }, [pageContext?.type]);
 
-  const handleSend = async () => {
-    const trimmed = input.trim();
-    if (!trimmed || !selectedProvider || isStreaming) return;
+  // assistant-ui adapter + runtime
+  const adapter = useMemo(() => {
+    if (!selectedProvider) return null;
+    return createDjangoChatAdapter(selectedProvider, pageContext);
+  }, [selectedProvider, pageContext]);
 
-    const userMessage: Message = { role: "user", content: trimmed };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setInput("");
-    setIsStreaming(true);
-
-    // Add empty assistant message to be filled by stream
-    let assistantContent = "";
-    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-
-    try {
-      await streamChat({
-        provider: selectedProvider,
-        messages: newMessages,
-        pageContext: pageContext || { type: "home", data: {} },
-        onChunk: (chunk) => {
-          assistantContent += chunk;
-          setMessages((prev) => {
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              role: "assistant",
-              content: assistantContent,
-            };
-            return updated;
-          });
-        },
-        onDone: () => {
-          setIsStreaming(false);
-        },
-        onError: (error) => {
-          assistantContent += assistantContent
-            ? `\n\n[Error: ${error}]`
-            : `Error: ${error}`;
-          setMessages((prev) => {
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              role: "assistant",
-              content: assistantContent,
-            };
-            return updated;
-          });
-          setIsStreaming(false);
-        },
-      });
-    } catch {
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: "An unexpected error occurred. Please try again.",
-        };
-        return updated;
-      });
-      setIsStreaming(false);
-    }
-  };
-
-  // Don't render at all when not logged in
-  if (!session) return null;
+  const runtime = useLocalRuntime(adapter!);
 
   const hasKeys = apiKeys.length > 0;
+  const showChat = session && hasKeys && adapter;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
   return (
     <>
-      {/* Floating trigger button */}
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetTrigger asChild>
-          <Button
-            className="fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg"
-            size="icon"
-          >
-            <MessageSquare className="size-6" />
-          </Button>
-        </SheetTrigger>
+      {/* FAB trigger button */}
+      <Button
+        onClick={() => setIsOpen((o) => !o)}
+        className={cn(
+          "fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg border-0 cursor-pointer",
+          "bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700",
+          "text-white",
+        )}
+        size="icon"
+      >
+        <MessageSquare className="size-6" />
+      </Button>
 
-        <SheetContent
-          side="right"
-          className="flex w-full flex-col p-0 sm:max-w-md"
-        >
-          {/* Header */}
-          <SheetHeader className="border-b px-4 py-3">
-            <div className="flex items-center justify-between">
-              <SheetTitle className="text-base">AI Assistant</SheetTitle>
-              {messages.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setMessages([])}
-                  className="text-xs text-muted-foreground"
-                >
-                  Clear chat
-                </Button>
-              )}
-            </div>
-            {hasKeys && (
-              <div className="flex gap-1.5 pt-1">
-                {apiKeys.map((key) => (
-                  <Badge
-                    key={key.provider}
-                    variant={
-                      selectedProvider === key.provider
-                        ? "default"
-                        : "outline"
-                    }
-                    className="cursor-pointer text-xs"
-                    onClick={() => setSelectedProvider(key.provider)}
-                  >
-                    {key.provider_display}
-                  </Badge>
-                ))}
-              </div>
+      {/* Floating panel */}
+      <AnimatePresence>
+        {isOpen && panelPosition && (
+          <motion.div
+            key={panelKey}
+            drag={!isMobile}
+            dragControls={dragControls}
+            dragListener={false}
+            dragMomentum={false}
+            dragConstraints={{
+              left: 0,
+              top: 0,
+              right: Math.max(0, window.innerWidth - panelSize.width),
+              bottom: Math.max(0, window.innerHeight - panelSize.height),
+            }}
+            onDragEnd={(_e, info) => {
+              setPanelPosition((prev) => {
+                if (!prev) return prev;
+                return {
+                  x: prev.x + info.offset.x,
+                  y: prev.y + info.offset.y,
+                };
+              });
+            }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            style={
+              isMobile
+                ? { position: "fixed" as const, inset: 0, zIndex: 50 }
+                : {
+                    position: "fixed" as const,
+                    left: panelPosition.x,
+                    top: panelPosition.y,
+                    width: panelSize.width,
+                    height: panelSize.height,
+                    zIndex: 50,
+                  }
+            }
+            className={cn(
+              "flex flex-col rounded-lg border bg-background shadow-xl overflow-hidden",
+              isMobile && "rounded-none",
             )}
-          </SheetHeader>
-
-          {/* Body */}
-          {!hasKeys ? (
-            <div className="flex flex-1 items-center justify-center p-6">
-              <div className="text-center space-y-3">
-                <Settings className="mx-auto size-10 text-muted-foreground/40" />
-                <div>
-                  <p className="font-medium text-sm">
-                    No API keys configured
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Add at least one AI provider API key in settings to
-                    use the chat.
-                  </p>
-                </div>
-                <Button asChild size="sm" variant="outline">
-                  <Link href="/settings" onClick={() => setIsOpen(false)}>
-                    Go to Settings
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {messages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                    <MessageSquare className="size-8 mb-2 opacity-30" />
-                    <p className="text-sm">
-                      Ask me anything about{" "}
-                      {pageContext?.type === "bill"
-                        ? "this bill"
-                        : pageContext?.type === "vote"
-                          ? "this vote"
-                          : pageContext?.type === "member"
-                            ? "this member"
-                            : "congressional activity"}
-                      .
-                    </p>
-                  </div>
-                )}
-
-                {messages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-secondary-foreground"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap break-words">
-                        {msg.content}
-                        {isStreaming &&
-                          i === messages.length - 1 &&
-                          msg.role === "assistant" && (
-                            <span className="inline-block ml-1 w-1.5 h-4 bg-current animate-pulse" />
-                          )}
-                      </p>
+          >
+            {showChat ? (
+              // Wrap both header and thread in one provider so clear button works
+              <AssistantRuntimeProvider runtime={runtime}>
+                <ChatPanelHeader
+                  session={session}
+                  hasKeys={hasKeys}
+                  showClearButton
+                  apiKeys={apiKeys}
+                  selectedProvider={selectedProvider}
+                  onSelectProvider={(p) => setSelectedProvider(p)}
+                  isMobile={isMobile}
+                  onReset={resetPanel}
+                  onClose={() => setIsOpen(false)}
+                  onPointerDown={(e) => {
+                    if (!isMobile) dragControls.start(e);
+                  }}
+                />
+                <Thread contextLabel={contextLabel} />
+              </AssistantRuntimeProvider>
+            ) : (
+              <>
+                <ChatPanelHeader
+                  session={session}
+                  hasKeys={hasKeys}
+                  showClearButton={false}
+                  apiKeys={apiKeys}
+                  selectedProvider={selectedProvider}
+                  onSelectProvider={(p) => setSelectedProvider(p)}
+                  isMobile={isMobile}
+                  onReset={resetPanel}
+                  onClose={() => setIsOpen(false)}
+                  onPointerDown={(e) => {
+                    if (!isMobile) dragControls.start(e);
+                  }}
+                />
+                {/* Not logged in */}
+                {!session ? (
+                  <div className="flex flex-1 items-center justify-center p-6">
+                    <div className="text-center space-y-3">
+                      <LogIn className="mx-auto size-10 text-muted-foreground/40" />
+                      <div>
+                        <p className="font-medium text-sm">
+                          Sign in to get started
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Log in with your account to use the AI assistant.
+                        </p>
+                      </div>
+                      <Button asChild size="sm" variant="outline">
+                        <Link
+                          href={buildLoginUrl()}
+                          onClick={() => setIsOpen(false)}
+                          className="cursor-pointer"
+                        >
+                          Sign in
+                        </Link>
+                      </Button>
                     </div>
                   </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
+                ) : (
+                  /* No API keys */
+                  <div className="flex flex-1 items-center justify-center p-6">
+                    <div className="text-center space-y-3">
+                      <Settings className="mx-auto size-10 text-muted-foreground/40" />
+                      <div>
+                        <p className="font-medium text-sm">
+                          No API keys configured
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Add at least one AI provider API key in settings to
+                          use the chat.
+                        </p>
+                      </div>
+                      <Button asChild size="sm" variant="outline">
+                        <Link
+                          href="/settings"
+                          onClick={() => setIsOpen(false)}
+                          className="cursor-pointer"
+                        >
+                          Go to Settings
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
 
-              {/* Input */}
-              <div className="border-t p-3">
-                <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
-                      }
-                    }}
-                    placeholder="Type your message..."
-                    disabled={isStreaming}
-                    className="flex-1 rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                  />
-                  <Button
-                    onClick={handleSend}
-                    disabled={isStreaming || !input.trim()}
-                    size="icon"
-                    className="shrink-0"
+            {/* Resize handles (desktop only) */}
+            {!isMobile && (
+              <>
+                {/* SE corner — diagonal resize with grip dots */}
+                <div
+                  onMouseDown={(e) => startResize(e, "se")}
+                  className="absolute bottom-0 right-0 size-4 cursor-se-resize"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    className="text-muted-foreground/40"
                   >
-                    {isStreaming ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Send className="size-4" />
-                    )}
-                  </Button>
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                    <circle cx="8" cy="12" r="1.5" fill="currentColor" />
+                    <circle cx="12" cy="8" r="1.5" fill="currentColor" />
+                  </svg>
                 </div>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
+                {/* E edge — width only */}
+                <div
+                  onMouseDown={(e) => startResize(e, "e")}
+                  className="absolute top-0 right-0 w-1.5 h-full cursor-e-resize"
+                />
+                {/* S edge — height only */}
+                <div
+                  onMouseDown={(e) => startResize(e, "s")}
+                  className="absolute bottom-0 left-0 w-full h-1.5 cursor-s-resize"
+                />
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
+  );
+}
+
+// ── Extracted header component ──
+function ChatPanelHeader({
+  session,
+  hasKeys,
+  showClearButton,
+  apiKeys,
+  selectedProvider,
+  onSelectProvider,
+  isMobile,
+  onReset,
+  onClose,
+  onPointerDown,
+}: {
+  session: unknown;
+  hasKeys: boolean;
+  showClearButton: boolean;
+  apiKeys: ConfiguredAPIKey[];
+  selectedProvider: string | null;
+  onSelectProvider: (provider: string) => void;
+  isMobile: boolean;
+  onReset: (e: React.MouseEvent) => void;
+  onClose: () => void;
+  onPointerDown: (e: React.PointerEvent) => void;
+}) {
+  return (
+    <div
+      onPointerDown={onPointerDown}
+      className={cn(
+        "flex flex-col border-b px-3 py-2 shrink-0",
+        !isMobile && "cursor-grab active:cursor-grabbing",
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold select-none">AI Assistant</h2>
+        <div className="flex items-center gap-0.5">
+          {showClearButton && <ClearChatButton />}
+          {!isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 cursor-pointer text-muted-foreground"
+              onClick={onReset}
+              title="Reset position & size"
+            >
+              <Maximize2 className="size-3.5" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 cursor-pointer text-muted-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            title="Close"
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+      {session && hasKeys && (
+        <div className="flex gap-1.5 pt-1">
+          {apiKeys.map((key) => (
+            <Badge
+              key={key.provider}
+              variant={
+                selectedProvider === key.provider ? "default" : "outline"
+              }
+              className="cursor-pointer text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectProvider(key.provider);
+              }}
+            >
+              {key.provider_display}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

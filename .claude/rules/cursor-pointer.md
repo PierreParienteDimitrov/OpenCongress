@@ -1,0 +1,1 @@
+Always add `cursor-pointer` to any clickable element (buttons, links, dropdown menu items, badges with onClick, etc.) when writing JSX/TSX. The shadcn/ui DropdownMenuItem uses `cursor-default` by default, so interactive items need an explicit `cursor-pointer` override via className.

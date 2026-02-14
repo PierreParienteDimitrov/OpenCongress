@@ -12,6 +12,8 @@ interface UseMapZoomOptions {
   minZoom?: number;
   maxZoom?: number;
   transitionDuration?: number;
+  /** Custom translate extent [[x0,y0],[x1,y1]]. Defaults to [[0,0],[width,height]]. */
+  translateExtent?: [[number, number], [number, number]];
 }
 
 interface UseMapZoomReturn {
@@ -34,6 +36,7 @@ export function useMapZoom({
   minZoom = 1,
   maxZoom = 8,
   transitionDuration = 750,
+  translateExtent: customExtent,
 }: UseMapZoomOptions): UseMapZoomReturn {
   const svgNodeRef = useRef<SVGSVGElement | null>(null);
   const gRef = useRef<SVGGElement>(null);
@@ -67,10 +70,12 @@ export function useMapZoom({
 
       const zoomBehavior = zoom<SVGSVGElement, unknown>()
         .scaleExtent([minZoom, maxZoom])
-        .translateExtent([
-          [0, 0],
-          [width, height],
-        ])
+        .translateExtent(
+          customExtent ?? [
+            [0, 0],
+            [width, height],
+          ]
+        )
         .on("zoom", (event) => {
           const g = gRef.current;
           if (g) {
@@ -91,7 +96,7 @@ export function useMapZoom({
       node.addEventListener("gesturestart", preventDefault);
       node.addEventListener("gesturechange", preventDefault);
     },
-    [width, height, minZoom, maxZoom]
+    [width, height, minZoom, maxZoom, customExtent]
   );
 
   const resetZoom = useCallback(() => {

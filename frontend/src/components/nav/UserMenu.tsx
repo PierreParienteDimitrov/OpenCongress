@@ -68,13 +68,13 @@ export function UserMenu() {
         <DropdownMenuItem className="text-muted-foreground text-xs" disabled>
           {session.user.email}
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem asChild className="cursor-pointer">
           <Link href="/settings">
             <Settings className="mr-2 size-4" />
             Settings
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => signOut()}>
+        <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer">
           <LogOut className="mr-2 size-4" />
           Sign out
         </DropdownMenuItem>

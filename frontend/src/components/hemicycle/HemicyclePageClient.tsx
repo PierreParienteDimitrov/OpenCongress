@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import type { Seat, SeatWithVote, VoteSummary } from "@/types";
 import { getSeatVoteOverlayClient } from "@/lib/api";
 import { cn, formatDate, getResultLabel, getResultBgColor } from "@/lib/utils";
-import HemicycleChart from "./HemicycleChart";
+import HemicycleChart, { VIEWBOX } from "./HemicycleChart";
+import { useMapZoom } from "@/components/map/useMapZoom";
+import MapZoomControls from "@/components/map/MapZoomControls";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,6 +31,14 @@ export default function HemicyclePageClient({
   votes,
 }: HemicyclePageClientProps) {
   const [selectedVoteId, setSelectedVoteId] = useState<string>("");
+
+  const vb = VIEWBOX[chamber];
+  const extent = useMemo<[[number, number], [number, number]]>(
+    () => [[vb.minX, vb.minY], [vb.minX + vb.width, vb.minY + vb.height]],
+    [vb.minX, vb.minY, vb.width, vb.height]
+  );
+  const { svgRef, gRef, transform, isZoomed, zoomIn, zoomOut, resetZoom } =
+    useMapZoom({ width: vb.width, height: vb.height, translateExtent: extent });
 
   const { data: overlaySeats, isFetching } = useQuery({
     queryKey: ["seat-vote-overlay", chamber, selectedVoteId],
@@ -151,11 +161,20 @@ export default function HemicyclePageClient({
       </div>
 
       {/* Hemicycle chart — fills remaining space */}
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
+        <MapZoomControls
+          isZoomed={isZoomed}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onReset={resetZoom}
+        />
         <HemicycleChart
           chamber={chamber}
           seats={displaySeats}
           showVoteOverlay={isOverlay}
+          svgRef={svgRef}
+          gRef={gRef}
+          zoomTransform={transform}
         />
       </div>
     </div>
