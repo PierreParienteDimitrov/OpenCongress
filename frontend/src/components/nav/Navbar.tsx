@@ -5,7 +5,7 @@ import { ActiveLink } from "./ActiveLink";
 import { MobileMenu } from "./MobileMenu";
 import { UserMenu } from "./UserMenu";
 import { NavChatButton } from "./NavChatButton";
-import { NavCalendarButton } from "./NavCalendarButton";
+
 import { navLinks } from "./NavLinks";
 
 export function Navbar() {
@@ -31,9 +31,8 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Right: Calendar + AI Bot + User menu + Mobile menu */}
+        {/* Right: AI Bot + User menu + Mobile menu */}
         <div className="flex items-center gap-1.5">
-          <NavCalendarButton />
           <NavChatButton />
           <UserMenu />
           <MobileMenu />

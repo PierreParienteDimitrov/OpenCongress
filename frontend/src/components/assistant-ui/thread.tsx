@@ -31,9 +31,10 @@ import type { FC } from "react";
 
 interface ThreadProps {
   contextLabel?: string;
+  composerFooter?: React.ReactNode;
 }
 
-export const Thread: FC<ThreadProps> = ({ contextLabel }) => {
+export const Thread: FC<ThreadProps> = ({ contextLabel, composerFooter }) => {
   return (
     <ThreadPrimitive.Root className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col">
       <ThreadPrimitive.Viewport
@@ -55,7 +56,7 @@ export const Thread: FC<ThreadProps> = ({ contextLabel }) => {
 
       <div className="relative shrink-0 px-3 pb-3">
         <ThreadScrollToBottom />
-        <Composer />
+        <Composer composerFooter={composerFooter} />
       </div>
     </ThreadPrimitive.Root>
   );
@@ -86,7 +87,7 @@ const ThreadWelcome: FC<{ contextLabel?: string }> = ({ contextLabel }) => {
   );
 };
 
-const Composer: FC = () => {
+const Composer: FC<{ composerFooter?: React.ReactNode }> = ({ composerFooter }) => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <div className="flex w-full flex-col rounded-xl border border-input bg-background px-1 pt-1 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20">
@@ -97,7 +98,10 @@ const Composer: FC = () => {
           autoFocus
           aria-label="Message input"
         />
-        <ComposerAction />
+        <div className="flex items-center justify-between mx-1 mb-1">
+          <div>{composerFooter}</div>
+          <ComposerAction />
+        </div>
       </div>
     </ComposerPrimitive.Root>
   );
@@ -105,7 +109,7 @@ const Composer: FC = () => {
 
 const ComposerAction: FC = () => {
   return (
-    <div className="aui-composer-action-wrapper relative mx-1 mb-1 flex items-center justify-end">
+    <div className="aui-composer-action-wrapper relative flex items-center justify-end">
       <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton

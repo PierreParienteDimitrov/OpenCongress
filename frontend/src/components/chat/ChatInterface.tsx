@@ -26,8 +26,9 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { fetchAPIKeys, type ConfiguredAPIKey } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { useChatContext } from "@/lib/chat-context";
-import { useChatUI } from "@/lib/chat-store";
+import { useChatUI, type AIProvider } from "@/lib/chat-store";
 import { createDjangoChatAdapter } from "./ChatModelAdapter";
+import { ModelSelector } from "./ModelSelector";
 
 // ── Panel constants ──
 const DEFAULT_WIDTH = 400;
@@ -76,6 +77,8 @@ export function ChatInterface() {
   const pageContext = useChatContext();
   const isOpen = useChatUI((s) => s.isOpen);
   const isExpanded = useChatUI((s) => s.isExpanded);
+  const storedProvider = useChatUI((s) => s.selectedProvider);
+  const setProvider = useChatUI((s) => s.setProvider);
   const openChat = useChatUI((s) => s.open);
   const closeChat = useChatUI((s) => s.close);
   const toggleExpanded = useChatUI((s) => s.toggleExpanded);
@@ -98,10 +101,21 @@ export function ChatInterface() {
     enabled: !!session,
   });
 
-  // Derive selected provider (use first available key)
-  const selectedProvider = useMemo(() => {
-    return apiKeys.length > 0 ? apiKeys[0].provider : null;
-  }, [apiKeys]);
+  // Set of configured provider names (for enabling/disabling in dropdown)
+  const configuredProviders = useMemo(
+    () => new Set(apiKeys.map((k) => k.provider)),
+    [apiKeys],
+  );
+
+  // Auto-select first configured provider if none selected or current is invalid
+  useEffect(() => {
+    if (apiKeys.length === 0) return;
+    if (!storedProvider || !configuredProviders.has(storedProvider)) {
+      setProvider(apiKeys[0].provider as AIProvider);
+    }
+  }, [apiKeys, storedProvider, configuredProviders, setProvider]);
+
+  const selectedProvider = storedProvider;
 
   // Set default position on first open (client-side only)
   const panelPositionResolved = useMemo(() => {
@@ -309,7 +323,12 @@ export function ChatInterface() {
         startResize={startResize}
       >
         <ChatPanelHeader showClearButton {...headerProps} />
-        <Thread contextLabel={contextLabel} />
+        <Thread
+          contextLabel={contextLabel}
+          composerFooter={
+            <ModelSelector configuredProviders={configuredProviders} />
+          }
+        />
       </ChatShell>
     </AssistantRuntimeProvider>
   );

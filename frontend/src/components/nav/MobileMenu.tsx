@@ -20,10 +20,7 @@ import {
 import { navLinks } from "./NavLinks";
 import { useChatUI } from "@/lib/chat-store";
 
-const allMobileLinks = [
-  ...navLinks,
-  { label: "Calendar", href: routes.calendar.index },
-];
+const allMobileLinks = navLinks;
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);

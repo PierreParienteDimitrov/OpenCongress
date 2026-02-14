@@ -9,6 +9,7 @@ import {
   SourceBadge,
 } from "./components";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export const metadata = {
@@ -22,6 +23,7 @@ const sections = [
   { id: "data-sources", label: "Data Sources" },
   { id: "data-updates", label: "How Data is Updated" },
   { id: "ai-content", label: "AI-Generated Content" },
+  { id: "api-keys", label: "API Keys Setup" },
   { id: "technology", label: "Technology" },
   { id: "open-source", label: "Open Source" },
 ];
@@ -73,6 +75,19 @@ function AIIcon() {
         strokeLinejoin="round"
         strokeWidth={2}
         d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+      />
+    </svg>
+  );
+}
+
+function APIKeyIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
       />
     </svg>
   );
@@ -333,6 +348,85 @@ export default function DocumentationPage() {
                 AI summaries are generated using Google&apos;s Gemini 2.5 Flash model, chosen for its
                 speed and accuracy with factual content.
               </p>
+            </DocSection>
+
+            {/* API Keys Setup Section */}
+            <DocSection id="api-keys" title="API Keys Setup" icon={<APIKeyIcon />}>
+              <p>
+                OpenCongress includes an AI assistant that can answer questions about Congress
+                using your own API key. You need a key from at least one provider to use it.
+                Keys are encrypted at rest and never shared.
+              </p>
+
+              <InfoCard type="info" title="Where to add your key">
+                Once you have a key, go to{" "}
+                <Link href={routes.settings.apiKeys} className="font-medium underline underline-offset-2">
+                  Settings &rarr; API Keys
+                </Link>{" "}
+                to save it to your account.
+              </InfoCard>
+
+              {/* Anthropic */}
+              <div className="rounded-lg border p-4 mt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="font-semibold text-foreground">Anthropic (Claude)</h3>
+                  <Badge variant="secondary" className="text-xs">Recommended</Badge>
+                </div>
+                <ol className="list-decimal list-inside space-y-2 text-sm">
+                  <li>
+                    Go to the{" "}
+                    <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      Anthropic Console
+                    </a>
+                  </li>
+                  <li>Sign up or log in to your account</li>
+                  <li>Navigate to <strong>Settings &rarr; API Keys</strong></li>
+                  <li>Click <strong>Create Key</strong>, give it a name, and copy the key</li>
+                  <li>Paste the key in your OpenCongress settings (starts with <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">sk-ant-</code>)</li>
+                </ol>
+              </div>
+
+              {/* OpenAI */}
+              <div className="rounded-lg border p-4 mt-2">
+                <h3 className="font-semibold text-foreground mb-3">OpenAI (GPT)</h3>
+                <ol className="list-decimal list-inside space-y-2 text-sm">
+                  <li>
+                    Go to the{" "}
+                    <a href="https://platform.openai.com/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      OpenAI Platform
+                    </a>
+                  </li>
+                  <li>Sign up or log in to your account</li>
+                  <li>Navigate to <strong>API Keys</strong> in the left sidebar</li>
+                  <li>Click <strong>Create new secret key</strong>, name it, and copy the key</li>
+                  <li>Paste the key in your OpenCongress settings (starts with <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">sk-</code>)</li>
+                </ol>
+              </div>
+
+              {/* Google */}
+              <div className="rounded-lg border p-4 mt-2">
+                <h3 className="font-semibold text-foreground mb-3">Google (Gemini)</h3>
+                <ol className="list-decimal list-inside space-y-2 text-sm">
+                  <li>
+                    Go to{" "}
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      Google AI Studio
+                    </a>
+                  </li>
+                  <li>Sign in with your Google account</li>
+                  <li>Click <strong>Create API Key</strong></li>
+                  <li>Select a Google Cloud project (or create one)</li>
+                  <li>Copy the generated key and paste it in your OpenCongress settings (starts with <code className="bg-secondary px-1.5 py-0.5 rounded text-xs">AIza</code>)</li>
+                </ol>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Google offers a generous free tier for Gemini API usage.
+                </p>
+              </div>
+
+              <InfoCard type="warning" title="Keep your keys safe">
+                API keys are like passwords — never share them publicly. Each provider
+                lets you revoke and regenerate keys at any time from their dashboard.
+              </InfoCard>
             </DocSection>
 
             {/* Technology Section */}
