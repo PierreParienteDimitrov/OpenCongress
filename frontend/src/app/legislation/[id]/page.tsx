@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import DOMPurify from "isomorphic-dompurify";
+import sanitizeHtml from "sanitize-html";
 import { ChevronLeft, FileX2 } from "lucide-react";
 
 import { getBill } from "@/lib/api";
@@ -328,7 +328,7 @@ export default async function LegislationPage({ params }: PageProps) {
             ) : bill.summary_html ? (
               <div
                 className="max-w-none font-domine text-base text-foreground/80 leading-relaxed [&>p]:mb-3 [&>ul]:mb-3 [&>ul]:ml-5 [&>ul]:list-disc [&>ol]:mb-3 [&>ol]:ml-5 [&>ol]:list-decimal [&_li]:mb-1"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(bill.summary_html) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(bill.summary_html) }}
               />
             ) : bill.summary_text ? (
               <div className="space-y-3 font-domine text-base text-foreground/80 leading-relaxed">

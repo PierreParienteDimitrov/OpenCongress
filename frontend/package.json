@@ -20,7 +20,6 @@
     "d3-zoom": "^3.0.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^11.18.2",
-    "isomorphic-dompurify": "^3.0.0-rc.2",
     "lucide-react": "^0.563.0",
     "next": "16.1.6",
     "next-auth": "^5.0.0-beta.30",
@@ -30,6 +29,7 @@
     "react-day-picker": "^9.13.2",
     "react-dom": "19.2.3",
     "remark-gfm": "^4.0.1",
+    "sanitize-html": "^2.17.0",
     "tailwind-merge": "^3.4.0",
     "topojson-client": "^3.1.0",
     "zustand": "^5.0.11"
@@ -43,6 +43,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.0",
     "@types/topojson-client": "^3.1.5",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
