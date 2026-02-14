@@ -112,6 +112,11 @@ class JobRunAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.run_job_view),
                 name="jobs_run",
             ),
+            path(
+                "stop/<int:job_run_id>/",
+                self.admin_site.admin_view(self.stop_job_view),
+                name="jobs_stop",
+            ),
         ]
         return custom_urls + urls
 
@@ -192,3 +197,45 @@ class JobRunAdmin(admin.ModelAdmin):
         )
         messages.success(request, f"Started: {config['label']} (Job #{job_run.id})")
         return HttpResponseRedirect(reverse("admin:jobs_jobrun_changelist"))
+
+    def stop_job_view(self, request, job_run_id):
+        """Stop a running job by revoking the Celery task."""
+        if request.method != "POST":
+            return HttpResponseRedirect(reverse("admin:jobs_dashboard"))
+
+        try:
+            job_run = JobRun.objects.get(id=job_run_id)
+        except JobRun.DoesNotExist:
+            messages.error(request, f"Job run #{job_run_id} not found.")
+            return HttpResponseRedirect(reverse("admin:jobs_dashboard"))
+
+        if job_run.status not in ("pending", "running"):
+            messages.warning(
+                request, f"Job #{job_run_id} is not running (status: {job_run.status})."
+            )
+            return HttpResponseRedirect(reverse("admin:jobs_dashboard"))
+
+        # Revoke the Celery task
+        if job_run.celery_task_id:
+            from celery import current_app
+
+            current_app.control.revoke(
+                job_run.celery_task_id, terminate=True, signal="SIGTERM"
+            )
+            logger.info(
+                f"Revoked Celery task {job_run.celery_task_id} for job #{job_run_id}"
+            )
+
+        # Update the JobRun record
+        job_run.status = JobRun.Status.CANCELLED
+        job_run.completed_at = timezone.now()
+        job_run.progress_detail = f"Stopped by {request.user.username}"
+        job_run.save(update_fields=["status", "completed_at", "progress_detail"])
+
+        entry = JOB_REGISTRY.get(job_run.job_type, {})
+        label = entry.get("label", job_run.job_type)
+        logger.info(
+            f"Job #{job_run_id} ({job_run.job_type}) stopped by {request.user.username}"
+        )
+        messages.success(request, f"Stopped: {label} (Job #{job_run_id})")
+        return HttpResponseRedirect(request.META.get("HTTP_REFERER", reverse("admin:jobs_dashboard")))

@@ -286,6 +286,29 @@ def run_sync_recent_votes(self, job_run_id: int):
 # ---------------------------------------------------------------------------
 
 
+class _StreamingJobWriter:
+    """A file-like writer that updates JobRun.progress_detail on every write."""
+
+    def __init__(self, job_run_id: int):
+        self._job_run_id = job_run_id
+        self._buffer: list[str] = []
+
+    def write(self, text: str) -> int:
+        if not text or text == "\n":
+            return len(text) if text else 0
+        clean = text.strip()
+        if clean:
+            self._buffer.append(clean)
+            _update_progress(self._job_run_id, 0, clean)
+        return len(text)
+
+    def flush(self) -> None:
+        pass
+
+    def getvalue(self) -> str:
+        return "\n".join(self._buffer)
+
+
 def _run_management_command(job_run_id, command_name, detail_msg, **kwargs):
     """Generic helper to run a Django management command as a job."""
     import io
@@ -296,7 +319,7 @@ def _run_management_command(job_run_id, command_name, detail_msg, **kwargs):
         _start_job(job_run_id, 1)
         _update_progress(job_run_id, 0, detail_msg)
 
-        stdout = io.StringIO()
+        stdout = _StreamingJobWriter(job_run_id)
         stderr = io.StringIO()
         call_command(command_name, stdout=stdout, stderr=stderr, **kwargs)
 
