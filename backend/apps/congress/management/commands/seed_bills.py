@@ -40,6 +40,12 @@ class Command(BaseCommand):
             default=None,
             help="Bill type to fetch (default: all major types)",
         )
+        parser.add_argument(
+            "--offset",
+            type=int,
+            default=0,
+            help="Starting offset for API pagination (skip already-fetched bills)",
+        )
 
     def handle(self, *args, **options):
         api_key = os.environ.get("CONGRESS_API_KEY")
@@ -52,6 +58,7 @@ class Command(BaseCommand):
         congress = options["congress"]
         limit = options["limit"]
         bill_type = options["type"]
+        start_offset = options["offset"]
 
         if bill_type:
             bill_types = [bill_type]
@@ -65,7 +72,7 @@ class Command(BaseCommand):
         for bt in bill_types:
             self.stdout.write(f"Fetching {bt.upper()} bills for Congress {congress}...")
             created, updated = self._fetch_bills(
-                api_key, congress, bt, limit // len(bill_types)
+                api_key, congress, bt, limit // len(bill_types), start_offset
             )
             total_created += created
             total_updated += updated
@@ -77,7 +84,7 @@ class Command(BaseCommand):
         )
 
     def _fetch_bills(
-        self, api_key: str, congress: int, bill_type: str, limit: int
+        self, api_key: str, congress: int, bill_type: str, limit: int, start_offset: int = 0
     ) -> tuple[int, int]:
         """Fetch bills of a specific type."""
         url = f"{self.CONGRESS_API_BASE}/bill/{congress}/{bill_type}"
@@ -89,7 +96,10 @@ class Command(BaseCommand):
 
         created = 0
         updated = 0
-        offset = 0
+        offset = start_offset
+
+        if start_offset:
+            self.stdout.write(f"  Starting from offset {start_offset}...")
 
         while created + updated < limit:
             params["offset"] = offset

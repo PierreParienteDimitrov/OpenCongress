@@ -1,8 +1,7 @@
-import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import DOMPurify from "isomorphic-dompurify";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, FileX2 } from "lucide-react";
 
 import { getBill } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
@@ -19,6 +18,7 @@ import {
 import type { VoteSummary } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export const revalidate = 86400; // 24 hours
 
@@ -120,7 +120,27 @@ export default async function LegislationPage({ params }: PageProps) {
   try {
     bill = await getBill(id);
   } catch {
-    notFound();
+    return (
+      <main className="min-h-screen bg-background">
+        <GridContainer className="py-8">
+          <Link
+            href={routes.home}
+            className="cursor-pointer inline-flex items-center gap-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+          >
+            <ChevronLeft className="size-4" />
+            Back
+          </Link>
+          <Alert className="max-w-lg">
+            <FileX2 className="size-4" />
+            <AlertTitle>Bill not found</AlertTitle>
+            <AlertDescription>
+              We don&apos;t have data for this bill yet. It may not have been
+              indexed or the bill ID may be incorrect.
+            </AlertDescription>
+          </Alert>
+        </GridContainer>
+      </main>
+    );
   }
 
   return (

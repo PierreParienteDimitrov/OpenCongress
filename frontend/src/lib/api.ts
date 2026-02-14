@@ -66,8 +66,14 @@ async function fetchAPI<T>(
 
     return response.json();
   } catch (error) {
-    // During build/prerendering, return empty defaults so pages render
-    // with fallback state and revalidate with real data at runtime
+    // Re-throw API errors (4xx/5xx) so callers can handle them
+    // (e.g. detail pages calling notFound() on 404)
+    if (error instanceof APIError) {
+      throw error;
+    }
+
+    // During build/prerendering, network errors return empty defaults so
+    // pages render with fallback state and revalidate with real data at runtime
     console.warn(
       `[API] Request failed for ${endpoint}: ${error instanceof Error ? error.message : error}`
     );
