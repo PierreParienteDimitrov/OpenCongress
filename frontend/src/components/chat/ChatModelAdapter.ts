@@ -127,7 +127,17 @@ export function createDjangoChatAdapter(
                 }
               }
             } else if (data.error) {
-              throw new Error(data.error as string);
+              const raw = data.error as string;
+              // Show a friendly message for known provider errors
+              if (
+                raw.includes("INVALID_ARGUMENT") ||
+                raw.includes("function calling")
+              ) {
+                throw new Error(
+                  "This feature is not supported by your API plan. Please try a different model or upgrade your API key.",
+                );
+              }
+              throw new Error(raw);
             } else if (data.done) {
               // Stream complete — append sources as markdown links
               if (sources.length > 0) {

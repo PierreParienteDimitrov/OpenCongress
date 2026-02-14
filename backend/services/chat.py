@@ -413,24 +413,47 @@ class ChatService:
                 types.Content(role=role, parts=[types.Part(text=msg["content"])])
             )
 
-        def _stream_with_search() -> Generator[ChatEvent, None, None]:
-            """Stream final response with Google Search grounding."""
+        config_no_tools = types.GenerateContentConfig(
+            max_output_tokens=4096,
+            temperature=0.7,
+            system_instruction=system_context if system_context else None,
+        )
+
+        def _stream_plain() -> Generator[ChatEvent, None, None]:
+            """Stream response with no tools (last resort fallback)."""
             stream_response = client.models.generate_content_stream(
                 model=self.MODELS["google"],
                 contents=contents,
-                config=config_with_search,
+                config=config_no_tools,
             )
-            grounding_emitted = False
             for chunk in stream_response:
                 if chunk.text:
                     yield {"type": "text_delta", "content": chunk.text}
-                # Grounding metadata typically on the last chunk
-                if not grounding_emitted and chunk.candidates:
-                    cand = chunk.candidates[0]  # type: ignore[index]
-                    grounding = getattr(cand, "grounding_metadata", None)
-                    if grounding:
-                        yield from self._emit_google_grounding(grounding, 0)
-                        grounding_emitted = True
+
+        def _stream_with_search() -> Generator[ChatEvent, None, None]:
+            """Stream final response with Google Search grounding."""
+            try:
+                stream_response = client.models.generate_content_stream(
+                    model=self.MODELS["google"],
+                    contents=contents,
+                    config=config_with_search,
+                )
+                grounding_emitted = False
+                for chunk in stream_response:
+                    if chunk.text:
+                        yield {"type": "text_delta", "content": chunk.text}
+                    # Grounding metadata typically on the last chunk
+                    if not grounding_emitted and chunk.candidates:
+                        cand = chunk.candidates[0]  # type: ignore[index]
+                        grounding = getattr(cand, "grounding_metadata", None)
+                        if grounding:
+                            yield from self._emit_google_grounding(grounding, 0)
+                            grounding_emitted = True
+            except Exception as e:
+                logger.info(
+                    "Gemini search grounding unavailable (%s), using plain response", e
+                )
+                yield from _stream_plain()
 
         for _round in range(MAX_TOOL_ROUNDS):
             # Non-streaming call with DB function tools
@@ -441,7 +464,8 @@ class ChatService:
                     config=config_with_db_tools,
                 )
             except Exception as e:
-                if "function calling" in str(e).lower():
+                err_lower = str(e).lower()
+                if "function calling" in err_lower or "tool" in err_lower:
                     # Model or API tier doesn't support function calling;
                     # fall back to search-only streaming.
                     logger.info(
