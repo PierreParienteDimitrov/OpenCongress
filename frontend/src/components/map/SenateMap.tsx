@@ -1,20 +1,24 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { geoAlbersUsa, geoPath } from "d3-geo";
 import type { GeoPermissibleObjects } from "d3-geo";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
-
 import type { MemberListItem } from "@/types";
 import { FIPS_TO_STATE } from "@/lib/fips";
 import { getPartyColor } from "@/lib/utils";
 import { routes } from "@/lib/routes";
 import MapTooltip, { type MapTooltipMember } from "./MapTooltip";
+import MapZoomControls from "./MapZoomControls";
 import { useViewTransitionRouter } from "./useViewTransitionRouter";
+import { useMapZoom } from "./useMapZoom";
 
 const SPLIT_COLOR = "#8B5CF6"; // violet-500 for split-party states
 const EMPTY_COLOR = "#d1d5db"; // gray-300
+
+const WIDTH = 960;
+const HEIGHT = 600;
 
 interface SenateMapProps {
   members: MemberListItem[];
@@ -29,7 +33,17 @@ interface StateFeature {
 }
 
 export default function SenateMap({ members, focusedState }: SenateMapProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
+  const {
+    svgRef,
+    svgNode,
+    gRef,
+    transform,
+    isZoomed,
+    resetZoom,
+    zoomIn,
+    zoomOut,
+    zoomToBounds,
+  } = useMapZoom({ width: WIDTH, height: HEIGHT });
   const { push } = useViewTransitionRouter();
   const [features, setFeatures] = useState<StateFeature[]>([]);
   const [activeState, setActiveState] = useState<string | null>(null);
@@ -62,6 +76,29 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
       });
   }, []);
 
+  // Stable projection and path generator
+  const projection = useMemo(
+    () => geoAlbersUsa().scale(1280).translate([WIDTH / 2, HEIGHT / 2]),
+    []
+  );
+  const pathGenerator = useMemo(() => geoPath(projection), [projection]);
+
+  // Zoom to focused state or reset
+  useEffect(() => {
+    if (!focusedState || features.length === 0) {
+      if (features.length > 0) resetZoom();
+      return;
+    }
+    const stateFeat = features.find(
+      (f) => FIPS_TO_STATE[f.id] === focusedState
+    );
+    if (!stateFeat) return;
+    const bounds = pathGenerator.bounds(stateFeat as GeoPermissibleObjects);
+    if (bounds) {
+      zoomToBounds(bounds);
+    }
+  }, [focusedState, features, pathGenerator, resetZoom, zoomToBounds]);
+
   const getStateColor = useCallback(
     (fips: string): string => {
       const stateCode = FIPS_TO_STATE[fips];
@@ -85,7 +122,7 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
       const senators = senatorsByState.get(stateCode);
       if (!senators || senators.length === 0) return;
 
-      const svg = svgRef.current;
+      const svg = svgNode.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
 
@@ -102,7 +139,7 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
         })),
       });
     },
-    [senatorsByState]
+    [senatorsByState, svgNode]
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -111,101 +148,75 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
 
   if (features.length === 0) return null;
 
-  // Determine projection: default full US, or zoom to a specific state
-  const width = 960;
-  const height = 600;
-
-  let projection = geoAlbersUsa().scale(1280).translate([width / 2, height / 2]);
-
-  if (focusedState) {
-    // Find the focused state feature and fit the projection to it
-    const stateFeat = features.find(
-      (f) => FIPS_TO_STATE[f.id] === focusedState
-    );
-    if (stateFeat) {
-      const tempProjection = geoAlbersUsa()
-        .scale(1280)
-        .translate([width / 2, height / 2]);
-      const tempPath = geoPath(tempProjection);
-      const bounds = tempPath.bounds(stateFeat as GeoPermissibleObjects);
-      if (bounds) {
-        const [[x0, y0], [x1, y1]] = bounds;
-        const bw = x1 - x0;
-        const bh = y1 - y0;
-        const scale =
-          0.8 / Math.max(bw / width, bh / height) * 1280;
-        const cx = (x0 + x1) / 2;
-        const cy = (y0 + y1) / 2;
-        projection = geoAlbersUsa()
-          .scale(scale)
-          .translate([width / 2 - cx * (scale / 1280) + width / 2, height / 2 - cy * (scale / 1280) + height / 2]);
-      }
-    }
-  }
-
-  const pathGenerator = geoPath(projection);
-
   return (
     <div className="relative">
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-full w-full"
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        className="h-full w-full cursor-grab touch-none"
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="US Senate map by state"
       >
-        {features.map((feat) => {
-          const d = pathGenerator(feat as GeoPermissibleObjects);
-          if (!d) return null;
-          const stateCode = FIPS_TO_STATE[feat.id];
-          const isHighlighted = !focusedState || stateCode === focusedState;
+        <g ref={gRef}>
+          {features.map((feat) => {
+            const d = pathGenerator(feat as GeoPermissibleObjects);
+            if (!d) return null;
+            const stateCode = FIPS_TO_STATE[feat.id];
+            const isHighlighted =
+              !focusedState || stateCode === focusedState;
 
-          return (
-            <path
-              key={feat.id}
-              d={d}
-              fill={getStateColor(feat.id)}
-              stroke="#ffffff"
-              strokeWidth={0.5}
-              opacity={isHighlighted ? 1 : 0.2}
-              style={
-                stateCode && activeState === stateCode
-                  ? { viewTransitionName: `geo-shape` }
-                  : undefined
-              }
-              className="cursor-pointer transition-opacity hover:opacity-80"
-              onMouseEnter={(e) => handleMouseEnter(feat, e)}
-              onMouseMove={(e) => {
-                const svg = svgRef.current;
-                if (!svg) return;
-                const rect = svg.getBoundingClientRect();
-                setTooltip((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        x: e.clientX - rect.left,
-                        y: e.clientY - rect.top,
-                      }
-                    : null
-                );
-              }}
-              onMouseLeave={handleMouseLeave}
-              onClick={() => {
-                if (stateCode) {
-                  setActiveState(stateCode);
-                  // Small delay to let React re-render with viewTransitionName
-                  // before starting the transition
-                  requestAnimationFrame(() => {
-                    push(routes.senate.state(stateCode));
-                  });
+            return (
+              <path
+                key={feat.id}
+                d={d}
+                fill={getStateColor(feat.id)}
+                stroke="#ffffff"
+                strokeWidth={0.5 / transform.k}
+                opacity={isHighlighted ? 1 : 0.2}
+                style={
+                  stateCode && activeState === stateCode
+                    ? { viewTransitionName: `geo-shape` }
+                    : undefined
                 }
-              }}
-            />
-          );
-        })}
+                className="cursor-pointer transition-opacity hover:opacity-80"
+                onMouseEnter={(e) => handleMouseEnter(feat, e)}
+                onMouseMove={(e) => {
+                  const svg = svgNode.current;
+                  if (!svg) return;
+                  const rect = svg.getBoundingClientRect();
+                  setTooltip((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          x: e.clientX - rect.left,
+                          y: e.clientY - rect.top,
+                        }
+                      : null
+                  );
+                }}
+                onMouseLeave={handleMouseLeave}
+                onClick={(e) => {
+                  if (e.defaultPrevented) return;
+                  if (stateCode) {
+                    setActiveState(stateCode);
+                    requestAnimationFrame(() => {
+                      push(routes.senate.state(stateCode));
+                    });
+                  }
+                }}
+              />
+            );
+          })}
+        </g>
       </svg>
       {tooltip && <MapTooltip {...tooltip} />}
+      <MapZoomControls
+        isZoomed={isZoomed}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onReset={resetZoom}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { geoAlbersUsa, geoPath } from "d3-geo";
 import type { GeoPermissibleObjects } from "d3-geo";
 import { feature } from "topojson-client";
@@ -10,9 +10,14 @@ import { FIPS_TO_STATE } from "@/lib/fips";
 import { getPartyColor } from "@/lib/utils";
 import { routes } from "@/lib/routes";
 import MapTooltip, { type MapTooltipMember } from "./MapTooltip";
+import MapZoomControls from "./MapZoomControls";
 import { useViewTransitionRouter } from "./useViewTransitionRouter";
+import { useMapZoom } from "./useMapZoom";
 
 const EMPTY_COLOR = "#d1d5db"; // gray-300
+
+const WIDTH = 960;
+const HEIGHT = 600;
 
 interface DistrictMapProps {
   members: MemberListItem[];
@@ -30,8 +35,21 @@ interface DistrictFeature {
   };
 }
 
-export default function DistrictMap({ members, focusedState }: DistrictMapProps) {
-  const svgRef = useRef<SVGSVGElement>(null);
+export default function DistrictMap({
+  members,
+  focusedState,
+}: DistrictMapProps) {
+  const {
+    svgRef,
+    svgNode,
+    gRef,
+    transform,
+    isZoomed,
+    resetZoom,
+    zoomIn,
+    zoomOut,
+    zoomToBounds,
+  } = useMapZoom({ width: WIDTH, height: HEIGHT });
   const { push } = useViewTransitionRouter();
   const [features, setFeatures] = useState<DistrictFeature[]>([]);
   const [activeDistrict, setActiveDistrict] = useState<string | null>(null);
@@ -63,6 +81,45 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
       });
   }, []);
 
+  // Stable projection and path generator
+  const projection = useMemo(
+    () => geoAlbersUsa().scale(1280).translate([WIDTH / 2, HEIGHT / 2]),
+    []
+  );
+  const pathGenerator = useMemo(() => geoPath(projection), [projection]);
+
+  // Zoom to focused state or reset
+  useEffect(() => {
+    if (!focusedState || features.length === 0) {
+      if (features.length > 0) resetZoom();
+      return;
+    }
+    const stateFeats = features.filter(
+      (f) => FIPS_TO_STATE[f.properties.STATEFP] === focusedState
+    );
+    if (stateFeats.length === 0) return;
+
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const f of stateFeats) {
+      const bounds = pathGenerator.bounds(f as GeoPermissibleObjects);
+      if (bounds) {
+        minX = Math.min(minX, bounds[0][0]);
+        minY = Math.min(minY, bounds[0][1]);
+        maxX = Math.max(maxX, bounds[1][0]);
+        maxY = Math.max(maxY, bounds[1][1]);
+      }
+    }
+    if (isFinite(minX)) {
+      zoomToBounds([
+        [minX, minY],
+        [maxX, maxY],
+      ]);
+    }
+  }, [focusedState, features, pathGenerator, resetZoom, zoomToBounds]);
+
   const getMemberForDistrict = useCallback(
     (feat: DistrictFeature): MemberListItem | undefined => {
       const stateCode = FIPS_TO_STATE[feat.properties.STATEFP];
@@ -86,7 +143,7 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
       const member = getMemberForDistrict(feat);
       if (!member) return;
 
-      const svg = svgRef.current;
+      const svg = svgNode.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
 
@@ -105,11 +162,12 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
         ],
       });
     },
-    [getMemberForDistrict]
+    [getMemberForDistrict, svgNode]
   );
 
   const handleClick = useCallback(
-    (feat: DistrictFeature) => {
+    (feat: DistrictFeature, event: React.MouseEvent) => {
+      if (event.defaultPrevented) return;
       const stateCode = FIPS_TO_STATE[feat.properties.STATEFP];
       if (!stateCode) return;
       const districtNum = parseInt(feat.properties.CD119FP, 10);
@@ -128,109 +186,69 @@ export default function DistrictMap({ members, focusedState }: DistrictMapProps)
 
   if (features.length === 0) return null;
 
-  const width = 960;
-  const height = 600;
-
-  let projection = geoAlbersUsa().scale(1280).translate([width / 2, height / 2]);
-
-  if (focusedState) {
-    // Filter to just the focused state's districts and fit projection
-    const stateFeats = features.filter(
-      (f) => FIPS_TO_STATE[f.properties.STATEFP] === focusedState
-    );
-    if (stateFeats.length > 0) {
-      const tempProjection = geoAlbersUsa()
-        .scale(1280)
-        .translate([width / 2, height / 2]);
-      const tempPath = geoPath(tempProjection);
-
-      // Compute combined bounds across all district features of the state
-      let minX = Infinity,
-        minY = Infinity,
-        maxX = -Infinity,
-        maxY = -Infinity;
-      for (const f of stateFeats) {
-        const bounds = tempPath.bounds(f as GeoPermissibleObjects);
-        if (bounds) {
-          minX = Math.min(minX, bounds[0][0]);
-          minY = Math.min(minY, bounds[0][1]);
-          maxX = Math.max(maxX, bounds[1][0]);
-          maxY = Math.max(maxY, bounds[1][1]);
-        }
-      }
-
-      if (isFinite(minX)) {
-        const bw = maxX - minX;
-        const bh = maxY - minY;
-        const scale = (0.8 / Math.max(bw / width, bh / height)) * 1280;
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        projection = geoAlbersUsa()
-          .scale(scale)
-          .translate([
-            width / 2 - cx * (scale / 1280) + width / 2,
-            height / 2 - cy * (scale / 1280) + height / 2,
-          ]);
-      }
-    }
-  }
-
-  const pathGenerator = geoPath(projection);
-
   return (
     <div className="relative">
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-full w-full"
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        className="h-full w-full cursor-grab touch-none"
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="US Congressional district map"
       >
-        {features.map((feat) => {
-          const d = pathGenerator(feat as GeoPermissibleObjects);
-          if (!d) return null;
-          const stateCode = FIPS_TO_STATE[feat.properties.STATEFP];
-          const isHighlighted = !focusedState || stateCode === focusedState;
+        <g ref={gRef}>
+          {features.map((feat) => {
+            const d = pathGenerator(feat as GeoPermissibleObjects);
+            if (!d) return null;
+            const stateCode = FIPS_TO_STATE[feat.properties.STATEFP];
+            const isHighlighted =
+              !focusedState || stateCode === focusedState;
 
-          const districtNum = parseInt(feat.properties.CD119FP, 10);
+            const districtNum = parseInt(feat.properties.CD119FP, 10);
 
-          return (
-            <path
-              key={feat.properties.GEOID}
-              d={d}
-              fill={getDistrictColor(feat)}
-              stroke="#ffffff"
-              strokeWidth={0.3}
-              opacity={isHighlighted ? 1 : 0.2}
-              style={
-                activeDistrict === `${stateCode}-${districtNum}`
-                  ? { viewTransitionName: `geo-shape` }
-                  : undefined
-              }
-              className="cursor-pointer transition-opacity hover:opacity-80"
-              onMouseEnter={(e) => handleMouseEnter(feat, e)}
-              onMouseMove={(e) => {
-                const svg = svgRef.current;
-                if (!svg) return;
-                const rect = svg.getBoundingClientRect();
-                setTooltip((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        x: e.clientX - rect.left,
-                        y: e.clientY - rect.top,
-                      }
-                    : null
-                );
-              }}
-              onMouseLeave={handleMouseLeave}
-              onClick={() => handleClick(feat)}
-            />
-          );
-        })}
+            return (
+              <path
+                key={feat.properties.GEOID}
+                d={d}
+                fill={getDistrictColor(feat)}
+                stroke="#ffffff"
+                strokeWidth={0.3 / transform.k}
+                opacity={isHighlighted ? 1 : 0.2}
+                style={
+                  activeDistrict === `${stateCode}-${districtNum}`
+                    ? { viewTransitionName: `geo-shape` }
+                    : undefined
+                }
+                className="cursor-pointer transition-opacity hover:opacity-80"
+                onMouseEnter={(e) => handleMouseEnter(feat, e)}
+                onMouseMove={(e) => {
+                  const svg = svgNode.current;
+                  if (!svg) return;
+                  const rect = svg.getBoundingClientRect();
+                  setTooltip((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          x: e.clientX - rect.left,
+                          y: e.clientY - rect.top,
+                        }
+                      : null
+                  );
+                }}
+                onMouseLeave={handleMouseLeave}
+                onClick={(e) => handleClick(feat, e)}
+              />
+            );
+          })}
+        </g>
       </svg>
       {tooltip && <MapTooltip {...tooltip} />}
+      <MapZoomControls
+        isZoomed={isZoomed}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onReset={resetZoom}
+      />
     </div>
   );
 }
