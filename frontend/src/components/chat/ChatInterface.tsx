@@ -93,15 +93,8 @@ export function ChatInterface() {
     x: number;
     y: number;
   } | null>(null);
-  const [panelKey, setPanelKey] = useState(0);
   const dragControls = useDragControls();
   const isResizing = useRef(false);
-
-  // Portal target for sidebar mode
-  const [sidebarSlot, setSidebarSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setSidebarSlot(document.getElementById("chat-sidebar-slot"));
-  }, []);
 
   const { data: apiKeys = [] } = useQuery<ConfiguredAPIKey[]>({
     queryKey: ["api-keys"],
@@ -320,6 +313,11 @@ export function ChatInterface() {
   );
 
   // ── Sidebar mode: portal into the sidebar slot ──
+  const sidebarSlot =
+    typeof document !== "undefined"
+      ? document.getElementById("chat-sidebar-slot")
+      : null;
+
   if (isOpen && isExpanded && sidebarSlot) {
     return createPortal(
       <div className="flex h-full flex-col overflow-hidden">
@@ -334,7 +332,6 @@ export function ChatInterface() {
     <AnimatePresence>
       {isOpen && panelPositionResolved && (
         <motion.div
-          key={panelKey}
           drag={!isMobile}
           dragControls={dragControls}
           dragListener={false}
