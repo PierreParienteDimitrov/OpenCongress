@@ -93,6 +93,10 @@ SECURE_SSL_REDIRECT = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+CSRF_TRUSTED_ORIGINS = [
+    "https://api.opencongress.app",
+    "https://congresstrack-api-production.up.railway.app",
+]
 
 # HSTS
 SECURE_HSTS_SECONDS = 31536000
