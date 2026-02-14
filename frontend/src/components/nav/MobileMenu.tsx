@@ -7,7 +7,6 @@ import { useTheme } from "next-themes";
 import Link from "next/link";
 import { Menu, LogOut, MapPin, Moon, Settings, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { routes } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
