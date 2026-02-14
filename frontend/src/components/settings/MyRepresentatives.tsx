@@ -42,7 +42,7 @@ function RepCard({
   return (
     <div className="flex items-center gap-3 rounded border border-border bg-card p-3">
       <Link
-        href={getMemberRoute(member.bioguide_id, member.chamber)}
+        href={getMemberRoute(member.bioguide_id, member.chamber, member.full_name)}
         className="flex flex-1 items-center gap-3 cursor-pointer min-w-0"
       >
         <Image

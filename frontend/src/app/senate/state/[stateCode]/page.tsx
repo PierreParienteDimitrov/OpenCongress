@@ -24,9 +24,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const upper = stateCode.toUpperCase();
   const stateName = getStateName(upper);
 
+  const title = `${stateName} Senators - OpenCongress`;
+  const description = `View the U.S. Senators representing ${stateName}.`;
   return {
-    title: `${stateName} Senators - OpenCongress`,
-    description: `View the U.S. Senators representing ${stateName}.`,
+    title,
+    description,
+    alternates: { canonical: `/senate/state/${upper}` },
+    openGraph: { title, description, url: `/senate/state/${upper}` },
+    twitter: { card: "summary" as const, title, description },
   };
 }
 

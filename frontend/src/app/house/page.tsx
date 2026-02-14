@@ -14,6 +14,19 @@ export const metadata: Metadata = {
   title: "U.S. House of Representatives - OpenCongress",
   description:
     "Explore the U.S. House of Representatives — seats, district map, and member directory.",
+  alternates: { canonical: "/house" },
+  openGraph: {
+    title: "U.S. House of Representatives - OpenCongress",
+    description:
+      "Explore the U.S. House of Representatives — seats, district map, and member directory.",
+    url: "/house",
+  },
+  twitter: {
+    card: "summary",
+    title: "U.S. House of Representatives - OpenCongress",
+    description:
+      "Explore the U.S. House of Representatives — seats, district map, and member directory.",
+  },
 };
 
 export const dynamic = "force-dynamic";

@@ -335,6 +335,27 @@ export function formatRelativeTime(dateString: string): string {
   return formatDate(dateString);
 }
 
+// URL slug from member name
+// Converts "Last, First Middle" to "first-middle-last"
+// e.g. "Bennet, Michael F." → "michael-f-bennet"
+export function slugifyName(fullName: string): string {
+  const parts = fullName.split(",").map((s) => s.trim());
+  const ordered = parts.length > 1 ? `${parts[1]} ${parts[0]}` : fullName;
+  return ordered
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+// Extract bioguide ID from a URL slug like "B001267-michael-bennet"
+// Bioguide IDs are always 1 letter + 6 digits (7 chars total)
+export function extractBioguideId(slug: string): string {
+  return slug.slice(0, 7);
+}
+
 // News-style vote headline: "Senate Passes Defense Bill 62-38"
 export function generateVoteHeadline(vote: VoteCalendarItem): string {
   const chamber = getChamberShortName(vote.chamber);

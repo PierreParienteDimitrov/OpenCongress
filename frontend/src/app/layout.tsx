@@ -9,6 +9,7 @@ import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { Navbar } from "@/components/nav/Navbar";
 import { ContentWithSidebar } from "@/components/layout/ContentWithSidebar";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,8 +32,17 @@ const domine = Domine({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.opencongress.app"),
   title: "OpenCongress - Track Legislative Activity",
   description: "Track congressional votes, bills, and your representatives",
+  openGraph: {
+    type: "website",
+    siteName: "OpenCongress",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary",
+  },
 };
 
 export default function RootLayout({
@@ -45,6 +55,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${sourceCodePro.variable} ${domine.variable} antialiased`}
       >
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "OpenCongress",
+            url: "https://www.opencongress.app",
+            description:
+              "Track congressional votes, bills, and your representatives",
+          }}
+        />
         <QueryProvider>
           <ContentWithSidebar navbar={<Navbar />}>
             {children}

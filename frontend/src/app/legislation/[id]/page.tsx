@@ -19,6 +19,7 @@ import type { VoteSummary } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const revalidate = 86400; // 24 hours
 
@@ -30,9 +31,25 @@ export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
   try {
     const bill = await getBill(id);
+    const title = `${bill.display_number} - ${bill.short_title || bill.title}`;
+    const description = bill.summary_text
+      ? bill.summary_text.slice(0, 160)
+      : bill.title;
     return {
-      title: `${bill.display_number} - ${bill.short_title || bill.title}`,
-      description: bill.summary_text || bill.title,
+      title,
+      description,
+      alternates: { canonical: `/legislation/${id}` },
+      openGraph: {
+        title,
+        description,
+        url: `/legislation/${id}`,
+        type: "article",
+      },
+      twitter: {
+        card: "summary",
+        title,
+        description,
+      },
     };
   } catch {
     return {
@@ -157,6 +174,16 @@ export default async function LegislationPage({ params }: PageProps) {
         },
       }}
     >
+    <JsonLd
+      data={{
+        "@context": "https://schema.org",
+        "@type": "Article",
+        headline: bill.short_title || bill.title,
+        description: bill.summary_text || bill.title,
+        url: `https://www.opencongress.app/legislation/${bill.bill_id}`,
+        datePublished: bill.introduced_date || undefined,
+      }}
+    />
     <main className="min-h-screen bg-background">
       <GridContainer className="py-8">
         {/* Header */}
@@ -200,7 +227,7 @@ export default async function LegislationPage({ params }: PageProps) {
                   )}
                   <div>
                     <Link
-                      href={getMemberRoute(bill.sponsor.bioguide_id, bill.sponsor.chamber)}
+                      href={getMemberRoute(bill.sponsor.bioguide_id, bill.sponsor.chamber, bill.sponsor.full_name)}
                       className="cursor-pointer text-accent hover:text-accent/80 text-sm font-medium"
                     >
                       {bill.sponsor.full_name}

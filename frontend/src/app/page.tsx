@@ -36,6 +36,19 @@ export const metadata = {
   title: "OpenCongress - Congressional Activity Tracker",
   description:
     "Track congressional activity, explore legislation, and follow your representatives with real-time updates and AI-generated summaries.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "OpenCongress - Congressional Activity Tracker",
+    description:
+      "Track congressional activity, explore legislation, and follow your representatives.",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image" as const,
+    title: "OpenCongress",
+    description:
+      "Track congressional activity, explore legislation, and follow your representatives.",
+  },
 };
 
 // --- Activity feed types ---

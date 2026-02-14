@@ -21,7 +21,7 @@ export default function FindYourRep() {
           {result.members.map((member) => (
             <Link
               key={member.bioguide_id}
-              href={getMemberRoute(member.bioguide_id, member.chamber)}
+              href={getMemberRoute(member.bioguide_id, member.chamber, member.full_name)}
               className="flex items-center gap-3 cursor-pointer rounded border border-border bg-card p-3 transition-all hover:border-muted-foreground/30 hover:shadow-sm"
             >
               <Image

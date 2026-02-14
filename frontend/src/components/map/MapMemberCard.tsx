@@ -14,7 +14,7 @@ interface MapMemberCardProps {
 
 export default function MapMemberCard({ member }: MapMemberCardProps) {
   return (
-    <Link href={getMemberRoute(member.bioguide_id, member.chamber)}>
+    <Link href={getMemberRoute(member.bioguide_id, member.chamber, member.full_name)}>
       <div className="group flex flex-row items-center gap-4 border-b border-border p-4 transition-colors hover:bg-accent/5">
         <div className="shrink-0">
           {member.photo_url ? (

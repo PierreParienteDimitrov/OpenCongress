@@ -46,9 +46,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       ? `${stateName} At-Large`
       : `${stateName} District ${districtNum}`;
 
+  const title = `${label} Representative - OpenCongress`;
+  const description = `View the U.S. Representative for ${label}.`;
   return {
-    title: `${label} Representative - OpenCongress`,
-    description: `View the U.S. Representative for ${label}.`,
+    title,
+    description,
+    alternates: { canonical: `/house/district/${districtId}` },
+    openGraph: { title, description, url: `/house/district/${districtId}` },
+    twitter: { card: "summary" as const, title, description },
   };
 }
 

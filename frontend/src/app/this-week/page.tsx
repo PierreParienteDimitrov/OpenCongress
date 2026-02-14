@@ -46,14 +46,23 @@ export async function generateMetadata({ searchParams }: PageProps) {
     const { start, end } = isoWeekRange(year, week);
     const fmt = (d: Date) =>
       d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const title = `This Week in Congress — ${fmt(start)} – ${fmt(end)}, ${start.getFullYear()}`;
     return {
-      title: `This Week in Congress — ${fmt(start)} – ${fmt(end)}, ${start.getFullYear()}`,
+      title,
+      alternates: { canonical: "/this-week" },
+      openGraph: { title, url: "/this-week" },
+      twitter: { card: "summary" as const, title },
     };
   }
+  const title = "This Week in Congress";
+  const description =
+    "Weekly recap and preview of congressional activity, bills, and votes";
   return {
-    title: "This Week in Congress",
-    description:
-      "Weekly recap and preview of congressional activity, bills, and votes",
+    title,
+    description,
+    alternates: { canonical: "/this-week" },
+    openGraph: { title, description, url: "/this-week" },
+    twitter: { card: "summary" as const, title, description },
   };
 }
 

@@ -94,7 +94,7 @@ export default function HemicycleChart({
   const handleSeatClick = useCallback(
     (seat: Seat | SeatWithVote) => {
       if (seat.member) {
-        router.push(getMemberRoute(seat.member.bioguide_id, chamber));
+        router.push(getMemberRoute(seat.member.bioguide_id, chamber, seat.member.full_name));
       }
     },
     [router, chamber]

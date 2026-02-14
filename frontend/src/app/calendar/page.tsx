@@ -31,10 +31,16 @@ export async function generateMetadata({ searchParams }: PageProps) {
   const params = await searchParams;
   const weekDate = parseWeekParam(params.week || null);
   const weekStart = getWeekStart(weekDate);
+  const title = `Legislative Calendar - Week of ${weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  const description =
+    "Weekly view of congressional votes and legislative activity";
 
   return {
-    title: `Legislative Calendar - Week of ${weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
-    description: "Weekly view of congressional votes and legislative activity",
+    title,
+    description,
+    alternates: { canonical: "/calendar" },
+    openGraph: { title, description, url: "/calendar" },
+    twitter: { card: "summary" as const, title, description },
   };
 }
 

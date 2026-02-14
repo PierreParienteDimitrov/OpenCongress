@@ -152,7 +152,7 @@ export default function VoteMemberTable({
                   <TableRow key={seat.seat_id}>
                     <TableCell>
                       <Link
-                        href={getMemberRoute(m.bioguide_id, chamber)}
+                        href={getMemberRoute(m.bioguide_id, chamber, m.full_name)}
                         className="flex items-center gap-3 group"
                       >
                         {m.photo_url ? (

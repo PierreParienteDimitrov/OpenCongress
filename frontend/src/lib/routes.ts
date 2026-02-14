@@ -2,6 +2,8 @@
  * Centralized route definitions for type-safe, consistent navigation.
  */
 
+import { slugifyName } from "@/lib/utils";
+
 export const routes = {
   home: "/",
 
@@ -24,12 +26,18 @@ export const routes = {
   // Chambers (members + seats + map)
   senate: {
     index: "/senate",
-    detail: (bioguideId: string) => `/senate/${bioguideId}`,
+    detail: (bioguideId: string, fullName?: string) =>
+      fullName
+        ? `/senate/${bioguideId}-${slugifyName(fullName)}`
+        : `/senate/${bioguideId}`,
     state: (stateCode: string) => `/senate/state/${stateCode}`,
   },
   house: {
     index: "/house",
-    detail: (bioguideId: string) => `/house/${bioguideId}`,
+    detail: (bioguideId: string, fullName?: string) =>
+      fullName
+        ? `/house/${bioguideId}-${slugifyName(fullName)}`
+        : `/house/${bioguideId}`,
     district: (districtId: string) => `/house/district/${districtId}`,
   },
 
@@ -54,14 +62,15 @@ export const routes = {
   documentation: {
     index: "/documentation",
   },
-} as const;
+};
 
 // Helper for member routes based on chamber
 export function getMemberRoute(
   bioguideId: string,
-  chamber: "senate" | "house"
+  chamber: "senate" | "house",
+  fullName?: string
 ): string {
   return chamber === "senate"
-    ? routes.senate.detail(bioguideId)
-    : routes.house.detail(bioguideId);
+    ? routes.senate.detail(bioguideId, fullName)
+    : routes.house.detail(bioguideId, fullName);
 }

@@ -14,6 +14,19 @@ export const metadata: Metadata = {
   title: "U.S. Senate - OpenCongress",
   description:
     "Explore the U.S. Senate — seats, state map, and member directory.",
+  alternates: { canonical: "/senate" },
+  openGraph: {
+    title: "U.S. Senate - OpenCongress",
+    description:
+      "Explore the U.S. Senate — seats, state map, and member directory.",
+    url: "/senate",
+  },
+  twitter: {
+    card: "summary",
+    title: "U.S. Senate - OpenCongress",
+    description:
+      "Explore the U.S. Senate — seats, state map, and member directory.",
+  },
 };
 
 export const dynamic = "force-dynamic";

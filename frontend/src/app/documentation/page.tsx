@@ -16,6 +16,19 @@ export const metadata = {
   title: "How OpenCongress Works - Documentation",
   description:
     "Learn about our data sources, update processes, and technology that powers OpenCongress",
+  alternates: { canonical: "/documentation" },
+  openGraph: {
+    title: "How OpenCongress Works - Documentation",
+    description:
+      "Learn about our data sources, update processes, and technology that powers OpenCongress.",
+    url: "/documentation",
+  },
+  twitter: {
+    card: "summary" as const,
+    title: "How OpenCongress Works",
+    description:
+      "Learn about our data sources, update processes, and technology that powers OpenCongress.",
+  },
 };
 
 const sections = [

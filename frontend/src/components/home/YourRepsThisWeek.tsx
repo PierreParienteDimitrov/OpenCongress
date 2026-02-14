@@ -116,7 +116,7 @@ function RepActivityCard({ member }: { member: RepWeeklyActivity }) {
     <div className="space-y-2">
       {/* Member header */}
       <Link
-        href={getMemberRoute(member.bioguide_id, member.chamber)}
+        href={getMemberRoute(member.bioguide_id, member.chamber, member.full_name)}
         className="group flex cursor-pointer items-center gap-2"
       >
         {member.photo_url ? (

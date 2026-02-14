@@ -26,7 +26,7 @@ interface MemberListProps {
 
 function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "senate" | "house" }) {
   return (
-    <Link href={getMemberRoute(member.bioguide_id, chamber)}>
+    <Link href={getMemberRoute(member.bioguide_id, chamber, member.full_name)}>
       <div className="group flex flex-row items-center gap-4 border-b border-border p-4 transition-colors hover:bg-secondary/50">
         {/* Photo */}
         <div className="shrink-0">

@@ -27,9 +27,22 @@ export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
   try {
     const vote = await getVote(id);
+    const title = `${vote.question} - ${getChamberName(vote.chamber)} Vote`;
+    const description = `${getResultLabel(vote.result)}: ${vote.total_yea} Yea, ${vote.total_nay} Nay`;
     return {
-      title: `${vote.question} - ${getChamberName(vote.chamber)} Vote`,
-      description: `${getResultLabel(vote.result)}: ${vote.total_yea} Yea, ${vote.total_nay} Nay`,
+      title,
+      description,
+      alternates: { canonical: `/vote/${id}` },
+      openGraph: {
+        title,
+        description,
+        url: `/vote/${id}`,
+      },
+      twitter: {
+        card: "summary",
+        title,
+        description,
+      },
     };
   } catch {
     return {
