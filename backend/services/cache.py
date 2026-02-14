@@ -3,12 +3,30 @@ Cache Service - Redis cache invalidation and ISR revalidation.
 """
 
 import logging
+import re
 
 import httpx
 from django.conf import settings
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
+
+
+def _slugify_name(full_name: str) -> str:
+    """
+    Slugify a member name to match the frontend slugifyName() logic.
+
+    "Warren, Elizabeth" → "elizabeth-warren"
+    """
+    parts = [p.strip() for p in full_name.split(",")]
+    ordered = f"{parts[1]} {parts[0]}" if len(parts) > 1 else full_name
+    slug = ordered.lower()
+    slug = slug.replace(".", "")
+    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
+    slug = re.sub(r"\s+", "-", slug)
+    slug = re.sub(r"-+", "-", slug)
+    slug = slug.strip("-")
+    return slug
 
 
 class CacheService:
@@ -31,7 +49,7 @@ class CacheService:
         CacheService._trigger_isr_revalidation(f"/legislation/{bill_id}")
 
     @staticmethod
-    def invalidate_member(bioguide_id: str, chamber: str) -> None:
+    def invalidate_member(bioguide_id: str, chamber: str, full_name: str = "") -> None:
         """Invalidate cache for a specific member and trigger ISR."""
         # Clear Django cache keys related to this member
         cache_keys = [
@@ -43,9 +61,14 @@ class CacheService:
 
         logger.info(f"Invalidated cache for member {bioguide_id}")
 
-        # Trigger ISR revalidation
-        route = "senator" if chamber == "senate" else "representative"
-        CacheService._trigger_isr_revalidation(f"/{route}/{bioguide_id}")
+        # Trigger ISR revalidation using the correct Next.js route
+        # Routes are /senate/{bioguide_id}-{slugified-name}
+        route = "senate" if chamber == "senate" else "house"
+        if full_name:
+            slug = f"{bioguide_id}-{_slugify_name(full_name)}"
+        else:
+            slug = bioguide_id
+        CacheService._trigger_isr_revalidation(f"/{route}/{slug}")
 
     @staticmethod
     def invalidate_vote(vote_id: str) -> None:

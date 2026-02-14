@@ -152,11 +152,29 @@ def generate_member_bio(self, bioguide_id: str) -> dict:
     try:
         ai_service = AIService()
 
-        # Get committee names
-        committees = [ca.committee.name for ca in member.committee_assignments.all()]
+        # Get committee names WITH roles (Chair, Ranking Member, Member)
+        committee_roles = [
+            (ca.committee.name, ca.get_role_display())
+            for ca in member.committee_assignments.all()
+        ]
 
-        # Count recent bills
-        recent_bills_count = member.sponsored_bills.count()
+        # Get top 5 sponsored bill titles (most recently active)
+        top_bills = list(
+            member.sponsored_bills.exclude(short_title="")
+            .order_by("-latest_action_date")
+            .values_list("short_title", flat=True)[:5]
+        )
+        # Fallback: if no short_titles, use truncated full titles
+        if not top_bills:
+            top_bills = [
+                title[:80]
+                for title in member.sponsored_bills.order_by(
+                    "-latest_action_date"
+                ).values_list("title", flat=True)[:5]
+            ]
+
+        # Total bills count
+        total_bills_count = member.sponsored_bills.count()
 
         bio, tokens = ai_service.generate_member_bio(
             full_name=member.full_name,
@@ -164,9 +182,15 @@ def generate_member_bio(self, bioguide_id: str) -> dict:
             chamber=member.chamber,
             state=member.state,
             district=member.district,
-            term_start=str(member.term_start) if member.term_start else None,
-            committees=committees,
-            recent_bills_count=recent_bills_count,
+            term_start=(str(member.term_start) if member.term_start else None),
+            seniority_date=(
+                str(member.seniority_date) if member.seniority_date else None
+            ),
+            birth_date=(str(member.birth_date) if member.birth_date else None),
+            gender=member.gender,
+            committee_roles=committee_roles,
+            top_bills=top_bills,
+            total_bills_count=total_bills_count,
         )
 
         # Update the member
@@ -184,7 +208,7 @@ def generate_member_bio(self, bioguide_id: str) -> dict:
         )
 
         # Invalidate caches
-        CacheService.invalidate_member(bioguide_id, member.chamber)
+        CacheService.invalidate_member(bioguide_id, member.chamber, member.full_name)
 
         logger.info(f"Generated bio for member {bioguide_id} ({tokens} tokens)")
 
