@@ -12,6 +12,7 @@ import {
   getChamberName,
 } from "@/lib/utils";
 import HemicycleChart from "@/components/hemicycle/HemicycleChart";
+import VoteMemberTable from "@/components/vote/VoteMemberTable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -191,6 +192,18 @@ export default async function VotePage({ params }: PageProps) {
                 showVoteOverlay
               />
             </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Member Votes Table */}
+        {overlaySeats.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Member Votes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VoteMemberTable seats={overlaySeats} chamber={vote.chamber} />
             </CardContent>
           </Card>
         )}
