@@ -399,6 +399,7 @@ def run_seed_bills(self, job_run_id: int):
         progress_total=5000,
         congress=119,
         limit=5000,
+        skip_existing=True,
     )
 
 

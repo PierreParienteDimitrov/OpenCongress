@@ -46,6 +46,12 @@ class Command(BaseCommand):
             default=0,
             help="Starting offset for API pagination (skip already-fetched bills)",
         )
+        parser.add_argument(
+            "--skip-existing",
+            action="store_true",
+            default=False,
+            help="Skip bills that already exist in the DB (only fetch new ones)",
+        )
 
     def handle(self, *args, **options):
         api_key = os.environ.get("CONGRESS_API_KEY")
@@ -59,6 +65,7 @@ class Command(BaseCommand):
         limit = options["limit"]
         bill_type = options["type"]
         start_offset = options["offset"]
+        self.skip_existing = options["skip_existing"]
 
         if bill_type:
             bill_types = [bill_type]
@@ -66,22 +73,34 @@ class Command(BaseCommand):
             # Fetch major bill types
             bill_types = ["hr", "s"]
 
+        # Pre-load existing bill IDs for fast lookup when skipping
+        if self.skip_existing:
+            self._existing_bill_ids = set(
+                Bill.objects.filter(congress=congress).values_list("bill_id", flat=True)
+            )
+            self.stdout.write(
+                f"Skip-existing mode: {len(self._existing_bill_ids)} bills already in DB"
+            )
+        else:
+            self._existing_bill_ids = set()
+
         total_created = 0
         total_updated = 0
+        total_skipped = 0
 
         for bt in bill_types:
             self.stdout.write(f"Fetching {bt.upper()} bills for Congress {congress}...")
-            created, updated = self._fetch_bills(
+            created, updated, skipped = self._fetch_bills(
                 api_key, congress, bt, limit // len(bill_types), start_offset
             )
             total_created += created
             total_updated += updated
+            total_skipped += skipped
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Done! Created {total_created} bills, updated {total_updated} bills"
-            )
-        )
+        msg = f"Done! Created {total_created} bills, updated {total_updated} bills"
+        if total_skipped:
+            msg += f", skipped {total_skipped} existing bills"
+        self.stdout.write(self.style.SUCCESS(msg))
 
     def _fetch_bills(
         self,
@@ -90,8 +109,8 @@ class Command(BaseCommand):
         bill_type: str,
         limit: int,
         start_offset: int = 0,
-    ) -> tuple[int, int]:
-        """Fetch bills of a specific type."""
+    ) -> tuple[int, int, int]:
+        """Fetch bills of a specific type. Returns (created, updated, skipped)."""
         url = f"{self.CONGRESS_API_BASE}/bill/{congress}/{bill_type}"
         params = {
             "api_key": api_key,
@@ -101,12 +120,13 @@ class Command(BaseCommand):
 
         created = 0
         updated = 0
+        skipped = 0
         offset = start_offset
 
         if start_offset:
             self.stdout.write(f"  Starting from offset {start_offset}...")
 
-        while created + updated < limit:
+        while created + updated + skipped < limit:
             params["offset"] = offset
             response = requests.get(url, params=params, timeout=30)  # type: ignore[arg-type]
             response.raise_for_status()
@@ -117,8 +137,19 @@ class Command(BaseCommand):
                 break
 
             for bill_data in bills:
-                if created + updated >= limit:
+                if created + updated + skipped >= limit:
                     break
+
+                number = bill_data.get("number")
+                if not number:
+                    continue
+
+                bill_id = f"{bill_type}{number}-{congress}"
+
+                # Skip existing bills without making detail API calls
+                if self.skip_existing and bill_id in self._existing_bill_ids:
+                    skipped += 1
+                    continue
 
                 was_created = self._process_bill(
                     api_key, bill_data, congress, bill_type
@@ -128,8 +159,10 @@ class Command(BaseCommand):
                 else:
                     updated += 1
 
+            total = created + updated + skipped
             self.stdout.write(
-                f"  Processed {created + updated} {bill_type.upper()} bills..."
+                f"  Processed {total} {bill_type.upper()} bills..."
+                + (f" (skipped {skipped})" if skipped else "")
             )
 
             pagination = data.get("pagination", {})
@@ -139,7 +172,7 @@ class Command(BaseCommand):
             offset += len(bills)
             time.sleep(0.3)
 
-        return created, updated
+        return created, updated, skipped
 
     def _process_bill(
         self, api_key: str, bill_data: dict, congress: int, bill_type: str
