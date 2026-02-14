@@ -23,8 +23,8 @@ export function getPartyName(party: string): string {
 
 export function getPartyColor(party: string): string {
   const colors: Record<string, string> = {
-    D: "#2563eb", // blue-600
-    R: "#dc2626", // red-600
+    D: "oklch(0.45 0.11 256)", // Old Glory Blue 500
+    R: "oklch(0.498 0.185 14)", // Old Glory Red 500
     I: "#7c3aed", // violet-600
   };
   return colors[party] || "#6b7280"; // gray-500
@@ -32,8 +32,8 @@ export function getPartyColor(party: string): string {
 
 export function getPartyBgColor(party: string): string {
   const colors: Record<string, string> = {
-    D: "bg-blue-100 text-blue-800",
-    R: "bg-red-100 text-red-800",
+    D: "bg-glory-blue-100 text-glory-blue-800",
+    R: "bg-glory-red-100 text-glory-red-800",
     I: "bg-violet-100 text-violet-800",
   };
   return colors[party] || "bg-gray-100 text-gray-800";
@@ -70,7 +70,7 @@ export function getPositionLabel(position: VotePosition): string {
 export function getPositionColor(position: VotePosition): string {
   const colors: Record<VotePosition, string> = {
     yea: "text-green-600",
-    nay: "text-red-600",
+    nay: "text-glory-red-500",
     present: "text-yellow-600",
     not_voting: "text-gray-400",
   };
@@ -80,7 +80,7 @@ export function getPositionColor(position: VotePosition): string {
 export function getPositionBgColor(position: VotePosition): string {
   const colors: Record<VotePosition, string> = {
     yea: "bg-green-600/30 text-green-100",
-    nay: "bg-red-600/30 text-red-100",
+    nay: "bg-glory-red-500/30 text-glory-red-100",
     present: "bg-yellow-600/30 text-yellow-100",
     not_voting: "bg-gray-100 text-gray-500",
   };
@@ -101,9 +101,9 @@ export function getResultLabel(result: VoteResult): string {
 export function getResultColor(result: VoteResult): string {
   const colors: Record<VoteResult, string> = {
     passed: "text-green-600",
-    failed: "text-red-600",
+    failed: "text-glory-red-500",
     agreed: "text-green-600",
-    rejected: "text-red-600",
+    rejected: "text-glory-red-500",
   };
   return colors[result] || "text-gray-600";
 }
@@ -111,9 +111,9 @@ export function getResultColor(result: VoteResult): string {
 export function getResultBgColor(result: VoteResult): string {
   const colors: Record<VoteResult, string> = {
     passed: "bg-green-600/30 text-green-100",
-    failed: "bg-red-600/30 text-red-100",
+    failed: "bg-glory-red-500/30 text-glory-red-100",
     agreed: "bg-green-600/30 text-green-100",
-    rejected: "bg-red-600/30 text-red-100",
+    rejected: "bg-glory-red-500/30 text-glory-red-100",
   };
   return colors[result] || "bg-gray-100 text-gray-800";
 }

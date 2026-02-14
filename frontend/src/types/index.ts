@@ -42,6 +42,31 @@ export interface MemberDetail extends MemberListItem {
   sponsored_bills_count: number;
 }
 
+// Rep weekly activity types (for "Your Reps This Week" module)
+export interface RepSponsoredBillActivity {
+  bill_id: string;
+  display_number: string;
+  short_title: string;
+  latest_action_date: string | null;
+  latest_action_text: string;
+}
+
+export interface RepWeeklyActivity {
+  bioguide_id: string;
+  full_name: string;
+  party: "D" | "R" | "I";
+  chamber: "house" | "senate";
+  state: string;
+  district: number | null;
+  photo_url: string;
+  recent_votes: MemberRecentVote[];
+  sponsored_bills: RepSponsoredBillActivity[];
+}
+
+export interface RepActivityResponse {
+  members: RepWeeklyActivity[];
+}
+
 // Bill types
 export interface BillListItem {
   bill_id: string;

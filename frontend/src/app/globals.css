@@ -44,6 +44,33 @@
   /* Navbar */
   --color-nav: var(--nav);
   --color-nav-foreground: var(--nav-foreground);
+
+  /* Old Glory color scales (US flag) */
+  /* Blue scale — hue 256, anchored on #0A3161 */
+  --color-glory-blue-50: oklch(0.96 0.02 256);
+  --color-glory-blue-100: oklch(0.92 0.04 256);
+  --color-glory-blue-200: oklch(0.82 0.06 256);
+  --color-glory-blue-300: oklch(0.70 0.08 256);
+  --color-glory-blue-400: oklch(0.55 0.10 256);
+  --color-glory-blue-500: oklch(0.45 0.11 256);
+  --color-glory-blue-600: oklch(0.40 0.10 256);
+  --color-glory-blue-700: oklch(0.317 0.095 256); /* #0A3161 — flag blue */
+  --color-glory-blue-800: oklch(0.27 0.08 256);
+  --color-glory-blue-900: oklch(0.22 0.06 256);
+  --color-glory-blue-950: oklch(0.17 0.04 256);
+
+  /* Red scale — hue 14, anchored on #B31942 */
+  --color-glory-red-50: oklch(0.96 0.02 14);
+  --color-glory-red-100: oklch(0.92 0.04 14);
+  --color-glory-red-200: oklch(0.82 0.08 14);
+  --color-glory-red-300: oklch(0.70 0.12 14);
+  --color-glory-red-400: oklch(0.60 0.16 14);
+  --color-glory-red-500: oklch(0.498 0.185 14); /* #B31942 — flag red */
+  --color-glory-red-600: oklch(0.45 0.17 14);
+  --color-glory-red-700: oklch(0.40 0.15 14);
+  --color-glory-red-800: oklch(0.33 0.12 14);
+  --color-glory-red-900: oklch(0.27 0.09 14);
+  --color-glory-red-950: oklch(0.20 0.06 14);
 }
 
 :root {
@@ -57,61 +84,61 @@
 
   /* Navbar */
   --navbar-height: 3.5rem;
-  --nav: oklch(1 0 0); /* White nav bar in light mode */
-  --nav-foreground: oklch(0.15 0 0); /* Dark text on nav */
+  --nav: oklch(0.96 0 0); /* Same as background */
+  --nav-foreground: oklch(0.15 0 0); /* Same as foreground */
 
-  /* Bloomberg-inspired palette: Grays, Orange, Red, Green */
-  --background: oklch(0.96 0 0); /* Light Gray - #F5F5F5 (main content area) */
-  --foreground: oklch(0.15 0 0); /* Dark Gray/Black - #262626 (primary text) */
-  --card: oklch(1 0 0); /* White - #FFFFFF (card backgrounds) */
-  --card-foreground: oklch(0.15 0 0); /* Dark Gray - #262626 */
+  /* Old Glory palette: US flag blue & red anchors */
+  --background: oklch(0.96 0 0); /* Light Gray (main content area) */
+  --foreground: oklch(0.15 0 0); /* Near-Black (primary text) */
+  --card: oklch(1 0 0); /* White (card backgrounds) */
+  --card-foreground: oklch(0.15 0 0); /* Near-Black */
   --popover: oklch(1 0 0); /* White */
-  --popover-foreground: oklch(0.15 0 0); /* Dark Gray */
-  --primary: oklch(0.25 0 0); /* Dark Gray - #404040 (navigation bar) */
+  --popover-foreground: oklch(0.15 0 0); /* Near-Black */
+  --primary: oklch(0.317 0.095 256); /* Old Glory Blue #0A3161 */
   --primary-foreground: oklch(1 0 0); /* White */
-  --secondary: oklch(0.92 0 0); /* Light Gray - #EBEBEB (secondary surfaces) */
-  --secondary-foreground: oklch(0.15 0 0); /* Dark Gray */
-  --muted: oklch(0.92 0 0); /* Light Gray - #EBEBEB */
-  --muted-foreground: oklch(0.50 0 0); /* Medium Gray - #808080 (secondary text) */
-  --accent: oklch(0.65 0.18 50); /* Orange - #FF8C00 (highlights, links) */
+  --secondary: oklch(0.92 0.01 256); /* Faint blue-gray (secondary surfaces) */
+  --secondary-foreground: oklch(0.15 0 0); /* Near-Black */
+  --muted: oklch(0.92 0.01 256); /* Faint blue-gray */
+  --muted-foreground: oklch(0.50 0 0); /* Medium Gray (secondary text) */
+  --accent: oklch(0.498 0.185 14); /* Old Glory Red #B31942 (highlights) */
   --accent-foreground: oklch(1 0 0); /* White */
-  --destructive: oklch(0.55 0.22 25); /* Red - #DC2626 (losses, errors) */
-  --border: oklch(0.88 0 0); /* Light Gray - #E0E0E0 (borders) */
-  --input: oklch(0.92 0 0); /* Light Gray - #EBEBEB */
-  --ring: oklch(0.65 0.18 50); /* Orange */
-  --chart-1: oklch(0.25 0 0); /* Dark Gray */
-  --chart-2: oklch(0.65 0.18 50); /* Orange */
-  --chart-3: oklch(0.60 0.20 145); /* Green - #16A34A (gains, success) */
-  --chart-4: oklch(0.55 0.22 25); /* Red - #DC2626 (losses) */
-  --chart-5: oklch(0.50 0 0); /* Medium Gray - #808080 */
+  --destructive: oklch(0.498 0.185 14); /* Old Glory Red (errors) */
+  --border: oklch(0.88 0.01 256); /* Light blue-gray border */
+  --input: oklch(0.92 0.01 256); /* Faint blue-gray */
+  --ring: oklch(0.45 0.11 256); /* Glory Blue 500 (focus ring) */
+  --chart-1: oklch(0.317 0.095 256); /* Old Glory Blue */
+  --chart-2: oklch(0.498 0.185 14); /* Old Glory Red */
+  --chart-3: oklch(0.60 0.20 145); /* Green (success) */
+  --chart-4: oklch(0.55 0.17 14); /* Red-tinted (losses) */
+  --chart-5: oklch(0.50 0 0); /* Medium Gray */
 }
 
 .dark {
-  --nav: oklch(0.15 0 0);
-  --nav-foreground: oklch(1 0 0);
-  --background: oklch(0.145 0 0);
+  --nav: oklch(0.145 0.01 256); /* Same as background */
+  --nav-foreground: oklch(0.985 0 0); /* Same as foreground */
+  --background: oklch(0.145 0.01 256); /* Very dark blue-black */
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.205 0.015 256); /* Dark blue-gray */
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.205 0.015 256);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
+  --primary: oklch(0.70 0.08 256); /* Lighter Old Glory Blue for dark bg */
+  --primary-foreground: oklch(0.15 0.04 256);
+  --secondary: oklch(0.269 0.015 256);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
+  --muted: oklch(0.269 0.015 256);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.75 0.18 50); /* Light Orange - visible on dark backgrounds */
-  --accent-foreground: oklch(0.145 0 0); /* Dark background color for contrast */
-  --destructive: oklch(0.704 0.191 22.216);
+  --accent: oklch(0.65 0.16 14); /* Lighter Old Glory Red for dark bg */
+  --accent-foreground: oklch(0.145 0 0);
+  --destructive: oklch(0.65 0.16 14);
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(0.22 0 0);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --input: oklch(0.22 0.01 256);
+  --ring: oklch(0.55 0.10 256); /* Glory Blue ring */
+  --chart-1: oklch(0.60 0.10 256); /* Glory Blue */
+  --chart-2: oklch(0.65 0.16 14); /* Glory Red */
+  --chart-3: oklch(0.70 0.17 145); /* Green */
+  --chart-4: oklch(0.627 0.265 303.9); /* Purple */
+  --chart-5: oklch(0.645 0.246 16.439); /* Red-orange */
 }
 
 /* Grid system responsive tokens */
@@ -210,4 +237,16 @@
   0% { opacity: 0; }
   40% { opacity: 0; }
   100% { opacity: 1; }
+}
+
+/* Hemicycle seat hover — smooth scale-up from seat center */
+@keyframes hemicycle-hover-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

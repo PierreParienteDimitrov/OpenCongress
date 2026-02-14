@@ -192,7 +192,10 @@ export default function HemicycleChart({
             >
               {seat.member && !isOverlay ? (
                 /* Default view: member photo with party color tint */
-                <g opacity={isHovered ? 0 : 1}>
+                <g
+                  opacity={isHovered ? 0 : 1}
+                  style={{ transition: "opacity 150ms ease-out" }}
+                >
                   {/* White background behind photo */}
                   <circle
                     cx={seat.svg_x}
@@ -230,7 +233,10 @@ export default function HemicycleChart({
                 </g>
               ) : isOverlay && seat.member ? (
                 /* Vote overlay with member photo: photo fills the aura circle, vote color tint */
-                <g opacity={isHovered ? 0 : 1}>
+                <g
+                  opacity={isHovered ? 0 : 1}
+                  style={{ transition: "opacity 150ms ease-out" }}
+                >
                   {/* White background behind photo */}
                   <circle
                     cx={seat.svg_x}
@@ -278,6 +284,7 @@ export default function HemicycleChart({
                   stroke={seat.member ? "#ffffff" : "none"}
                   strokeWidth={(seat.member ? 0.5 : 0) / k}
                   opacity={isHovered ? 0 : 1}
+                  style={{ transition: "opacity 150ms ease-out" }}
                 />
               )}
             </g>
@@ -293,7 +300,13 @@ export default function HemicycleChart({
             const partyColor = getPartyColor(seat.member.party);
             const clipId = `hover-clip-${seat.seat_id}`;
             return (
-              <g className="pointer-events-none">
+              <g
+                className="pointer-events-none"
+                style={{
+                  transformOrigin: `${seat.svg_x}px ${seat.svg_y}px`,
+                  animation: "hemicycle-hover-in 200ms ease-out both",
+                }}
+              >
                 <defs>
                   <clipPath id={clipId}>
                     <circle cx={seat.svg_x} cy={seat.svg_y} r={r} />

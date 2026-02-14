@@ -65,7 +65,7 @@ function VoteCard({ vote }: { vote: VoteSummary }) {
             style={{ width: `${yeaPercent}%` }}
           />
           <div
-            className="bg-red-500 transition-all"
+            className="bg-glory-red-500 transition-all"
             style={{ width: `${100 - yeaPercent}%` }}
           />
         </div>
@@ -73,7 +73,7 @@ function VoteCard({ vote }: { vote: VoteSummary }) {
           <span className="text-green-600 dark:text-green-400 font-medium">
             Yea: {vote.total_yea}
           </span>
-          <span className="text-red-600 dark:text-red-400 font-medium">
+          <span className="text-glory-red-500 dark:text-glory-red-400 font-medium">
             Nay: {vote.total_nay}
           </span>
         </div>
@@ -82,13 +82,13 @@ function VoteCard({ vote }: { vote: VoteSummary }) {
       {/* Party breakdown */}
       <div className="grid grid-cols-3 gap-3 text-xs">
         <div>
-          <div className="font-medium text-blue-600 dark:text-blue-400">Democrats</div>
+          <div className="font-medium text-glory-blue-500 dark:text-glory-blue-300">Democrats</div>
           <div className="text-muted-foreground">
             {vote.dem_yea} Y / {vote.dem_nay} N
           </div>
         </div>
         <div>
-          <div className="font-medium text-red-600 dark:text-red-400">Republicans</div>
+          <div className="font-medium text-glory-red-500 dark:text-glory-red-400">Republicans</div>
           <div className="text-muted-foreground">
             {vote.rep_yea} Y / {vote.rep_nay} N
           </div>
@@ -269,18 +269,24 @@ export default async function LegislationPage({ params }: PageProps) {
             </h3>
             {bill.ai_summary ? (
               <div>
-                <p className="font-domine text-base text-foreground/80 whitespace-pre-wrap leading-relaxed">
-                  {bill.ai_summary}
-                </p>
+                <div className="space-y-3 font-domine text-base text-foreground/80 leading-relaxed">
+                  {bill.ai_summary.split("\n").map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                </div>
                 <p className="text-xs text-muted-foreground/60 mt-3">AI-generated summary</p>
               </div>
             ) : bill.summary_html ? (
               <div
-                className="prose prose-sm max-w-none font-domine text-base text-foreground/80"
+                className="max-w-none font-domine text-base text-foreground/80 leading-relaxed [&>p]:mb-3 [&>ul]:mb-3 [&>ul]:ml-5 [&>ul]:list-disc [&>ol]:mb-3 [&>ol]:ml-5 [&>ol]:list-decimal [&_li]:mb-1"
                 dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(bill.summary_html) }}
               />
             ) : bill.summary_text ? (
-              <p className="font-domine text-base text-foreground/80 leading-relaxed">{bill.summary_text}</p>
+              <div className="space-y-3 font-domine text-base text-foreground/80 leading-relaxed">
+                {bill.summary_text.split("\n").map((para, i) => (
+                  <p key={i}>{para}</p>
+                ))}
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">No summary available.</p>
             )}

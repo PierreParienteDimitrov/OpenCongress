@@ -107,7 +107,7 @@ export default function VoteMemberTable({
               key={key}
               onClick={() => setPositionFilter(key)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
                 positionFilter === key
                   ? "bg-accent text-accent-foreground"
                   : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -125,7 +125,7 @@ export default function VoteMemberTable({
       </p>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-md border border-border">
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

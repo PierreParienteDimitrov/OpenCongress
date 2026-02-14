@@ -81,7 +81,7 @@ export async function deleteAPIKey(provider: string): Promise<void> {
 
 // ── My Representatives / Follows ──
 
-import type { MemberListItem } from "@/types";
+import type { MemberListItem, RepActivityResponse } from "@/types";
 
 export interface MyRepresentativesResponse {
   followed_ids: string[];
@@ -91,6 +91,12 @@ export interface MyRepresentativesResponse {
 export async function fetchMyRepresentatives(): Promise<MyRepresentativesResponse> {
   return fetchAuthenticated<MyRepresentativesResponse>(
     "/auth/my-representatives/",
+  );
+}
+
+export async function fetchRepActivity(): Promise<RepActivityResponse> {
+  return fetchAuthenticated<RepActivityResponse>(
+    "/auth/my-representatives/activity/",
   );
 }
 

@@ -262,7 +262,7 @@ export function MyRepresentatives() {
             </button>
           </form>
           {searchError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
+            <p className="text-sm text-glory-red-500 dark:text-glory-red-400">
               {searchError}
             </p>
           )}

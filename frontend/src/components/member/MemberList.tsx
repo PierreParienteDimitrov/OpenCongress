@@ -165,7 +165,7 @@ export default function MemberList({ chamber, initialData, fetchFn }: MemberList
   if (status === "error") {
     return (
       <div className="py-12 text-center">
-        <p className="text-red-600 dark:text-red-400">
+        <p className="text-glory-red-500 dark:text-glory-red-400">
           Failed to load members. Please try again later.
         </p>
       </div>

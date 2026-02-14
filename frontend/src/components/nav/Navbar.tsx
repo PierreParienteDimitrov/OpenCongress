@@ -5,6 +5,7 @@ import { ActiveLink } from "./ActiveLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { MobileMenu } from "./MobileMenu";
 import { UserMenu } from "./UserMenu";
+import { NavChatButton } from "./NavChatButton";
 import { navLinks } from "./NavLinks";
 
 export function Navbar() {
@@ -30,8 +31,9 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Right: Theme toggle + User menu + Mobile menu */}
+        {/* Right: AI Bot + Theme toggle + User menu + Mobile menu */}
         <div className="flex items-center gap-1">
+          <NavChatButton />
           <ThemeToggle />
           <UserMenu />
           <MobileMenu />

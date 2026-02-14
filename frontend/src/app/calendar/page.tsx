@@ -306,7 +306,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             <CalendarStatRow
               label="Failed / Rejected"
               value={votesResponse.results.filter((v) => v.result === "failed" || v.result === "rejected").length}
-              color="text-red-600"
+              color="text-glory-red-500"
             />
           </div>
         </div>

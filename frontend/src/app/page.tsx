@@ -27,6 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import FindYourRep from "@/components/home/FindYourRep";
 import MiniHemicycle from "@/components/home/MiniHemicycle";
+import YourRepsThisWeek from "@/components/home/YourRepsThisWeek";
 
 export const revalidate = 300; // 5 minutes
 
@@ -270,6 +271,9 @@ export default async function Home() {
 
             {/* ============ RIGHT COLUMN (sidebar) ============ */}
             <div className="flex flex-col divide-y divide-border lg:col-span-4 lg:border-l lg:border-border lg:pl-10">
+              {/* Your Reps This Week (personalized, client component) */}
+              <YourRepsThisWeek />
+
               {/* Week by the Numbers */}
               <div className="pb-10">
                 <h3 className="text-lg font-bold text-foreground">
@@ -286,7 +290,7 @@ export default async function Home() {
                   <StatRow
                     label="Failed / Rejected"
                     value={failedRejected}
-                    color="text-red-600"
+                    color="text-glory-red-500"
                   />
                   <StatRow
                     label="Bipartisan Votes"

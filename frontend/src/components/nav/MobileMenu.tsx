@@ -16,11 +16,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { navLinks } from "./NavLinks";
+import { useChatUI } from "@/lib/chat-store";
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
+  const openChat = useChatUI((s) => s.open);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -66,6 +68,15 @@ export function MobileMenu() {
               </Link>
             );
           })}
+          <button
+            onClick={() => {
+              setOpen(false);
+              openChat();
+            }}
+            className="px-3 py-2.5 rounded-md text-sm font-medium text-left cursor-pointer text-nav-foreground/70 hover:bg-nav-foreground/10 hover:text-nav-foreground transition-colors"
+          >
+            AI Bot
+          </button>
         </nav>
 
         <SheetFooter className="border-t border-nav-foreground/10 p-4">

@@ -14,7 +14,7 @@ import {
 } from "@/lib/utils";
 import HemicycleWithZoom from "@/components/hemicycle/HemicycleWithZoom";
 import VoteMemberTable from "@/components/vote/VoteMemberTable";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
 export const revalidate = 86400; // 24 hours
@@ -69,7 +69,7 @@ export default async function VotePage({ params }: PageProps) {
     <main className="min-h-screen bg-background">
       <GridContainer className="py-8">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 pb-6">
           <Link
             href={routes.calendar.index}
             className="text-accent hover:text-accent/80 text-sm mb-2 inline-block"
@@ -80,11 +80,11 @@ export default async function VotePage({ params }: PageProps) {
             <span className="text-sm text-muted-foreground">
               {getChamberName(vote.chamber)}
             </span>
-            <span className="text-sm text-muted-foreground/60">•</span>
+            <span className="text-sm text-muted-foreground/60">&middot;</span>
             <span className="text-sm text-muted-foreground">{formatDate(vote.date)}</span>
             {vote.time && (
               <>
-                <span className="text-sm text-muted-foreground/60">•</span>
+                <span className="text-sm text-muted-foreground/60">&middot;</span>
                 <span className="text-sm text-muted-foreground">{vote.time}</span>
               </>
             )}
@@ -92,34 +92,36 @@ export default async function VotePage({ params }: PageProps) {
           <h1 className="text-3xl font-bold text-foreground mb-3">
             {vote.question}
           </h1>
-          <Badge className={cn("text-sm px-3 py-1", getResultBgColor(vote.result))}>
-            {getResultLabel(vote.result)}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={cn("text-sm px-3 py-1", getResultBgColor(vote.result))}>
+              {getResultLabel(vote.result)}
+            </Badge>
+            {vote.is_bipartisan && (
+              <Badge className="bg-purple-100 text-purple-700 text-sm">
+                Bipartisan Vote
+              </Badge>
+            )}
+          </div>
         </div>
 
+        <Separator className="mb-6" />
+
         {/* Vote Results */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Results</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="mb-6 pb-6">
+          <h2 className="text-lg font-semibold mb-4">Results</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {/* Yea */}
             <div className="flex flex-col items-center gap-1 rounded-sm bg-white/90 dark:bg-white/10 p-4">
               <span className="text-3xl font-bold text-foreground">{vote.total_yea}</span>
               <span className="text-sm font-medium text-muted-foreground">Yea</span>
             </div>
-            {/* Nay */}
             <div className="flex flex-col items-center gap-1 rounded-sm p-4" style={{ backgroundColor: "#18181b" }}>
               <span className="text-3xl font-bold text-white">{vote.total_nay}</span>
               <span className="text-sm font-medium text-white/60">Nay</span>
             </div>
-            {/* Present */}
             <div className="flex flex-col items-center gap-1 rounded-sm bg-yellow-500/20 p-4">
               <span className="text-3xl font-bold text-foreground">{vote.total_present}</span>
               <span className="text-sm font-medium text-muted-foreground">Present</span>
             </div>
-            {/* Not Voting */}
             <div className="flex flex-col items-center gap-1 rounded-sm bg-secondary p-4">
               <span className="text-3xl font-bold text-foreground">{vote.total_not_voting}</span>
               <span className="text-sm font-medium text-muted-foreground">Not Voting</span>
@@ -139,13 +141,13 @@ export default async function VotePage({ params }: PageProps) {
               </thead>
               <tbody>
                 <tr className="border-b border-border/50">
-                  <td className="py-2 text-blue-500 font-medium">Democrats</td>
+                  <td className="py-2 text-glory-blue-500 font-medium">Democrats</td>
                   <td className="py-2 text-right">{vote.dem_yea}</td>
                   <td className="py-2 text-right">{vote.dem_nay}</td>
                   <td className="py-2 text-right font-medium">{vote.dem_yea + vote.dem_nay}</td>
                 </tr>
                 <tr className="border-b border-border/50">
-                  <td className="py-2 text-red-500 font-medium">Republicans</td>
+                  <td className="py-2 text-glory-red-500 font-medium">Republicans</td>
                   <td className="py-2 text-right">{vote.rep_yea}</td>
                   <td className="py-2 text-right">{vote.rep_nay}</td>
                   <td className="py-2 text-right font-medium">{vote.rep_yea + vote.rep_nay}</td>
@@ -159,76 +161,64 @@ export default async function VotePage({ params }: PageProps) {
               </tbody>
             </table>
           </div>
-
-          {vote.is_bipartisan && (
-            <div className="mt-4">
-              <Badge className="bg-purple-100 text-purple-700 text-sm">
-                Bipartisan Vote
-              </Badge>
-            </div>
-          )}
-          </CardContent>
-        </Card>
+        </div>
 
         {/* Hemicycle Seat Map */}
         {overlaySeats.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Seat Map</CardTitle>
-            </CardHeader>
-            <CardContent>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded-full border border-border bg-white" />
-                <span>Yea</span>
+          <>
+            <Separator className="mb-6" />
+            <div className="mb-6 pb-6">
+              <h2 className="text-lg font-semibold mb-4">Seat Map</h2>
+              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-3 w-3 rounded-full border border-border bg-white" />
+                  <span>Yea</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: "#18181b" }} />
+                  <span>Nay</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-3 w-3 rounded-full bg-yellow-500" />
+                  <span>Present</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-3 w-3 rounded-full bg-background0" />
+                  <span>Not Voting</span>
+                </div>
+                <div className="ml-2 flex items-center gap-1.5 border-l border-border pl-3">
+                  <span className="text-muted-foreground/60">
+                    Border = party color
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: "#18181b" }} />
-                <span>Nay</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded-full bg-yellow-500" />
-                <span>Present</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block h-3 w-3 rounded-full bg-background0" />
-                <span>Not Voting</span>
-              </div>
-              <div className="ml-2 flex items-center gap-1.5 border-l border-border pl-3">
-                <span className="text-muted-foreground/60">
-                  Border = party color
-                </span>
+              <div className="h-[400px]">
+                <HemicycleWithZoom
+                  chamber={vote.chamber}
+                  seats={overlaySeats}
+                  showVoteOverlay
+                />
               </div>
             </div>
-            <div className="h-[400px]">
-              <HemicycleWithZoom
-                chamber={vote.chamber}
-                seats={overlaySeats}
-                showVoteOverlay
-              />
-            </div>
-            </CardContent>
-          </Card>
+          </>
         )}
 
         {/* Member Votes Table */}
         {overlaySeats.length > 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Member Votes</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <>
+            <Separator className="mb-6" />
+            <div className="mb-6 pb-6">
+              <h2 className="text-lg font-semibold mb-4">Member Votes</h2>
               <VoteMemberTable seats={overlaySeats} chamber={vote.chamber} />
-            </CardContent>
-          </Card>
+            </div>
+          </>
         )}
 
         {/* Vote ID */}
-        <Card className="p-6 py-6">
-          <div className="text-sm text-muted-foreground">
-            Vote ID: <span className="font-mono">{vote.vote_id}</span>
-          </div>
-        </Card>
+        <Separator className="mb-6" />
+        <div className="text-sm text-muted-foreground">
+          Vote ID: <span className="font-mono">{vote.vote_id}</span>
+        </div>
       </GridContainer>
     </main>
     </ChatContextProvider>

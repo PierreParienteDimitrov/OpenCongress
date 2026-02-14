@@ -7,6 +7,7 @@ from .views import (
     APIKeyListView,
     FollowMemberView,
     MeView,
+    MyRepresentativesActivityView,
     MyRepresentativesView,
     SocialAuthSyncView,
     chat_stream_view,
@@ -29,6 +30,11 @@ urlpatterns = [
         "my-representatives/",
         MyRepresentativesView.as_view(),
         name="my_representatives",
+    ),
+    path(
+        "my-representatives/activity/",
+        MyRepresentativesActivityView.as_view(),
+        name="my_representatives_activity",
     ),
     path(
         "follow/<str:bioguide_id>/",

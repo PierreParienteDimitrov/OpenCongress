@@ -1,17 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import {
-  MessageSquare,
-  Settings,
-  LogIn,
-  X,
-  Maximize2,
-  RotateCcw,
-} from "lucide-react";
+import { Settings, LogIn, X, Maximize2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import {
@@ -26,6 +19,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { fetchAPIKeys, type ConfiguredAPIKey } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { useChatContext } from "@/lib/chat-context";
+import { useChatUI } from "@/lib/chat-store";
 import { createDjangoChatAdapter } from "./ChatModelAdapter";
 
 // ── Panel constants ──
@@ -73,9 +67,9 @@ export function ChatInterface() {
   const router = useRouter();
   const pathname = usePathname();
   const pageContext = useChatContext();
-  const [isOpen, setIsOpen] = useState(
-    () => searchParams.get("chatOpen") === "true",
-  );
+  const isOpen = useChatUI((s) => s.isOpen);
+  const openChat = useChatUI((s) => s.open);
+  const closeChat = useChatUI((s) => s.close);
   const [selectedProviderOverride, setSelectedProvider] = useState<
     string | null
   >(null);
@@ -118,9 +112,10 @@ export function ChatInterface() {
     return panelPosition;
   }, [isOpen, panelPosition, panelSize.width, panelSize.height]);
 
-  // Clean up the chatOpen URL param after opening from login redirect
+  // Open chat + clean up the chatOpen URL param after login redirect
   useEffect(() => {
     if (searchParams.get("chatOpen") === "true") {
+      openChat();
       const params = new URLSearchParams(searchParams.toString());
       params.delete("chatOpen");
       const newQuery = params.toString();
@@ -128,7 +123,7 @@ export function ChatInterface() {
         scroll: false,
       });
     }
-  }, [searchParams, router, pathname]);
+  }, [searchParams, router, pathname, openChat]);
 
   // Viewport resize safety — clamp panel position
   useEffect(() => {
@@ -232,19 +227,6 @@ export function ChatInterface() {
 
   return (
     <>
-      {/* FAB trigger button */}
-      <Button
-        onClick={() => setIsOpen((o) => !o)}
-        className={cn(
-          "fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg border-0 cursor-pointer",
-          "bg-gradient-to-r from-blue-600 to-red-600 hover:from-blue-700 hover:to-red-700",
-          "text-white",
-        )}
-        size="icon"
-      >
-        <MessageSquare className="size-6" />
-      </Button>
-
       {/* Floating panel */}
       <AnimatePresence>
         {isOpen && panelPositionResolved && (
@@ -302,7 +284,7 @@ export function ChatInterface() {
                   onSelectProvider={(p) => setSelectedProvider(p)}
                   isMobile={isMobile}
                   onReset={resetPanel}
-                  onClose={() => setIsOpen(false)}
+                  onClose={closeChat}
                   onPointerDown={(e) => {
                     if (!isMobile) dragControls.start(e);
                   }}
@@ -320,7 +302,7 @@ export function ChatInterface() {
                   onSelectProvider={(p) => setSelectedProvider(p)}
                   isMobile={isMobile}
                   onReset={resetPanel}
-                  onClose={() => setIsOpen(false)}
+                  onClose={closeChat}
                   onPointerDown={(e) => {
                     if (!isMobile) dragControls.start(e);
                   }}
@@ -341,7 +323,7 @@ export function ChatInterface() {
                       <Button asChild size="sm" variant="outline">
                         <Link
                           href={buildLoginUrl()}
-                          onClick={() => setIsOpen(false)}
+                          onClick={closeChat}
                           className="cursor-pointer"
                         >
                           Sign in
@@ -366,7 +348,7 @@ export function ChatInterface() {
                       <Button asChild size="sm" variant="outline">
                         <Link
                           href="/settings"
-                          onClick={() => setIsOpen(false)}
+                          onClick={closeChat}
                           className="cursor-pointer"
                         >
                           Go to Settings

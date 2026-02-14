@@ -156,7 +156,7 @@ export function APIKeysManager() {
             className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
               feedback.type === "success"
                 ? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
-                : "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+                : "border-glory-red-200 bg-glory-red-50 text-glory-red-800 dark:border-glory-red-800 dark:bg-glory-red-950 dark:text-glory-red-200"
             }`}
           >
             {feedback.type === "success" ? (
@@ -210,7 +210,7 @@ export function APIKeysManager() {
                         }
                         disabled={deleteMutation.isPending}
                       >
-                        <Trash2 className="size-4 text-red-500" />
+                        <Trash2 className="size-4 text-glory-red-500" />
                       </Button>
                     )}
                   </div>
