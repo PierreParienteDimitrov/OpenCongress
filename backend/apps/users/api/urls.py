@@ -6,6 +6,7 @@ from .views import (
     APIKeyDeleteView,
     APIKeyListView,
     MeView,
+    MyRepresentativesView,
     SocialAuthSyncView,
     chat_stream_view,
 )
@@ -21,6 +22,12 @@ urlpatterns = [
         "api-keys/<str:provider>/delete/",
         APIKeyDeleteView.as_view(),
         name="api_keys_delete",
+    ),
+    # Representatives
+    path(
+        "my-representatives/",
+        MyRepresentativesView.as_view(),
+        name="my_representatives",
     ),
     # Chat
     path("chat/stream/", chat_stream_view, name="chat_stream"),

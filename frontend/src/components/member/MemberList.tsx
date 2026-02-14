@@ -14,7 +14,6 @@ import {
   getMemberLocation,
 } from "@/lib/utils";
 import { getMemberRoute } from "@/lib/routes";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ interface MemberListProps {
 function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "senate" | "house" }) {
   return (
     <Link href={getMemberRoute(member.bioguide_id, chamber)}>
-      <Card className="group flex flex-row items-center gap-4 p-4 py-4 transition-all hover:border-muted-foreground/30 hover:shadow-md">
+      <div className="group flex flex-row items-center gap-4 border-b border-border p-4 transition-colors hover:bg-secondary/50">
         {/* Photo */}
         <div className="shrink-0">
           {member.photo_url ? (
@@ -81,14 +80,14 @@ function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "sen
             d="M9 5l7 7-7 7"
           />
         </svg>
-      </Card>
+      </div>
     </Link>
   );
 }
 
 function MemberCardSkeleton() {
   return (
-    <Card className="flex flex-row items-center gap-4 p-4 py-4">
+    <div className="flex flex-row items-center gap-4 border-b border-border p-4">
       <Skeleton className="h-16 w-16 shrink-0 rounded-full bg-secondary" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-5 w-40 bg-secondary" />
@@ -97,7 +96,7 @@ function MemberCardSkeleton() {
           <Skeleton className="h-5 w-32 bg-secondary" />
         </div>
       </div>
-    </Card>
+    </div>
   );
 }
 

@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import uuid
 
 from django.conf import settings
@@ -13,6 +14,9 @@ from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.congress.api.serializers import MemberListSerializer
+from apps.congress.models import Member
+from apps.congress.zcta import STATE_NAMES, ZCTA_CD
 from apps.users.models import UserAPIKey
 from services.chat import ChatService
 
@@ -141,6 +145,105 @@ class APIKeyDeleteView(APIView):
             return Response(
                 {"error": "API key not found"}, status=status.HTTP_404_NOT_FOUND
             )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------------------------------------------------------------------------
+# My Representatives
+# ---------------------------------------------------------------------------
+
+
+class MyRepresentativesView(APIView):
+    """Get, save, or clear the user's linked representatives."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_representatives(self, user):
+        """Query active members matching the user's state/district."""
+        if not user.state:
+            return {"has_representatives": False, "representatives": []}
+
+        members = Member.objects.filter(is_active=True, state=user.state)
+        senate_members = list(members.filter(chamber=Member.Chamber.SENATE))
+        house_members = []
+        if user.congressional_district:
+            house_members = list(
+                members.filter(
+                    chamber=Member.Chamber.HOUSE,
+                    district=int(user.congressional_district),
+                )
+            )
+        all_members = senate_members + house_members
+        serializer = MemberListSerializer(all_members, many=True)
+
+        return {
+            "has_representatives": True,
+            "zip_code": user.zip_code,
+            "state": user.state,
+            "state_name": STATE_NAMES.get(user.state, user.state),
+            "district": user.congressional_district,
+            "representatives": serializer.data,
+        }
+
+    def get(self, request):
+        return Response(self._get_representatives(request.user))
+
+    def post(self, request):
+        zip_code = request.data.get("zip_code", "").strip()
+        if not zip_code or not re.match(r"^\d{5}$", zip_code):
+            return Response(
+                {"error": "A valid 5-digit zip code is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        entry = ZCTA_CD.get(zip_code)
+        if not entry:
+            return Response(
+                {"error": "No results found for this zip code"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        state_code = entry["state"]
+        districts = entry["districts"]
+
+        # If multiple districts and no district specified, ask user to pick
+        district = request.data.get("district")
+        if len(districts) > 1 and district is None:
+            return Response(
+                {
+                    "multiple_districts": True,
+                    "districts": districts,
+                    "state": state_code,
+                    "state_name": STATE_NAMES.get(state_code, state_code),
+                }
+            )
+
+        # Resolve the single district
+        if district is not None:
+            district = int(district)
+            if district not in districts:
+                return Response(
+                    {"error": "Invalid district for this zip code"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            district = districts[0]
+
+        # Save to user
+        user = request.user
+        user.zip_code = zip_code
+        user.state = state_code
+        user.congressional_district = str(district)
+        user.save(update_fields=["zip_code", "state", "congressional_district"])
+
+        return Response(self._get_representatives(user))
+
+    def delete(self, request):
+        user = request.user
+        user.zip_code = ""
+        user.state = ""
+        user.congressional_district = ""
+        user.save(update_fields=["zip_code", "state", "congressional_district"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

@@ -79,6 +79,50 @@ export async function deleteAPIKey(provider: string): Promise<void> {
   });
 }
 
+// ── My Representatives ──
+
+import type { MemberListItem } from "@/types";
+
+export interface MyRepresentativesResponse {
+  has_representatives: boolean;
+  zip_code: string;
+  state: string;
+  state_name: string;
+  district: string;
+  representatives: MemberListItem[];
+}
+
+export interface MultipleDistrictsResponse {
+  multiple_districts: true;
+  districts: number[];
+  state: string;
+  state_name: string;
+}
+
+export async function fetchMyRepresentatives(): Promise<MyRepresentativesResponse> {
+  return fetchAuthenticated<MyRepresentativesResponse>(
+    "/auth/my-representatives/",
+  );
+}
+
+export async function saveMyRepresentatives(
+  zipCode: string,
+  district?: number,
+): Promise<MyRepresentativesResponse | MultipleDistrictsResponse> {
+  return fetchAuthenticated<
+    MyRepresentativesResponse | MultipleDistrictsResponse
+  >("/auth/my-representatives/", {
+    method: "POST",
+    body: JSON.stringify({ zip_code: zipCode, district }),
+  });
+}
+
+export async function clearMyRepresentatives(): Promise<void> {
+  return fetchAuthenticated("/auth/my-representatives/", {
+    method: "DELETE",
+  });
+}
+
 // ── Chat streaming ──
 
 export interface ChatStreamOptions {

@@ -43,6 +43,13 @@ export const routes = {
     detail: (voteId: string) => `/vote/${voteId}`,
   },
 
+  // Settings
+  settings: {
+    index: "/settings",
+    apiKeys: "/settings/api-keys",
+    representatives: "/settings/representatives",
+  },
+
   // Documentation
   documentation: {
     index: "/documentation",

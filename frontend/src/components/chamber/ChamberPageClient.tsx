@@ -113,7 +113,7 @@ export default function ChamberPageClient({
       {/* Content — layout depends on active tab */}
       {isSeats ? (
         <div className="min-h-0 flex-1 px-4 pb-4">
-          <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex h-full flex-col p-4">
             <HemicyclePageClient
               chamber={chamber}
               initialSeats={initialSeats}

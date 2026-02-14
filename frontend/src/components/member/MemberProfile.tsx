@@ -16,7 +16,7 @@ import {
   getChamberShortName,
 } from "@/lib/utils";
 import { routes } from "@/lib/routes";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 
 interface MemberProfileProps {
@@ -89,7 +89,7 @@ export default function MemberProfile({ member }: MemberProfileProps) {
     <main className="min-h-screen bg-background">
       <GridContainer className="py-8">
         {/* Header */}
-        <Card className="mb-6 p-6 py-6">
+        <div className="mb-6 pb-6">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Photo */}
             <div className="shrink-0">
@@ -175,14 +175,13 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               )}
             </div>
           </div>
-        </Card>
+        </div>
+
+        <Separator className="mb-6" />
 
         {/* Contact Info */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Contact Information</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="mb-6 pb-6">
+          <h2 className="text-lg font-semibold mb-4">Contact Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {member.phone && (
               <div>
@@ -236,51 +235,46 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               </div>
             )}
           </div>
-          </CardContent>
-        </Card>
+        </div>
+
+        <Separator className="mb-6" />
 
         {/* Bio */}
         {member.ai_bio && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">About</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <>
+            <div className="mb-6 pb-6">
+              <h2 className="text-lg font-semibold mb-4">About</h2>
               <p className="text-foreground/80 whitespace-pre-wrap">{member.ai_bio}</p>
               <p className="text-xs text-muted-foreground/60 mt-2">AI-generated biography</p>
-            </CardContent>
-          </Card>
+            </div>
+            <Separator className="mb-6" />
+          </>
         )}
 
         {/* Stats */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Legislative Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="mb-6 pb-6">
+          <h2 className="text-lg font-semibold mb-4">Legislative Activity</h2>
           <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-4 bg-background rounded-lg">
+            <div className="text-center p-4">
               <p className="text-3xl font-bold text-foreground">
                 {member.sponsored_bills_count}
               </p>
               <p className="text-sm text-muted-foreground">Bills Sponsored</p>
             </div>
-            <div className="text-center p-4 bg-background rounded-lg">
+            <div className="text-center p-4">
               <p className="text-3xl font-bold text-foreground">
                 {member.recent_votes.length}
               </p>
               <p className="text-sm text-muted-foreground">Recent Votes</p>
             </div>
           </div>
-          </CardContent>
-        </Card>
+        </div>
+
+        <Separator className="mb-6" />
 
         {/* Recent Votes */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Votes</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div>
+          <h2 className="text-lg font-semibold mb-4">Recent Votes</h2>
           {member.recent_votes.length > 0 ? (
             <div>
               {member.recent_votes.map((vote) => (
@@ -292,8 +286,7 @@ export default function MemberProfile({ member }: MemberProfileProps) {
               No recent votes recorded.
             </p>
           )}
-          </CardContent>
-        </Card>
+        </div>
       </GridContainer>
     </main>
   );

@@ -11,6 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
             "id",
             "username",
             "email",
+            "zip_code",
             "state",
             "congressional_district",
             "email_notifications",

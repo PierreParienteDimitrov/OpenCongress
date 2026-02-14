@@ -11,6 +11,7 @@ class User(AbstractUser):
 
     # Address/location for finding representatives
     address = models.TextField(blank=True)
+    zip_code = models.CharField(max_length=5, blank=True)
     state = models.CharField(max_length=2, blank=True)
     congressional_district = models.CharField(max_length=10, blank=True)
 
