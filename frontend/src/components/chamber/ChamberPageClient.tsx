@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Landmark, Map, List } from "lucide-react";
@@ -70,7 +69,7 @@ export default function ChamberPageClient({
   const router = useRouter();
   const pathname = usePathname();
   const currentView = searchParams.get("view") ?? "seats";
-  const [selectedVoteId, setSelectedVoteId] = useState(DEFAULT_VOTE);
+  const selectedVoteId = searchParams.get("vote") ?? DEFAULT_VOTE;
 
   const { data: voteOverlaySeats } = useQuery<SeatWithVote[]>({
     queryKey: ["seat-vote-overlay", chamber, selectedVoteId],
@@ -78,17 +77,25 @@ export default function ChamberPageClient({
     enabled: selectedVoteId !== DEFAULT_VOTE,
   });
 
-  function handleTabChange(value: string) {
+  function updateParam(key: string, value: string, defaultValue: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (value === "seats") {
-      params.delete("view");
+    if (value === defaultValue) {
+      params.delete(key);
     } else {
-      params.set("view", value);
+      params.set(key, value);
     }
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
+  }
+
+  function handleTabChange(value: string) {
+    updateParam("view", value, "seats");
+  }
+
+  function handleVoteChange(value: string) {
+    updateParam("vote", value, DEFAULT_VOTE);
   }
 
   const isSeats = currentView === "seats";
@@ -133,7 +140,7 @@ export default function ChamberPageClient({
 
           {isSeats && votes.length > 0 && (
             <div className="flex flex-col items-end gap-1.5">
-              <Select value={selectedVoteId} onValueChange={setSelectedVoteId}>
+              <Select value={selectedVoteId} onValueChange={handleVoteChange}>
                 <SelectTrigger className="w-[340px] cursor-pointer">
                   <SelectValue placeholder="Show by party (default)" />
                 </SelectTrigger>

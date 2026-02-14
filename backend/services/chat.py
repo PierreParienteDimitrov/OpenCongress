@@ -75,7 +75,7 @@ class ChatService:
         web_search_tool: dict[str, Any] = {
             "type": "web_search_20250305",
             "name": "web_search",
-            "max_uses": 3,
+            "max_uses": 5,
         }
         all_tools: list[Any] = [web_search_tool] + db_tools
 
@@ -88,18 +88,19 @@ class ChatService:
             is_last_round = _round == MAX_TOOL_ROUNDS
 
             if is_last_round:
-                # Final round: stream text, no tools
+                # Final round: stream text with web search but no DB tools
                 with client.messages.stream(
                     model=self.MODELS["anthropic"],
                     max_tokens=4096,
                     system=system_context,
                     messages=conv_messages,
+                    tools=[web_search_tool],  # type: ignore[list-item]
                 ) as stream:
-                    for text in stream.text_stream:
-                        yield {"type": "text_delta", "content": text}
+                    for event in stream:
+                        yield from self._handle_anthropic_stream_event(event)
                 break
 
-            # Non-streaming call with tools (includes web search)
+            # Non-streaming call with all tools (DB + web search)
             response = client.messages.create(
                 model=self.MODELS["anthropic"],
                 max_tokens=4096,
@@ -116,6 +117,20 @@ class ChatService:
                 if block.type == "text":
                     if block.text:
                         yield {"type": "text_delta", "content": block.text}
+                    # Extract citations from text blocks
+                    citations = getattr(block, "citations", None)
+                    if citations:
+                        sources = []
+                        for cite in citations:
+                            if hasattr(cite, "url"):
+                                sources.append(
+                                    {
+                                        "url": cite.url,
+                                        "title": getattr(cite, "title", ""),
+                                    }
+                                )
+                        if sources:
+                            yield {"type": "sources", "sources": sources}
                 elif block.type == "tool_use":
                     # Our custom DB tools — execute locally
                     yield {
@@ -180,6 +195,59 @@ class ChatService:
                 conv_messages.append(
                     {"role": "user", "content": tool_results}  # type: ignore[arg-type, typeddict-item]
                 )
+
+    @staticmethod
+    def _handle_anthropic_stream_event(event: Any) -> Generator[ChatEvent, None, None]:
+        """Handle a single event from Anthropic's streaming API."""
+        event_type = getattr(event, "type", "")
+
+        if event_type == "content_block_start":
+            block = getattr(event, "content_block", None)
+            if block and getattr(block, "type", "") == "server_tool_use":
+                yield {
+                    "type": "tool_call_start",
+                    "id": block.id,
+                    "name": "web_search",
+                    "args": getattr(block, "input", {}),
+                }
+        elif event_type == "content_block_stop":
+            # Check if this is a web_search_tool_result block
+            pass
+        elif event_type == "text":
+            yield {"type": "text_delta", "content": event.text}
+        elif event_type == "message_stop":
+            # Extract sources from the final message
+            message = getattr(event, "message", None)
+            if message:
+                sources = []
+                for block in getattr(message, "content", []):
+                    if getattr(block, "type", "") == "web_search_tool_result":
+                        for entry in getattr(block, "content", []):
+                            if hasattr(entry, "url"):
+                                sources.append(
+                                    {
+                                        "url": entry.url,
+                                        "title": getattr(entry, "title", ""),
+                                    }
+                                )
+                    elif getattr(block, "type", "") == "text":
+                        for cite in getattr(block, "citations", []) or []:
+                            if hasattr(cite, "url"):
+                                sources.append(
+                                    {
+                                        "url": cite.url,
+                                        "title": getattr(cite, "title", ""),
+                                    }
+                                )
+                if sources:
+                    # Deduplicate
+                    seen: set[str] = set()
+                    unique: list[dict[str, str]] = []
+                    for s in sources:
+                        if s["url"] not in seen:
+                            seen.add(s["url"])
+                            unique.append(s)
+                    yield {"type": "sources", "sources": unique}
 
     # ------------------------------------------------------------------
     # OpenAI
@@ -345,31 +413,26 @@ class ChatService:
                 types.Content(role=role, parts=[types.Part(text=msg["content"])])
             )
 
-        for _round in range(MAX_TOOL_ROUNDS + 1):
-            is_last_round = _round == MAX_TOOL_ROUNDS
+        def _stream_with_search() -> Generator[ChatEvent, None, None]:
+            """Stream final response with Google Search grounding."""
+            stream_response = client.models.generate_content_stream(
+                model=self.MODELS["google"],
+                contents=contents,
+                config=config_with_search,
+            )
+            grounding_emitted = False
+            for chunk in stream_response:
+                if chunk.text:
+                    yield {"type": "text_delta", "content": chunk.text}
+                # Grounding metadata typically on the last chunk
+                if not grounding_emitted and chunk.candidates:
+                    cand = chunk.candidates[0]  # type: ignore[index]
+                    grounding = getattr(cand, "grounding_metadata", None)
+                    if grounding:
+                        yield from self._emit_google_grounding(grounding, 0)
+                        grounding_emitted = True
 
-            if is_last_round:
-                # Final round: stream with Google Search grounding
-                stream_response = client.models.generate_content_stream(
-                    model=self.MODELS["google"],
-                    contents=contents,
-                    config=config_with_search,
-                )
-                for chunk in stream_response:
-                    if chunk.text:
-                        yield {"type": "text_delta", "content": chunk.text}
-                    # Grounding metadata on streaming chunks
-                    candidate = (
-                        chunk.candidates[0]
-                        if chunk.candidates
-                        else None  # type: ignore[index]
-                    )
-                    if candidate:
-                        grounding = getattr(candidate, "grounding_metadata", None)
-                        if grounding:
-                            yield from self._emit_google_grounding(grounding, _round)
-                break
-
+        for _round in range(MAX_TOOL_ROUNDS):
             # Non-streaming call with DB function tools
             sync_response = client.models.generate_content(
                 model=self.MODELS["google"],
@@ -384,7 +447,10 @@ class ChatService:
 
             for part in candidate.content.parts:  # type: ignore[union-attr]
                 if part.text:
-                    yield {"type": "text_delta", "content": part.text}
+                    # Don't emit text from intermediate rounds — the final
+                    # streaming call with search grounding will produce the
+                    # full answer.
+                    pass
                 elif part.function_call:
                     has_function_calls = True
                     fc = part.function_call
@@ -418,11 +484,16 @@ class ChatService:
                     )
 
             if not has_function_calls:
-                break
+                # No DB tools needed — stream with Google Search grounding
+                yield from _stream_with_search()
+                return
 
             # Append model response and tool results for next round
             contents.append(candidate.content)  # type: ignore[union-attr, arg-type]
             contents.append(types.Content(role="user", parts=function_responses))
+
+        # Exhausted tool rounds — stream final response with search
+        yield from _stream_with_search()
 
     @staticmethod
     def _emit_google_grounding(

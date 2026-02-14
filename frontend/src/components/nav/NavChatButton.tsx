@@ -8,7 +8,7 @@ export function NavChatButton() {
   return (
     <button
       onClick={toggle}
-      className="relative hidden lg:inline-flex items-center border border-transparent mr-2 cursor-pointer overflow-hidden"
+      className="relative hidden lg:inline-flex items-center border border-transparent mx-2 cursor-pointer overflow-hidden"
       style={{
         borderImage: "linear-gradient(to right, #ef4444, #3b82f6) 1",
       }}

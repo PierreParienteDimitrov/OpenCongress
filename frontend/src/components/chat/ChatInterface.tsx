@@ -22,7 +22,6 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Thread } from "@/components/assistant-ui/thread";
 import { fetchAPIKeys, type ConfiguredAPIKey } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
@@ -80,9 +79,6 @@ export function ChatInterface() {
   const openChat = useChatUI((s) => s.open);
   const closeChat = useChatUI((s) => s.close);
   const toggleExpanded = useChatUI((s) => s.toggleExpanded);
-  const [selectedProviderOverride, setSelectedProvider] = useState<
-    string | null
-  >(null);
 
   // Panel state (floating mode only)
   const [panelSize, setPanelSize] = useState({
@@ -102,16 +98,10 @@ export function ChatInterface() {
     enabled: !!session,
   });
 
-  // Derive selected provider
+  // Derive selected provider (use first available key)
   const selectedProvider = useMemo(() => {
-    if (
-      selectedProviderOverride &&
-      apiKeys.some((k) => k.provider === selectedProviderOverride)
-    ) {
-      return selectedProviderOverride;
-    }
     return apiKeys.length > 0 ? apiKeys[0].provider : null;
-  }, [apiKeys, selectedProviderOverride]);
+  }, [apiKeys]);
 
   // Set default position on first open (client-side only)
   const panelPositionResolved = useMemo(() => {
@@ -230,12 +220,7 @@ export function ChatInterface() {
   const chatContent = showChat ? (
     <AssistantRuntimeProvider runtime={runtime}>
       <ChatPanelHeader
-        session={!!session}
-        hasKeys={hasKeys}
         showClearButton
-        apiKeys={apiKeys}
-        selectedProvider={selectedProvider}
-        onSelectProvider={(p) => setSelectedProvider(p)}
         isMobile={isMobile}
         isExpanded={isExpanded}
         onToggleExpand={() => toggleExpanded()}
@@ -249,12 +234,7 @@ export function ChatInterface() {
   ) : (
     <>
       <ChatPanelHeader
-        session={!!session}
-        hasKeys={hasKeys}
         showClearButton={false}
-        apiKeys={apiKeys}
-        selectedProvider={selectedProvider}
-        onSelectProvider={(p) => setSelectedProvider(p)}
         isMobile={isMobile}
         isExpanded={isExpanded}
         onToggleExpand={() => toggleExpanded()}
@@ -413,24 +393,14 @@ export function ChatInterface() {
 
 // ── Extracted header component ──
 function ChatPanelHeader({
-  session,
-  hasKeys,
   showClearButton,
-  apiKeys,
-  selectedProvider,
-  onSelectProvider,
   isMobile,
   isExpanded,
   onToggleExpand,
   onClose,
   onPointerDown,
 }: {
-  session: boolean;
-  hasKeys: boolean;
   showClearButton: boolean;
-  apiKeys: ConfiguredAPIKey[];
-  selectedProvider: string | null;
-  onSelectProvider: (provider: string) => void;
   isMobile: boolean;
   isExpanded: boolean;
   onToggleExpand: () => void;
@@ -441,65 +411,44 @@ function ChatPanelHeader({
     <div
       onPointerDown={onPointerDown}
       className={cn(
-        "flex flex-col border-b px-3 py-2 shrink-0",
+        "flex h-14 items-center justify-between border-b px-3 shrink-0",
         !isMobile && !isExpanded && "cursor-grab active:cursor-grabbing",
       )}
     >
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold select-none">AI Assistant</h2>
-        <div className="flex items-center gap-0.5">
-          {showClearButton && <ClearChatButton />}
-          {!isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7 cursor-pointer text-muted-foreground"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleExpand();
-              }}
-              title={isExpanded ? "Collapse to panel" : "Expand to sidebar"}
-            >
-              {isExpanded ? (
-                <Minimize2 className="size-3.5" />
-              ) : (
-                <Maximize2 className="size-3.5" />
-              )}
-            </Button>
-          )}
+      <h2 className="text-sm font-semibold select-none">AI Assistant</h2>
+      <div className="flex items-center gap-0.5">
+        {showClearButton && <ClearChatButton />}
+        {!isMobile && (
           <Button
             variant="ghost"
             size="icon"
             className="size-7 cursor-pointer text-muted-foreground"
             onClick={(e) => {
               e.stopPropagation();
-              onClose();
+              onToggleExpand();
             }}
-            title="Close"
+            title={isExpanded ? "Collapse to panel" : "Expand to sidebar"}
           >
-            <X className="size-3.5" />
+            {isExpanded ? (
+              <Minimize2 className="size-3.5" />
+            ) : (
+              <Maximize2 className="size-3.5" />
+            )}
           </Button>
-        </div>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 cursor-pointer text-muted-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          title="Close"
+        >
+          <X className="size-3.5" />
+        </Button>
       </div>
-      {session && hasKeys && (
-        <div className="flex gap-1.5 pt-1">
-          {apiKeys.map((key) => (
-            <Badge
-              key={key.provider}
-              variant={
-                selectedProvider === key.provider ? "default" : "outline"
-              }
-              className="cursor-pointer text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectProvider(key.provider);
-              }}
-            >
-              {key.provider_display}
-            </Badge>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

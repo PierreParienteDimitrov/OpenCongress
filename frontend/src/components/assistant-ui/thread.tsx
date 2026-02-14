@@ -53,7 +53,7 @@ export const Thread: FC<ThreadProps> = ({ contextLabel }) => {
         />
       </ThreadPrimitive.Viewport>
 
-      <div className="relative shrink-0 bg-background px-3 pb-3">
+      <div className="relative shrink-0 px-3 pb-3">
         <ThreadScrollToBottom />
         <Composer />
       </div>
