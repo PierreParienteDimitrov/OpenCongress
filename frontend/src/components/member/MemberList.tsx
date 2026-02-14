@@ -1,7 +1,8 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useSession } from "next-auth/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,6 +15,7 @@ import {
   getMemberLocation,
 } from "@/lib/utils";
 import { getMemberRoute } from "@/lib/routes";
+import { fetchMyRepresentatives } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,7 @@ interface MemberListProps {
   fetchFn: (page: number, search: string) => Promise<PaginatedResponse<MemberListItem>>;
 }
 
-function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "senate" | "house" }) {
+function MemberCard({ member, chamber, isFollowing }: { member: MemberListItem; chamber: "senate" | "house"; isFollowing?: boolean }) {
   return (
     <Link href={getMemberRoute(member.bioguide_id, chamber, member.full_name)}>
       <div className="group flex flex-row items-center gap-4 border-b border-border p-4 transition-colors hover:bg-secondary/50">
@@ -60,6 +62,11 @@ function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "sen
             <Badge className={cn(getPartyBgColor(member.party))}>
               {getPartyName(member.party)}
             </Badge>
+            {isFollowing && (
+              <Badge className="bg-accent/15 text-accent text-[10px] px-1.5 py-0">
+                Following
+              </Badge>
+            )}
             <span className="text-sm text-muted-foreground">
               {getMemberLocation(member.state, member.district, member.chamber)}
             </span>
@@ -104,6 +111,18 @@ export default function MemberList({ chamber, initialData, fetchFn }: MemberList
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const { data: session } = useSession();
+  const { data: repsData } = useQuery({
+    queryKey: ["my-representatives"],
+    queryFn: fetchMyRepresentatives,
+    enabled: !!session,
+    staleTime: 5 * 60 * 1000,
+  });
+  const followedIds = useMemo(
+    () => new Set(repsData?.followed_ids ?? []),
+    [repsData?.followed_ids],
+  );
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -196,7 +215,12 @@ export default function MemberList({ chamber, initialData, fetchFn }: MemberList
       {/* Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {allMembers.map((member) => (
-          <MemberCard key={member.bioguide_id} member={member} chamber={chamber} />
+          <MemberCard
+            key={member.bioguide_id}
+            member={member}
+            chamber={chamber}
+            isFollowing={followedIds.has(member.bioguide_id)}
+          />
         ))}
 
         {/* Loading skeletons */}
