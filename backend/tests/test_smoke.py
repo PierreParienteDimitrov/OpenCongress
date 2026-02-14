@@ -6,19 +6,17 @@ The goal is to catch serializer bugs, broken queries, missing migrations,
 and import errors *before* they reach production.
 
 Run with:
-    DJANGO_SETTINGS_MODULE=config.settings.test pytest tests/test_smoke.py -v
+    pytest tests/test_smoke.py -v
 """
 
 import pytest
-from django.test import override_settings
+
+pytestmark = pytest.mark.django_db
+
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-# Disable per-view cache_page decorators so we don't get stale cached
-# responses from one test affecting another.
-NO_CACHE = {"CACHE_TIMEOUTS": {}}
 
 
 def assert_not_500(response, url: str):
@@ -53,11 +51,10 @@ class TestHealthEndpoints:
 # ===========================================================================
 
 
-@override_settings(**NO_CACHE)
 class TestMemberEndpoints:
     """All /api/v1/members/ routes."""
 
-    def test_list_empty(self, api_client, db):
+    def test_list_empty(self, api_client):
         resp = api_client.get("/api/v1/members/")
         assert resp.status_code == 200
 
@@ -70,7 +67,7 @@ class TestMemberEndpoints:
         resp = api_client.get(f"/api/v1/members/{member.bioguide_id}/")
         assert resp.status_code == 200
 
-    def test_retrieve_not_found(self, api_client, db):
+    def test_retrieve_not_found(self, api_client):
         resp = api_client.get("/api/v1/members/DOESNOTEXIST/")
         assert resp.status_code == 404
 
@@ -82,16 +79,16 @@ class TestMemberEndpoints:
         resp = api_client.get("/api/v1/members/senators/")
         assert resp.status_code == 200
 
-    def test_zip_lookup_valid(self, api_client, db):
+    def test_zip_lookup_valid(self, api_client):
         """Zip lookup with a valid format but unknown zip — should 404, not 500."""
         resp = api_client.get("/api/v1/members/zip-lookup/?zip=00000")
         assert_not_500(resp, "/api/v1/members/zip-lookup/")
 
-    def test_zip_lookup_invalid(self, api_client, db):
+    def test_zip_lookup_invalid(self, api_client):
         resp = api_client.get("/api/v1/members/zip-lookup/?zip=abc")
         assert resp.status_code == 400
 
-    def test_zip_lookup_missing(self, api_client, db):
+    def test_zip_lookup_missing(self, api_client):
         resp = api_client.get("/api/v1/members/zip-lookup/")
         assert resp.status_code == 400
 
@@ -115,11 +112,10 @@ class TestMemberEndpoints:
 # ===========================================================================
 
 
-@override_settings(**NO_CACHE)
 class TestBillEndpoints:
     """All /api/v1/bills/ routes."""
 
-    def test_list_empty(self, api_client, db):
+    def test_list_empty(self, api_client):
         resp = api_client.get("/api/v1/bills/")
         assert resp.status_code == 200
 
@@ -132,7 +128,7 @@ class TestBillEndpoints:
         resp = api_client.get(f"/api/v1/bills/{bill.bill_id}/")
         assert resp.status_code == 200
 
-    def test_retrieve_not_found(self, api_client, db):
+    def test_retrieve_not_found(self, api_client):
         resp = api_client.get("/api/v1/bills/nonexistent-999/")
         assert resp.status_code == 404
 
@@ -152,11 +148,10 @@ class TestBillEndpoints:
 # ===========================================================================
 
 
-@override_settings(**NO_CACHE)
 class TestVoteEndpoints:
     """All /api/v1/votes/ routes."""
 
-    def test_list_empty(self, api_client, db):
+    def test_list_empty(self, api_client):
         resp = api_client.get("/api/v1/votes/")
         assert resp.status_code == 200
 
@@ -168,7 +163,7 @@ class TestVoteEndpoints:
         resp = api_client.get(f"/api/v1/votes/{vote.vote_id}/")
         assert resp.status_code == 200
 
-    def test_retrieve_not_found(self, api_client, db):
+    def test_retrieve_not_found(self, api_client):
         resp = api_client.get("/api/v1/votes/nonexistent/")
         assert resp.status_code == 404
 
@@ -188,11 +183,10 @@ class TestVoteEndpoints:
 # ===========================================================================
 
 
-@override_settings(**NO_CACHE)
 class TestSeatEndpoints:
     """All /api/v1/seats/ routes."""
 
-    def test_list_empty(self, api_client, db):
+    def test_list_empty(self, api_client):
         resp = api_client.get("/api/v1/seats/")
         assert resp.status_code == 200
 
@@ -200,11 +194,11 @@ class TestSeatEndpoints:
         resp = api_client.get("/api/v1/seats/?chamber=house")
         assert resp.status_code == 200
 
-    def test_vote_overlay_missing_params(self, api_client, db):
+    def test_vote_overlay_missing_params(self, api_client):
         resp = api_client.get("/api/v1/seats/vote-overlay/")
         assert resp.status_code == 400
 
-    def test_vote_overlay_missing_vote_id(self, api_client, db):
+    def test_vote_overlay_missing_vote_id(self, api_client):
         resp = api_client.get("/api/v1/seats/vote-overlay/?chamber=house")
         assert resp.status_code == 400
 
@@ -220,11 +214,10 @@ class TestSeatEndpoints:
 # ===========================================================================
 
 
-@override_settings(**NO_CACHE)
 class TestWeeklySummaryEndpoints:
     """All /api/v1/content/weekly-summaries/ routes."""
 
-    def test_list_empty(self, api_client, db):
+    def test_list_empty(self, api_client):
         resp = api_client.get("/api/v1/content/weekly-summaries/")
         assert resp.status_code == 200
 
@@ -236,7 +229,7 @@ class TestWeeklySummaryEndpoints:
         resp = api_client.get(f"/api/v1/content/weekly-summaries/{weekly_summary.pk}/")
         assert resp.status_code == 200
 
-    def test_retrieve_not_found(self, api_client, db):
+    def test_retrieve_not_found(self, api_client):
         resp = api_client.get("/api/v1/content/weekly-summaries/99999/")
         assert resp.status_code == 404
 
@@ -248,11 +241,11 @@ class TestWeeklySummaryEndpoints:
         resp = api_client.get("/api/v1/content/weekly-summaries/week/2025/1/")
         assert resp.status_code == 200
 
-    def test_week_action_not_found(self, api_client, db):
+    def test_week_action_not_found(self, api_client):
         resp = api_client.get("/api/v1/content/weekly-summaries/week/2020/1/")
         assert resp.status_code == 404
 
-    def test_week_action_invalid(self, api_client, db):
+    def test_week_action_invalid(self, api_client):
         resp = api_client.get("/api/v1/content/weekly-summaries/week/2025/99/")
         assert resp.status_code == 400
 
@@ -265,17 +258,17 @@ class TestWeeklySummaryEndpoints:
 class TestAuthPublicEndpoints:
     """Auth endpoints that should be accessible without authentication."""
 
-    def test_me_unauthenticated(self, api_client, db):
+    def test_me_unauthenticated(self, api_client):
         """GET /me without auth should return 401, not 500."""
         resp = api_client.get("/api/v1/auth/me/")
         assert resp.status_code == 401
 
-    def test_token_refresh_no_body(self, api_client, db):
+    def test_token_refresh_no_body(self, api_client):
         """POST with no refresh token should return 400, not 500."""
         resp = api_client.post("/api/v1/auth/token/refresh/", {})
         assert_not_500(resp, "/api/v1/auth/token/refresh/")
 
-    def test_social_sync_no_secret(self, api_client, db):
+    def test_social_sync_no_secret(self, api_client):
         """POST without the sync secret should return 403, not 500."""
         resp = api_client.post(
             "/api/v1/auth/social-sync/",
@@ -371,7 +364,7 @@ class TestAuthEndpointsRequireAuth:
             ("post", "/api/v1/auth/chat/stream/"),
         ],
     )
-    def test_returns_401(self, api_client, db, method, url):
+    def test_returns_401(self, api_client, method, url):
         resp = getattr(api_client, method)(url)
         assert resp.status_code == 401, f"{method.upper()} {url} should require auth"
 
@@ -381,14 +374,13 @@ class TestAuthEndpointsRequireAuth:
 # ===========================================================================
 
 
-@override_settings(**NO_CACHE)
 class TestRouterAPIRoot:
     """The DRF DefaultRouter creates an API root view listing all endpoints."""
 
-    def test_api_root(self, api_client, db):
+    def test_api_root(self, api_client):
         resp = api_client.get("/api/v1/")
         assert resp.status_code == 200
 
-    def test_content_api_root(self, api_client, db):
+    def test_content_api_root(self, api_client):
         resp = api_client.get("/api/v1/content/")
         assert resp.status_code == 200

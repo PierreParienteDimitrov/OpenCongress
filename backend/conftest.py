@@ -6,12 +6,27 @@ Provides shared fixtures used across all test modules.
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.cache import cache as django_cache
 from rest_framework.test import APIClient
 
 from apps.congress.models import Bill, Member, MemberVote, Seat, Vote
 from apps.content.models import WeeklySummary
 
 User = get_user_model()
+
+
+# ---------------------------------------------------------------------------
+# Auto-clear cache between tests (cache_page decorators can cause stale data)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """Clear Django's cache before each test to prevent cross-test pollution
+    from cache_page decorators."""
+    django_cache.clear()
+    yield
+    django_cache.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +115,7 @@ def bill(db, member):
 def vote(db, bill):
     """Create a test vote linked to a bill."""
     return Vote.objects.create(
-        vote_id="h1-119.2025",
+        vote_id="h1-119-2025",
         chamber=Member.Chamber.HOUSE,
         congress=119,
         session=1,
