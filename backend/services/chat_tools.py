@@ -159,7 +159,9 @@ TOOLS: list[dict[str, Any]] = [
 
 def execute_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
     """Dispatch a tool call to the appropriate handler."""
-    handlers = {
+    from collections.abc import Callable
+
+    handlers: dict[str, Callable[..., dict[str, Any]]] = {
         "get_bill_details": _get_bill_details,
         "get_member_details": _get_member_details,
         "get_vote_details": _get_vote_details,
@@ -293,7 +295,6 @@ def _search_bills(query: str) -> dict[str, Any]:
 
 
 def _search_members(query: str) -> dict[str, Any]:
-    from django.contrib.postgres.search import TrigramSimilarity
     from django.db.models import Q
 
     from apps.congress.api.serializers import MemberListSerializer
@@ -301,9 +302,8 @@ def _search_members(query: str) -> dict[str, Any]:
 
     qs = (
         Member.objects.filter(is_active=True)
-        .annotate(similarity=TrigramSimilarity("full_name", query))
-        .filter(Q(full_name__icontains=query) | Q(similarity__gte=0.15))
-        .order_by("-similarity")[:MAX_SEARCH_RESULTS]
+        .filter(Q(full_name__icontains=query))
+        .order_by("full_name")[:MAX_SEARCH_RESULTS]
     )
     results = list(qs)
     return {

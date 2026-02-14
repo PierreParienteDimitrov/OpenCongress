@@ -12,8 +12,6 @@ import {
   formatDateParam,
   getDateFromISOWeek,
   getISOWeekNumber,
-  getWeekEnd,
-  getWeekStart,
   parseWeekParam,
 } from "@/lib/utils";
 import type { WeeklySummary } from "@/types";
@@ -31,16 +29,25 @@ interface PageProps {
   searchParams: Promise<{ week?: string }>;
 }
 
+// Helper: get Monday–Sunday range from ISO week
+function isoWeekRange(year: number, week: number) {
+  const monday = getDateFromISOWeek(year, week);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { start: monday, end: sunday };
+}
+
 export async function generateMetadata({ searchParams }: PageProps) {
   const params = await searchParams;
   if (params.week) {
     const weekDate = parseWeekParam(params.week);
-    const weekStart = getWeekStart(weekDate);
-    const weekEnd = getWeekEnd(weekDate);
+    const { year, week } = getISOWeekNumber(weekDate);
+    const { start, end } = isoWeekRange(year, week);
     const fmt = (d: Date) =>
       d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
     return {
-      title: `This Week in Congress — ${fmt(weekStart)} – ${fmt(weekEnd)}, ${weekStart.getFullYear()}`,
+      title: `This Week in Congress — ${fmt(start)} – ${fmt(end)}, ${start.getFullYear()}`,
     };
   }
   return {
@@ -103,7 +110,7 @@ function SummaryArticle({ summary }: { summary: WeeklySummary }) {
         {paragraphs.map((paragraph, i) => (
           <p
             key={i}
-            className="font-domine text-xl leading-relaxed text-foreground/85"
+            className="font-domine font-medium text-xl leading-relaxed text-foreground/85"
           >
             {paragraph.replace(/\*([^*]+)\*/g, "$1").trim()}
           </p>
@@ -151,54 +158,48 @@ export default async function ThisWeekPage({ searchParams }: PageProps) {
 
   // Determine which week to show
   let summaries: WeeklySummary[];
-  let weekStart: Date;
-  let weekEnd: Date;
+  let isoYear: number;
+  let isoWeek: number;
 
   if (params.week) {
-    // Specific week requested via query param
     const weekDate = parseWeekParam(params.week);
-    weekStart = getWeekStart(weekDate);
-    weekEnd = getWeekEnd(weekDate);
-    const { year, week } = getISOWeekNumber(weekDate);
-    summaries = await getWeeklySummaryByWeek(year, week);
+    ({ year: isoYear, week: isoWeek } = getISOWeekNumber(weekDate));
+    summaries = await getWeeklySummaryByWeek(isoYear, isoWeek);
   } else {
-    // Default: current week (with fallback to previous in API)
     summaries = await getCurrentWeeklySummaries();
-    const recap = summaries.find((s) => s.summary_type === "recap");
-    const preview = summaries.find((s) => s.summary_type === "preview");
-    const summary = recap || preview;
+    const summary =
+      summaries.find((s) => s.summary_type === "recap") ||
+      summaries.find((s) => s.summary_type === "preview");
     if (summary) {
-      // Derive dates from the actual week returned by the API
-      const monday = getDateFromISOWeek(summary.year, summary.week_number);
-      weekStart = getWeekStart(monday);
-      weekEnd = getWeekEnd(monday);
+      isoYear = summary.year;
+      isoWeek = summary.week_number;
     } else {
-      const now = new Date();
-      weekStart = getWeekStart(now);
-      weekEnd = getWeekEnd(now);
+      ({ year: isoYear, week: isoWeek } = getISOWeekNumber(new Date()));
     }
   }
+
+  const { start: weekStart, end: weekEnd } = isoWeekRange(isoYear, isoWeek);
 
   const recap = summaries.find((s) => s.summary_type === "recap");
   const preview = summaries.find((s) => s.summary_type === "preview");
   const currentWeek = recap?.week_number || preview?.week_number;
   const currentYear = recap?.year || preview?.year;
 
-  // Navigation: prev/next week dates
-  const prevWeekStart = new Date(weekStart);
-  prevWeekStart.setDate(prevWeekStart.getDate() - 7);
-  const nextWeekStart = new Date(weekStart);
-  nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+  // Navigation: prev/next week (Monday-based)
+  const prevMonday = new Date(weekStart);
+  prevMonday.setDate(prevMonday.getDate() - 7);
+  const nextMonday = new Date(weekStart);
+  nextMonday.setDate(nextMonday.getDate() + 7);
 
   // Bounds
-  const minWeekStart = getDateFromISOWeek(MIN_YEAR, MIN_WEEK);
+  const minMonday = getDateFromISOWeek(MIN_YEAR, MIN_WEEK);
   const now = new Date();
-  const currentActualWeekStart = getWeekStart(now);
+  const { year: nowYear, week: nowWeek } = getISOWeekNumber(now);
+  const currentActualMonday = getDateFromISOWeek(nowYear, nowWeek);
 
-  const canGoPrev = prevWeekStart >= minWeekStart;
-  const canGoNext = nextWeekStart <= currentActualWeekStart;
-  const isCurrentWeek =
-    weekStart.getTime() === currentActualWeekStart.getTime();
+  const canGoPrev = prevMonday >= minMonday;
+  const canGoNext = nextMonday <= currentActualMonday;
+  const isCurrentWeek = isoYear === nowYear && isoWeek === nowWeek;
 
   // Format date range for display
   const formatRange = (start: Date, end: Date) => {
@@ -242,7 +243,7 @@ export default async function ThisWeekPage({ searchParams }: PageProps) {
               {/* Prev chevron */}
               {canGoPrev ? (
                 <Button variant="ghost" size="icon" className="size-8 cursor-pointer" asChild>
-                  <Link href={routes.thisWeek.week(formatDateParam(prevWeekStart))}>
+                  <Link href={routes.thisWeek.week(formatDateParam(prevMonday))}>
                     <ChevronLeftIcon className="size-5" />
                   </Link>
                 </Button>
@@ -260,7 +261,7 @@ export default async function ThisWeekPage({ searchParams }: PageProps) {
               {/* Next chevron */}
               {canGoNext ? (
                 <Button variant="ghost" size="icon" className="size-8 cursor-pointer" asChild>
-                  <Link href={routes.thisWeek.week(formatDateParam(nextWeekStart))}>
+                  <Link href={routes.thisWeek.week(formatDateParam(nextMonday))}>
                     <ChevronRightIcon className="size-5" />
                   </Link>
                 </Button>
@@ -276,7 +277,7 @@ export default async function ThisWeekPage({ searchParams }: PageProps) {
               {/* Date picker */}
               <WeekPicker
                 currentWeekDate={formatDateParam(weekStart)}
-                minDate={formatDateParam(minWeekStart)}
+                minDate={formatDateParam(minMonday)}
                 maxDate={formatDateParam(now)}
               />
 

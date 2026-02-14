@@ -63,13 +63,15 @@ class ChatService:
         self, messages: list[dict[str, Any]], system_context: str
     ) -> Generator[ChatEvent, None, None]:
         from anthropic import Anthropic
+        from anthropic.types import MessageParam, ToolParam
 
         from services.chat_tools import execute_tool, tools_for_anthropic
 
         client = Anthropic(api_key=self.api_key)
-        tools = tools_for_anthropic()
-        conv_messages: list[dict[str, Any]] = [
-            {"role": m["role"], "content": m["content"]} for m in messages
+        tools: list[ToolParam] = tools_for_anthropic()  # type: ignore[assignment]
+        conv_messages: list[MessageParam] = [
+            {"role": m["role"], "content": m["content"]}  # type: ignore[misc]
+            for m in messages
         ]
 
         for _round in range(MAX_TOOL_ROUNDS + 1):
@@ -130,12 +132,14 @@ class ChatService:
 
             # Append assistant response and tool results for next round
             conv_messages.append(
-                {
+                {  # type: ignore[arg-type, misc]
                     "role": "assistant",
-                    "content": [b.model_dump() for b in response.content],
+                    "content": [b.model_dump() for b in response.content],  # type: ignore[misc]
                 }
             )
-            conv_messages.append({"role": "user", "content": tool_results})
+            conv_messages.append(
+                {"role": "user", "content": tool_results}  # type: ignore[arg-type, typeddict-item]
+            )
 
     # ------------------------------------------------------------------
     # OpenAI
@@ -145,17 +149,25 @@ class ChatService:
         self, messages: list[dict[str, Any]], system_context: str
     ) -> Generator[ChatEvent, None, None]:
         from openai import OpenAI
+        from openai.types.chat import (
+            ChatCompletionMessageParam,
+            ChatCompletionToolParam,
+        )
 
         from services.chat_tools import execute_tool, tools_for_openai
 
         client = OpenAI(api_key=self.api_key)
-        tools = tools_for_openai()
+        tools: list[ChatCompletionToolParam] = tools_for_openai()  # type: ignore[assignment]
 
-        openai_messages: list[dict[str, Any]] = []
+        openai_messages: list[ChatCompletionMessageParam] = []
         if system_context:
-            openai_messages.append({"role": "system", "content": system_context})
+            openai_messages.append(
+                {"role": "system", "content": system_context}  # type: ignore[arg-type]
+            )
         for m in messages:
-            openai_messages.append({"role": m["role"], "content": m["content"]})
+            openai_messages.append(
+                {"role": m["role"], "content": m["content"]}  # type: ignore[arg-type]
+            )
 
         for _round in range(MAX_TOOL_ROUNDS + 1):
             is_last_round = _round == MAX_TOOL_ROUNDS
@@ -169,7 +181,7 @@ class ChatService:
                     stream=True,
                 )
                 for chunk in stream:
-                    if not hasattr(chunk, "choices") or not chunk.choices:
+                    if not chunk.choices:
                         continue
                     delta = chunk.choices[0].delta
                     if delta.content:
@@ -184,8 +196,8 @@ class ChatService:
                 tools=tools,
             )
 
-            choice = response.choices[0]
-            message = choice.message
+            choice = response.choices[0]  # type: ignore[index]
+            message = choice.message  # type: ignore[union-attr]
 
             if message.content:
                 yield {"type": "text_delta", "content": message.content}
@@ -194,11 +206,11 @@ class ChatService:
                 break
 
             # Append assistant message with tool calls
-            openai_messages.append(message.model_dump())
+            openai_messages.append(message.model_dump())  # type: ignore[arg-type]
 
             for tc in message.tool_calls:
-                tool_name = tc.function.name
-                tool_args = json.loads(tc.function.arguments)
+                tool_name = tc.function.name  # type: ignore[union-attr]
+                tool_args = json.loads(tc.function.arguments)  # type: ignore[union-attr]
 
                 yield {
                     "type": "tool_call_start",
@@ -217,7 +229,7 @@ class ChatService:
                 }
 
                 openai_messages.append(
-                    {
+                    {  # type: ignore[arg-type]
                         "role": "tool",
                         "tool_call_id": tc.id,
                         "content": json.dumps(result),
@@ -264,18 +276,18 @@ class ChatService:
 
             if is_last_round:
                 # Final round: stream text, no tools
-                response = client.models.generate_content_stream(
+                stream_response = client.models.generate_content_stream(
                     model=self.MODELS["google"],
                     contents=contents,
                     config=config_no_tools,
                 )
-                for chunk in response:
+                for chunk in stream_response:
                     if chunk.text:
                         yield {"type": "text_delta", "content": chunk.text}
                 break
 
             # Non-streaming call with tools
-            response = client.models.generate_content(
+            sync_response = client.models.generate_content(
                 model=self.MODELS["google"],
                 contents=contents,
                 config=config,
@@ -284,13 +296,13 @@ class ChatService:
             has_function_calls = False
             function_responses: list[types.Part] = []
 
-            for part in response.candidates[0].content.parts:
+            for part in sync_response.candidates[0].content.parts:  # type: ignore[union-attr, index]
                 if part.text:
                     yield {"type": "text_delta", "content": part.text}
                 elif part.function_call:
                     has_function_calls = True
                     fc = part.function_call
-                    tool_name = fc.name
+                    tool_name: str = fc.name  # type: ignore[assignment]
                     tool_args = dict(fc.args) if fc.args else {}
 
                     call_id = f"google_{tool_name}_{_round}"
@@ -323,5 +335,5 @@ class ChatService:
                 break
 
             # Append model response and tool results for next round
-            contents.append(response.candidates[0].content)
+            contents.append(sync_response.candidates[0].content)  # type: ignore[union-attr, index, arg-type]
             contents.append(types.Content(role="user", parts=function_responses))

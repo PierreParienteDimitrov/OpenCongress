@@ -165,7 +165,7 @@ export default async function Home() {
                   {/* Left: text */}
                   <div className="space-y-4 md:w-2/5">
                     {recap ? (
-                      <p className="font-domine leading-relaxed text-foreground/80">
+                      <p className="font-domine font-medium leading-relaxed text-foreground/80">
                         {extractExcerpt(recap.content, 3)}
                       </p>
                     ) : (
@@ -340,7 +340,7 @@ export default async function Home() {
                 <div className="mt-3">
                   {preview ? (
                     <>
-                      <p className="mb-4 font-domine text-sm leading-relaxed text-foreground/80">
+                      <p className="mb-4 font-domine font-medium text-sm leading-relaxed text-foreground/80">
                         {extractExcerpt(preview.content, 2)}
                       </p>
                       <Link
