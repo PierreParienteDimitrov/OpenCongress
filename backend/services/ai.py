@@ -1,11 +1,12 @@
 """
-AI Service - Wrapper for Google Generative AI (Gemini).
+AI Service - Wrapper for Google Gen AI SDK (Gemini).
 """
 
 import logging
 
-import google.generativeai as genai
 from django.conf import settings
+from google import genai
+from google.genai import types
 
 logger = logging.getLogger(__name__)
 
@@ -19,8 +20,7 @@ class AIService:
         api_key = getattr(settings, "GOOGLE_API_KEY", None)
         if not api_key:
             raise ValueError("GOOGLE_API_KEY is not configured in settings")
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(self.MODEL)
+        self.client = genai.Client(api_key=api_key)
 
     def generate_completion(
         self, prompt: str, max_tokens: int = 200
@@ -36,11 +36,15 @@ class AIService:
             Tuple of (generated text, total tokens used)
         """
         try:
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
+            response = self.client.models.generate_content(
+                model=self.MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
                     max_output_tokens=max_tokens,
                     temperature=0.3,
+                    thinking_config=types.ThinkingConfig(
+                        thinking_budget=0,
+                    ),
                 ),
             )
 

@@ -12,6 +12,18 @@ from .base import *  # noqa: F401, F403
 
 DEBUG = False
 
+# Require critical secrets in production — fail fast if missing
+_REQUIRED_SECRETS = ["SECRET_KEY", "AUTH_SYNC_SECRET", "REVALIDATION_SECRET"]
+for _var in _REQUIRED_SECRETS:
+    _val = os.environ.get(_var, "")
+    if not _val or _val.startswith("django-insecure") or _val.startswith("dev-"):
+        raise ValueError(f"Production requires a secure {_var} environment variable")
+
+# Override base settings with validated production values
+SECRET_KEY = os.environ["SECRET_KEY"]
+AUTH_SYNC_SECRET = os.environ["AUTH_SYNC_SECRET"]
+REVALIDATION_SECRET = os.environ["REVALIDATION_SECRET"]
+
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",") + [
     "api.opencongress.app",
     "congresstrack-api-production.up.railway.app",

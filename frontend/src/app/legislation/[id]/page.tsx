@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import DOMPurify from "isomorphic-dompurify";
 
 import { getBill } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
@@ -218,7 +219,7 @@ export default async function LegislationPage({ params }: PageProps) {
             ) : bill.summary_html ? (
               <div
                 className="prose prose-sm max-w-none text-foreground/80"
-                dangerouslySetInnerHTML={{ __html: bill.summary_html }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(bill.summary_html) }}
               />
             ) : (
               <p className="text-foreground/80">{bill.summary_text}</p>

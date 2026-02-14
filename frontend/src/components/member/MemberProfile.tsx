@@ -122,9 +122,25 @@ export default function MemberProfile({ member }: MemberProfileProps) {
                   {getChamberShortName(member.chamber)}
                 </span>
                 <span className="text-muted-foreground/60">&middot;</span>
-                <span className="text-muted-foreground">
-                  {getMemberLocation(member.state, member.district, member.chamber)}
-                </span>
+                {member.chamber === "house" && member.district !== null ? (
+                  <Link
+                    href={routes.house.district(`${member.state}-${member.district}`)}
+                    className="text-accent hover:text-accent/80"
+                  >
+                    {getMemberLocation(member.state, member.district, member.chamber)}
+                  </Link>
+                ) : member.chamber === "senate" ? (
+                  <Link
+                    href={routes.senate.state(member.state)}
+                    className="text-accent hover:text-accent/80"
+                  >
+                    {getMemberLocation(member.state, member.district, member.chamber)}
+                  </Link>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {getMemberLocation(member.state, member.district, member.chamber)}
+                  </span>
+                )}
               </div>
 
               {/* Term info */}
