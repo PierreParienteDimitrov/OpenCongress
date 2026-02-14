@@ -116,10 +116,22 @@
 </div>
 {% endif %}
 
-{% if original.result.stdout %}
+{% if original.log %}
+<div class="log-section">
+  <h3>Output Log</h3>
+  <div class="log-viewer" id="stdout-log">{{ original.log }}</div>
+</div>
+{% elif original.result.stdout %}
 <div class="log-section">
   <h3>Output Log</h3>
   <div class="log-viewer" id="stdout-log">{{ original.result.stdout }}</div>
+</div>
+{% elif original.status == "running" or original.status == "pending" %}
+<div class="log-section">
+  <h3>Output Log</h3>
+  <div class="log-viewer">
+    <span class="log-empty">Waiting for output...</span>
+  </div>
 </div>
 {% endif %}
 
@@ -137,20 +149,9 @@
   <h3>Item Errors ({{ original.result.errors|length }})</h3>
   <div class="log-viewer">
     {% for err in original.result.errors %}{{ err.id }}: {{ err.error }}
-{% endfor %}{% if not original.result.errors %}<span class="log-empty">No errors.</span>{% endif %}
+{% endfor %}
   </div>
 </div>
-{% endif %}
-
-{% if not original.error_message and not original.result.stdout and not original.result.stderr and not original.result.errors %}
-  {% if original.status == "running" or original.status == "pending" %}
-  <div class="log-section">
-    <h3>Output Log</h3>
-    <div class="log-viewer">
-      <span class="log-empty">Job is {{ original.status }}... logs will appear when complete.</span>
-    </div>
-  </div>
-  {% endif %}
 {% endif %}
 
 {% endif %}

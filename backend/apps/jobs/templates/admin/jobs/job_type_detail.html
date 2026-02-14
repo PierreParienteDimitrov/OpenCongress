@@ -1,0 +1,260 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ config.label }}{% endblock %}
+{% block content_title %}<h1>{{ config.label }}</h1>{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <style>
+    .breadcrumbs { margin-bottom: 1em; font-size: 0.8125rem; }
+    .breadcrumbs a { color: var(--link-fg, #417690); }
+    .job-header { margin-bottom: 1.5em; }
+    .job-header .description { color: var(--body-quiet-color, #666); font-size: 0.875rem; margin-bottom: 1em; }
+    .queue-badge { background: var(--darkened-bg, #eee); padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; font-family: monospace; }
+    .action-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 1.5em; }
+    .btn-run { background: var(--button-bg, #417690); color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 0.875rem; }
+    .btn-run:hover { background: var(--button-hover-bg, #205067); }
+    .btn-stop { background: #dc3545; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 0.875rem; }
+    .btn-stop:hover { background: #a71d2a; }
+    .status-bar { display: flex; gap: 2em; flex-wrap: wrap; margin-bottom: 1em; padding: 12px 16px; background: var(--darkened-bg, #f8f8f8); border-radius: 6px; font-size: 0.8125rem; }
+    .status-bar dt { text-transform: uppercase; letter-spacing: 0.5px; color: var(--body-quiet-color, #666); font-size: 0.6875rem; margin-bottom: 2px; }
+    .status-bar dd { margin: 0 0 0.5em 0; font-weight: 600; }
+    .status-pending { color: #6c757d; }
+    .status-running { color: #fd7e14; }
+    .status-completed { color: #28a745; }
+    .status-failed { color: #dc3545; }
+    .status-cancelled { color: #6c757d; }
+    .progress-bar-container { background: #eee; border-radius: 4px; height: 20px; width: 250px; position: relative; overflow: hidden; margin-top: 4px; }
+    .progress-bar-fill { background: #417690; height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+    .progress-bar-text { position: absolute; top: 0; left: 0; right: 0; text-align: center; line-height: 20px; font-size: 0.75rem; color: #333; }
+    .terminal-section { margin-bottom: 2em; }
+    .terminal-section h3 { font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--body-quiet-color, #666); margin-bottom: 0.5em; }
+    .terminal {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      padding: 16px 20px;
+      border-radius: 6px;
+      height: 450px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .terminal-empty { color: #666; font-style: italic; }
+    .terminal-error { color: #f48771; }
+    .section-header { margin-top: 2em; margin-bottom: 0.5em; padding-bottom: 0.5em; border-bottom: 2px solid var(--hairline-color, #ddd); }
+    .job-table { width: 100%; border-collapse: collapse; }
+    .job-table th, .job-table td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--hairline-color, #ddd); font-size: 0.8125rem; }
+    .job-table th { background: var(--darkened-bg, #f8f8f8); text-transform: uppercase; letter-spacing: 0.5px; }
+    .job-table tr:hover { background: var(--darkened-bg, #f8f8f8); }
+    .job-table tr.clickable-row { cursor: pointer; }
+    .job-table tr.active-row { background: var(--selected-bg, #e4e4e4); }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:jobs_dashboard' %}">Dashboard</a> &rsaquo; {{ config.label }}
+</div>
+
+<div class="job-header">
+  <p class="description">{{ config.description }} <span class="queue-badge">{{ config.queue }}</span></p>
+</div>
+
+<div class="action-bar">
+  <div id="btn-run-wrap"{% if active_run %} style="display:none"{% endif %}>
+    <form method="post" action="{% url 'admin:jobs_run' job_type %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="btn-run cursor-pointer" onclick="return confirm('Start {{ config.label }}?');">
+        Run Now
+      </button>
+    </form>
+  </div>
+  {% if active_run %}
+  <div id="btn-stop-wrap">
+    <form method="post" action="{% url 'admin:jobs_stop' active_run.id %}" style="display:inline">
+      {% csrf_token %}
+      <button type="submit" class="btn-stop cursor-pointer" onclick="return confirm('Stop {{ config.label }}?');">
+        &#x23F9; Stop
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+{% if display_run %}
+<div class="status-bar" id="status-bar">
+  <dl>
+    <dt>Status</dt>
+    <dd id="status-text" class="status-{{ display_run.status }}">{{ display_run.get_status_display }}</dd>
+  </dl>
+  <dl>
+    <dt>Progress</dt>
+    <dd>
+      <span id="progress-text">
+        {% if display_run.progress_total > 0 %}
+          {{ display_run.progress_current }}/{{ display_run.progress_total }}
+        {% else %}
+          -
+        {% endif %}
+      </span>
+      <div class="progress-bar-container" id="progress-bar-wrap"{% if display_run.progress_total == 0 %} style="display:none"{% endif %}>
+        <div class="progress-bar-fill" id="progress-fill" style="width: {{ display_run.progress_percent }}%;"></div>
+        <div class="progress-bar-text" id="progress-pct">{{ display_run.progress_percent }}%</div>
+      </div>
+    </dd>
+  </dl>
+  <dl>
+    <dt>Duration</dt>
+    <dd id="duration-text">{{ display_run.duration_display }}</dd>
+  </dl>
+  <dl>
+    <dt>Succeeded</dt>
+    <dd id="succeeded-text">{{ display_run.items_succeeded }}</dd>
+  </dl>
+  <dl>
+    <dt>Failed</dt>
+    <dd id="failed-text">{{ display_run.items_failed }}</dd>
+  </dl>
+  <dl>
+    <dt>Run #</dt>
+    <dd><a href="{% url 'admin:jobs_jobrun_change' display_run.id %}">#{{ display_run.id }}</a></dd>
+  </dl>
+</div>
+
+<div class="terminal-section">
+  <h3>Output</h3>
+  <div class="terminal" id="log-terminal">{% if display_run.log %}{{ display_run.log }}{% elif display_run.status == "running" or display_run.status == "pending" %}<span class="terminal-empty">Waiting for output...</span>{% else %}<span class="terminal-empty">No output recorded.</span>{% endif %}</div>
+</div>
+
+{% if display_run.error_message %}
+<div class="terminal-section">
+  <h3>Error</h3>
+  <div class="terminal"><span class="terminal-error">{{ display_run.error_message }}</span></div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="terminal-section">
+  <h3>Output</h3>
+  <div class="terminal"><span class="terminal-empty">No runs yet. Click "Run Now" to start.</span></div>
+</div>
+{% endif %}
+
+{% if recent_runs %}
+<h2 class="section-header">Run History</h2>
+<table class="job-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Status</th>
+      <th>Progress</th>
+      <th>Duration</th>
+      <th>Triggered By</th>
+      <th>Started</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run in recent_runs %}
+    <tr class="clickable-row{% if display_run and run.id == display_run.id %} active-row{% endif %}" onclick="window.location='{% url 'admin:jobs_jobrun_change' run.id %}';">
+      <td>#{{ run.id }}</td>
+      <td><span class="status-{{ run.status }}">{{ run.get_status_display }}</span></td>
+      <td>
+        {% if run.progress_total > 0 %}
+          {{ run.progress_current }}/{{ run.progress_total }}
+        {% else %}
+          -
+        {% endif %}
+      </td>
+      <td>{{ run.duration_display }}</td>
+      <td>{{ run.triggered_by|default:"-" }}</td>
+      <td>{{ run.started_at|default:"-" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% if display_run %}
+<script>
+(function() {
+  var runId = {{ display_run.id }};
+  var isActive = {{ active_run|yesno:"true,false" }};
+  var logEl = document.getElementById('log-terminal');
+  var statusEl = document.getElementById('status-text');
+  var progressText = document.getElementById('progress-text');
+  var progressFill = document.getElementById('progress-fill');
+  var progressPct = document.getElementById('progress-pct');
+  var progressWrap = document.getElementById('progress-bar-wrap');
+  var durationEl = document.getElementById('duration-text');
+  var succeededEl = document.getElementById('succeeded-text');
+  var failedEl = document.getElementById('failed-text');
+  var timer = null;
+  var shouldAutoScroll = true;
+
+  // Track if user has scrolled up (disable auto-scroll)
+  logEl.addEventListener('scroll', function() {
+    var atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 40;
+    shouldAutoScroll = atBottom;
+  });
+
+  function poll() {
+    fetch('/admin/jobs/jobrun/' + runId + '/progress/')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        // Update terminal
+        if (data.log) {
+          logEl.textContent = data.log;
+        } else if (isActive) {
+          logEl.innerHTML = '<span class="terminal-empty">Waiting for output...</span>';
+        }
+        if (shouldAutoScroll) {
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        // Update status
+        statusEl.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+        statusEl.className = 'status-' + data.status;
+
+        // Update progress
+        if (data.progress_total > 0) {
+          progressText.textContent = data.progress_current + '/' + data.progress_total;
+          progressFill.style.width = data.progress_percent + '%';
+          progressPct.textContent = data.progress_percent + '%';
+          progressWrap.style.display = '';
+        }
+
+        // Update counters
+        durationEl.textContent = data.duration;
+        succeededEl.textContent = data.items_succeeded;
+        failedEl.textContent = data.items_failed;
+
+        // Stop polling when job finishes
+        if (data.status !== 'running' && data.status !== 'pending') {
+          clearInterval(timer);
+          timer = null;
+          if (isActive) {
+            isActive = false;
+            // Reload page to update buttons and run history
+            setTimeout(function() { window.location.reload(); }, 1000);
+          }
+        }
+      })
+      .catch(function(err) { console.error('Poll error:', err); });
+  }
+
+  if (isActive) {
+    timer = setInterval(poll, 2000);
+    poll();
+  } else {
+    // For completed jobs, scroll to bottom on load
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+})();
+</script>
+{% endif %}
+
+{% endblock %}

@@ -46,7 +46,7 @@
     </thead>
     <tbody>
       {% for job in jobs %}
-      <tr>
+      <tr style="cursor: pointer;" onclick="if(!event.target.closest('form'))window.location='{% url 'admin:jobs_type_detail' job.key %}'">
         <td>
           <strong>{{ job.label }}</strong>
           <br><span class="description">{{ job.description }}</span>

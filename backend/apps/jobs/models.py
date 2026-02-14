@@ -36,6 +36,9 @@ class JobRun(models.Model):
     progress_total = models.IntegerField(default=0)
     progress_detail = models.CharField(max_length=500, blank=True)
 
+    # Accumulated log output (appended to during execution)
+    log = models.TextField(blank=True, default="")
+
     # Results
     result = models.JSONField(default=dict, blank=True)
     error_message = models.TextField(blank=True)
