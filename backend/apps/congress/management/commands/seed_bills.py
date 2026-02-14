@@ -84,7 +84,12 @@ class Command(BaseCommand):
         )
 
     def _fetch_bills(
-        self, api_key: str, congress: int, bill_type: str, limit: int, start_offset: int = 0
+        self,
+        api_key: str,
+        congress: int,
+        bill_type: str,
+        limit: int,
+        start_offset: int = 0,
     ) -> tuple[int, int]:
         """Fetch bills of a specific type."""
         url = f"{self.CONGRESS_API_BASE}/bill/{congress}/{bill_type}"
