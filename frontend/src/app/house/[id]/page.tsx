@@ -45,6 +45,7 @@ export default async function RepresentativePage({ params }: PageProps) {
       context={{
         type: "member",
         data: {
+          bioguide_id: member.bioguide_id,
           full_name: member.full_name,
           party: member.party,
           state: member.state,

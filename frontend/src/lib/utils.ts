@@ -291,6 +291,28 @@ export function getBillTypeLabel(billType: string): string {
   return types[billType] || billType.toUpperCase();
 }
 
+// ISO week number (matches Python's isocalendar())
+export function getISOWeekNumber(date: Date): { year: number; week: number } {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  // Thursday of current week determines the year
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(
+    ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+  );
+  return { year: d.getFullYear(), week };
+}
+
+// Get the Monday of a given ISO week
+export function getDateFromISOWeek(year: number, week: number): Date {
+  const jan4 = new Date(year, 0, 4);
+  const dayOfWeek = jan4.getDay() || 7; // Monday=1 ... Sunday=7
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - dayOfWeek + 1 + (week - 1) * 7);
+  return monday;
+}
+
 // Truncate text
 export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;

@@ -162,7 +162,12 @@ def _build_system_context(page_context: dict) -> str:
         "tracking U.S. legislative activity. Help users understand congressional "
         "bills, votes, and members. Be concise, factual, and non-partisan. "
         "When discussing legislation, include bill numbers. "
-        "When you don't know something, say so."
+        "When you don't know something, say so.\n\n"
+        "You have access to tools that can look up real-time data from the "
+        "OpenCongress database. Use them to answer questions with accurate, "
+        "up-to-date information rather than relying on general knowledge. "
+        "When the user asks about something on the current page, use the "
+        "provided IDs to look up details via tools."
     )
 
     ctx_type = page_context.get("type", "")
@@ -172,6 +177,7 @@ def _build_system_context(page_context: dict) -> str:
         return (
             f"{base}\n\n"
             f"The user is viewing a bill.\n"
+            f"Bill ID (for tools): {data.get('bill_id', 'N/A')}\n"
             f"Bill: {data.get('display_number', 'N/A')}\n"
             f"Title: {data.get('title', 'N/A')}\n"
             f"Sponsor: {data.get('sponsor_name', 'N/A')}\n"
@@ -182,7 +188,8 @@ def _build_system_context(page_context: dict) -> str:
         return (
             f"{base}\n\n"
             f"The user is viewing a vote.\n"
-            f"Vote ID: {data.get('vote_id', 'N/A')}\n"
+            f"Vote ID (for tools): {data.get('vote_id', 'N/A')}\n"
+            f"Chamber: {data.get('chamber', 'N/A')}\n"
             f"Question: {data.get('question', 'N/A')}\n"
             f"Result: {data.get('result', 'N/A')}\n"
             f"Date: {data.get('date', 'N/A')}\n"
@@ -193,6 +200,7 @@ def _build_system_context(page_context: dict) -> str:
         return (
             f"{base}\n\n"
             f"The user is viewing a member profile.\n"
+            f"Bioguide ID (for tools): {data.get('bioguide_id', 'N/A')}\n"
             f"Name: {data.get('full_name', 'N/A')}\n"
             f"Party: {data.get('party', 'N/A')}\n"
             f"State: {data.get('state', 'N/A')}\n"
@@ -264,8 +272,30 @@ def chat_stream_view(request):
     def event_stream():
         try:
             service = ChatService(provider, api_key)
-            for chunk in service.stream_chat(messages, system_context):
-                yield _sse_event({"chunk": chunk})
+            for event in service.stream_chat(messages, system_context):
+                event_type = event.get("type")
+                if event_type == "text_delta":
+                    yield _sse_event({"chunk": event["content"]})
+                elif event_type == "tool_call_start":
+                    yield _sse_event(
+                        {
+                            "tool_call": {
+                                "id": event["id"],
+                                "name": event["name"],
+                                "args": event["args"],
+                            }
+                        }
+                    )
+                elif event_type == "tool_call_result":
+                    yield _sse_event(
+                        {
+                            "tool_result": {
+                                "id": event["id"],
+                                "name": event["name"],
+                                "result": event["result"],
+                            }
+                        }
+                    )
             yield _sse_event({"done": True})
         except Exception as e:
             logger.error("Chat streaming error for user %s: %s", request.user.id, e)

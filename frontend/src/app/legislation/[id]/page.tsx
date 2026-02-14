@@ -126,6 +126,7 @@ export default async function LegislationPage({ params }: PageProps) {
       context={{
         type: "bill",
         data: {
+          bill_id: bill.bill_id,
           display_number: bill.display_number,
           title: bill.short_title || bill.title,
           sponsor_name: bill.sponsor?.full_name,

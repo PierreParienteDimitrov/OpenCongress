@@ -17,6 +17,7 @@ export const routes = {
   // This Week
   thisWeek: {
     index: "/this-week",
+    week: (weekDate: string) => `/this-week?week=${weekDate}`,
     archive: (year: number, week: number) => `/this-week/${year}/${week}`,
   },
 

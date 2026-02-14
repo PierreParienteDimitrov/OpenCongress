@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Geist, Geist_Mono, Source_Code_Pro } from "next/font/google";
+import {
+  Geist,
+  Geist_Mono,
+  Source_Code_Pro,
+  Domine,
+} from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { Navbar } from "@/components/nav/Navbar";
@@ -21,6 +26,11 @@ const sourceCodePro = Source_Code_Pro({
   subsets: ["latin"],
 });
 
+const domine = Domine({
+  variable: "--font-domine",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "OpenCongress - Track Legislative Activity",
   description: "Track congressional votes, bills, and your representatives",
@@ -34,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${sourceCodePro.variable} flex min-h-screen flex-col antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${sourceCodePro.variable} ${domine.variable} flex min-h-screen flex-col antialiased`}
       >
         <QueryProvider>
           <Navbar />

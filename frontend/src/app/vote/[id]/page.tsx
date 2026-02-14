@@ -57,6 +57,7 @@ export default async function VotePage({ params }: PageProps) {
         type: "vote",
         data: {
           vote_id: vote.vote_id,
+          chamber: vote.chamber,
           question: vote.question,
           result: vote.result,
           date: vote.date,

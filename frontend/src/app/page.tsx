@@ -151,7 +151,7 @@ export default async function Home() {
             <div className="flex flex-col gap-10 lg:col-span-8">
               {/* Lead Story: Week in Review */}
               <div className="border-b border-border pb-10">
-                <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
+                <h2 className="font-domine text-2xl font-bold text-foreground sm:text-3xl">
                   {recap?.summary_type_display || "Week in Review"}
                 </h2>
                 {votes.length > 0 && (
@@ -165,7 +165,7 @@ export default async function Home() {
                   {/* Left: text */}
                   <div className="space-y-4 md:w-2/5">
                     {recap ? (
-                      <p className="leading-relaxed text-foreground/80">
+                      <p className="font-domine leading-relaxed text-foreground/80">
                         {extractExcerpt(recap.content, 3)}
                       </p>
                     ) : (
@@ -334,13 +334,13 @@ export default async function Home() {
 
               {/* Week Ahead */}
               <div className="border-l-4 border-green-500 pl-4 pt-10">
-                <h3 className="text-lg font-bold text-foreground">
+                <h3 className="font-domine text-lg font-bold text-foreground">
                   {preview?.summary_type_display || "Week Ahead"}
                 </h3>
                 <div className="mt-3">
                   {preview ? (
                     <>
-                      <p className="mb-4 text-sm leading-relaxed text-foreground/80">
+                      <p className="mb-4 font-domine text-sm leading-relaxed text-foreground/80">
                         {extractExcerpt(preview.content, 2)}
                       </p>
                       <Link

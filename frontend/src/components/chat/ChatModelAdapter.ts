@@ -1,11 +1,19 @@
 "use client";
 
-import type { ChatModelAdapter } from "@assistant-ui/react";
+import type { ChatModelAdapter, ChatModelRunResult } from "@assistant-ui/react";
 import { getSession } from "next-auth/react";
 import type { PageContext } from "@/lib/chat-context";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+interface ToolCallState {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  argsText: string;
+  result: unknown | undefined;
+}
 
 export function createDjangoChatAdapter(
   provider: string,
@@ -56,14 +64,19 @@ export function createDjangoChatAdapter(
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let fullText = "";
+      const toolCalls = new Map<string, ToolCallState>();
+      // Buffer for incomplete SSE lines split across chunks
+      let lineBuffer = "";
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const text = decoder.decode(value);
-          const lines = text.split("\n");
+          lineBuffer += decoder.decode(value, { stream: true });
+          const lines = lineBuffer.split("\n");
+          // Keep the last (possibly incomplete) line in the buffer
+          lineBuffer = lines.pop() ?? "";
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
@@ -73,13 +86,62 @@ export function createDjangoChatAdapter(
             } catch {
               continue; // Ignore malformed SSE lines
             }
+
             if (data.chunk) {
               fullText += data.chunk as string;
-              yield {
-                content: [{ type: "text" as const, text: fullText }],
+            } else if (data.tool_call) {
+              const tc = data.tool_call as {
+                id: string;
+                name: string;
+                args: Record<string, unknown>;
               };
+              toolCalls.set(tc.id, {
+                toolCallId: tc.id,
+                toolName: tc.name,
+                args: tc.args,
+                argsText: JSON.stringify(tc.args, null, 2),
+                result: undefined,
+              });
+            } else if (data.tool_result) {
+              const tr = data.tool_result as {
+                id: string;
+                name: string;
+                result: unknown;
+              };
+              const existing = toolCalls.get(tr.id);
+              if (existing) {
+                existing.result = tr.result;
+              }
             } else if (data.error) {
               throw new Error(data.error as string);
+            } else if (data.done) {
+              // Stream complete — no action needed
+              continue;
+            }
+
+            // Build content array with text + tool-call parts
+            const content: ChatModelRunResult["content"] = [];
+
+            if (fullText) {
+              (content as unknown[]).push({
+                type: "text" as const,
+                text: fullText,
+              });
+            }
+
+            for (const tc of toolCalls.values()) {
+              (content as unknown[]).push({
+                type: "tool-call" as const,
+                toolCallId: tc.toolCallId,
+                toolName: tc.toolName,
+                args: tc.args,
+                argsText: tc.argsText,
+                ...(tc.result !== undefined ? { result: tc.result } : {}),
+              });
+            }
+
+            if (content && content.length > 0) {
+              yield { content } satisfies ChatModelRunResult;
             }
           }
         }
