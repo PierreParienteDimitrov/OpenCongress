@@ -1,0 +1,281 @@
+"""
+Job runner wrapper tasks.
+
+These tasks wrap the existing single-item tasks (generate_member_bio, etc.)
+and run them sequentially with progress tracking via the JobRun model.
+"""
+
+import logging
+import traceback
+
+from celery import shared_task
+from celery.exceptions import Retry as CeleryRetry
+from django.db.models import Q
+from django.utils import timezone
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Progress helpers — all use single UPDATE queries, no full model load
+# ---------------------------------------------------------------------------
+
+
+def _start_job(job_run_id, total):
+    """Mark job as running with known total."""
+    from apps.jobs.models import JobRun
+
+    JobRun.objects.filter(id=job_run_id).update(
+        status=JobRun.Status.RUNNING,
+        started_at=timezone.now(),
+        progress_total=total,
+        progress_current=0,
+    )
+
+
+def _update_progress(job_run_id, current, detail=""):
+    """Update progress fields directly in DB."""
+    from apps.jobs.models import JobRun
+
+    JobRun.objects.filter(id=job_run_id).update(
+        progress_current=current,
+        progress_detail=detail,
+    )
+
+
+def _complete_job(job_run_id, succeeded, failed, result=None):
+    """Mark job as completed (even with partial failures)."""
+    from apps.jobs.models import JobRun
+
+    JobRun.objects.filter(id=job_run_id).update(
+        status=JobRun.Status.COMPLETED,
+        completed_at=timezone.now(),
+        items_succeeded=succeeded,
+        items_failed=failed,
+        result=result or {},
+        progress_detail=f"Done: {succeeded} succeeded, {failed} failed",
+    )
+
+
+def _fail_job(job_run_id, error_message):
+    """Mark job as failed due to unexpected wrapper-level error."""
+    from apps.jobs.models import JobRun
+
+    JobRun.objects.filter(id=job_run_id).update(
+        status=JobRun.Status.FAILED,
+        completed_at=timezone.now(),
+        error_message=error_message[:2000],
+    )
+
+
+# ---------------------------------------------------------------------------
+# AI batch wrapper tasks
+# ---------------------------------------------------------------------------
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_generate_member_bios(self, job_run_id: int):
+    """Generate bios for ALL members needing them (no 50-item cap)."""
+    from apps.congress.models import Member
+    from prompts import MEMBER_BIO_VERSION
+    from tasks.ai import generate_member_bio
+
+    try:
+        members = list(
+            Member.objects.filter(is_active=True)
+            .filter(Q(ai_bio="") | ~Q(ai_bio_prompt_version=MEMBER_BIO_VERSION))
+            .values_list("bioguide_id", "full_name")
+        )
+
+        _start_job(job_run_id, len(members))
+
+        if not members:
+            _complete_job(job_run_id, 0, 0, {"message": "No members need bios"})
+            return
+
+        succeeded = 0
+        failed = 0
+        errors = []
+
+        for i, (bioguide_id, full_name) in enumerate(members, 1):
+            try:
+                result = generate_member_bio(bioguide_id)
+                if result.get("success"):
+                    succeeded += 1
+                else:
+                    failed += 1
+                    errors.append(
+                        {"id": bioguide_id, "error": result.get("error", "Unknown")}
+                    )
+            except CeleryRetry:
+                failed += 1
+                errors.append({"id": bioguide_id, "error": "Task failed after retries"})
+            except Exception as e:
+                failed += 1
+                errors.append({"id": bioguide_id, "error": str(e)})
+                logger.error(f"Job {job_run_id}: error on {bioguide_id}: {e}")
+
+            _update_progress(job_run_id, i, f"Last: {full_name}")
+
+        _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
+
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_generate_bill_summaries(self, job_run_id: int):
+    """Generate summaries for ALL bills needing them."""
+    from apps.congress.models import Bill
+    from prompts import BILL_SUMMARY_VERSION
+    from tasks.ai import generate_bill_summary
+
+    try:
+        bills = list(
+            Bill.objects.filter(
+                Q(ai_summary="") | ~Q(ai_summary_prompt_version=BILL_SUMMARY_VERSION)
+            ).values_list("bill_id", "display_number")
+        )
+
+        _start_job(job_run_id, len(bills))
+
+        if not bills:
+            _complete_job(job_run_id, 0, 0, {"message": "No bills need summaries"})
+            return
+
+        succeeded = 0
+        failed = 0
+        errors = []
+
+        for i, (bill_id, display_number) in enumerate(bills, 1):
+            try:
+                result = generate_bill_summary(bill_id)
+                if result.get("success"):
+                    succeeded += 1
+                else:
+                    failed += 1
+                    errors.append(
+                        {"id": bill_id, "error": result.get("error", "Unknown")}
+                    )
+            except CeleryRetry:
+                failed += 1
+                errors.append({"id": bill_id, "error": "Task failed after retries"})
+            except Exception as e:
+                failed += 1
+                errors.append({"id": bill_id, "error": str(e)})
+                logger.error(f"Job {job_run_id}: error on {bill_id}: {e}")
+
+            _update_progress(job_run_id, i, f"Last: {display_number}")
+
+        _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
+
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_generate_vote_summaries(self, job_run_id: int):
+    """Generate summaries for ALL votes needing them."""
+    from apps.congress.models import Vote
+    from prompts import VOTE_SUMMARY_VERSION
+    from tasks.ai import generate_vote_summary
+
+    try:
+        votes = list(
+            Vote.objects.filter(
+                Q(ai_summary="") | ~Q(ai_summary_prompt_version=VOTE_SUMMARY_VERSION)
+            ).values_list("vote_id", "description")
+        )
+
+        _start_job(job_run_id, len(votes))
+
+        if not votes:
+            _complete_job(job_run_id, 0, 0, {"message": "No votes need summaries"})
+            return
+
+        succeeded = 0
+        failed = 0
+        errors = []
+
+        for i, (vote_id, description) in enumerate(votes, 1):
+            try:
+                result = generate_vote_summary(vote_id)
+                if result.get("success"):
+                    succeeded += 1
+                else:
+                    failed += 1
+                    errors.append(
+                        {"id": vote_id, "error": result.get("error", "Unknown")}
+                    )
+            except CeleryRetry:
+                failed += 1
+                errors.append({"id": vote_id, "error": "Task failed after retries"})
+            except Exception as e:
+                failed += 1
+                errors.append({"id": vote_id, "error": str(e)})
+                logger.error(f"Job {job_run_id}: error on {vote_id}: {e}")
+
+            _update_progress(job_run_id, i, f"Last: {description[:60]}")
+
+        _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
+
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))
+
+
+# ---------------------------------------------------------------------------
+# Sync wrapper tasks
+# ---------------------------------------------------------------------------
+
+
+@shared_task(bind=True, time_limit=600, soft_time_limit=550)
+def run_sync_members(self, job_run_id: int):
+    """Wrapper for sync_members — single invocation, not batch."""
+    from tasks.sync import sync_members
+
+    try:
+        _start_job(job_run_id, 1)
+        _update_progress(job_run_id, 0, "Syncing members from Congress.gov...")
+
+        result = sync_members()
+
+        if result.get("success", True):
+            _update_progress(job_run_id, 1, "Sync complete")
+            _complete_job(job_run_id, 1, 0, result)
+        else:
+            _fail_job(job_run_id, result.get("error", "Unknown error"))
+
+    except CeleryRetry:
+        _fail_job(job_run_id, "Sync task failed after retries")
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))
+
+
+@shared_task(bind=True, time_limit=600, soft_time_limit=550)
+def run_sync_recent_votes(self, job_run_id: int):
+    """Wrapper for sync_recent_votes — single invocation."""
+    from tasks.sync import sync_recent_votes
+
+    try:
+        _start_job(job_run_id, 1)
+        _update_progress(
+            job_run_id, 0, "Syncing votes from Congress.gov + Senate.gov..."
+        )
+
+        result = sync_recent_votes()
+
+        if result.get("success", True):
+            _update_progress(job_run_id, 1, "Sync complete")
+            _complete_job(job_run_id, 1, 0, result)
+        else:
+            _fail_job(job_run_id, result.get("error", "Unknown error"))
+
+    except CeleryRetry:
+        _fail_job(job_run_id, "Sync task failed after retries")
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.content",
     "apps.notifications",
+    "apps.jobs",
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,166 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Job Runner Dashboard{% endblock %}
+{% block content_title %}<h1>Job Runner Dashboard</h1>{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <meta http-equiv="refresh" content="5">
+  <style>
+    .job-table { width: 100%; border-collapse: collapse; margin-bottom: 2em; }
+    .job-table th, .job-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--hairline-color, #ddd); }
+    .job-table th { background: var(--darkened-bg, #f8f8f8); font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .job-table tr:hover { background: var(--darkened-bg, #f8f8f8); }
+    .status-ready { color: #28a745; font-weight: bold; }
+    .status-running { color: #fd7e14; font-weight: bold; }
+    .status-completed { color: #28a745; }
+    .status-failed { color: #dc3545; }
+    .btn-run { background: var(--button-bg, #417690); color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 0.8125rem; }
+    .btn-run:hover { background: var(--button-hover-bg, #205067); }
+    .btn-disabled { background: #999; cursor: not-allowed; }
+    .queue-badge { background: var(--darkened-bg, #eee); padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; font-family: monospace; }
+    .description { color: var(--body-quiet-color, #666); font-size: 0.8125rem; }
+    .progress-bar-container { background: #eee; border-radius: 4px; height: 20px; width: 200px; position: relative; overflow: hidden; }
+    .progress-bar-fill { background: #417690; height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+    .progress-bar-text { position: absolute; top: 0; left: 0; right: 0; text-align: center; line-height: 20px; font-size: 0.75rem; color: #333; }
+    .section-header { margin-top: 2em; margin-bottom: 0.5em; padding-bottom: 0.5em; border-bottom: 2px solid var(--hairline-color, #ddd); }
+    .last-run { font-size: 0.75rem; color: var(--body-quiet-color, #999); }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div>
+  <h2 class="section-header">Available Jobs</h2>
+  <table class="job-table">
+    <thead>
+      <tr>
+        <th>Job</th>
+        <th>Queue</th>
+        <th>Status</th>
+        <th>Last Run</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td>
+          <strong>{{ job.label }}</strong>
+          <br><span class="description">{{ job.description }}</span>
+        </td>
+        <td><span class="queue-badge">{{ job.queue }}</span></td>
+        <td>
+          {% if job.is_running %}
+            <span class="status-running">
+              Running
+              {% if job.running_job.progress_total > 0 %}
+                ({{ job.running_job.progress_current }}/{{ job.running_job.progress_total }})
+              {% endif %}
+            </span>
+            {% if job.running_job.progress_total > 0 %}
+              <div class="progress-bar-container" style="margin-top: 4px;">
+                <div class="progress-bar-fill" style="width: {{ job.running_job.progress_percent }}%;"></div>
+                <div class="progress-bar-text">{{ job.running_job.progress_percent }}%</div>
+              </div>
+            {% endif %}
+            {% if job.running_job.progress_detail %}
+              <div class="last-run" style="margin-top: 2px;">{{ job.running_job.progress_detail }}</div>
+            {% endif %}
+          {% else %}
+            <span class="status-ready">Ready</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if job.last_completed %}
+            <span class="last-run">
+              {{ job.last_completed.completed_at|timesince }} ago
+              &mdash; {{ job.last_completed.items_succeeded }} succeeded
+              {% if job.last_completed.items_failed %}, {{ job.last_completed.items_failed }} failed{% endif %}
+            </span>
+          {% else %}
+            <span class="last-run">Never</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if job.is_running %}
+            <button class="btn-run btn-disabled" disabled>In progress...</button>
+          {% else %}
+            <form method="post" action="{% url 'admin:jobs_run' job.key %}" style="display: inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn-run" onclick="return confirm('Start {{ job.label }}?');">
+                Run Now
+              </button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h2 class="section-header">Recent Job Runs</h2>
+  <p style="margin-bottom: 1em;">
+    <a href="{% url 'admin:jobs_jobrun_changelist' %}">View all job runs &rarr;</a>
+  </p>
+
+  {% if recent_jobs %}
+  <table class="job-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Job</th>
+        <th>Status</th>
+        <th>Progress</th>
+        <th>Detail</th>
+        <th>Duration</th>
+        <th>Started</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for run in recent_jobs %}
+      <tr>
+        <td>
+          <a href="{% url 'admin:jobs_jobrun_change' run.id %}">{{ run.id }}</a>
+        </td>
+        <td>{{ run.job_type }}</td>
+        <td>
+          {% if run.status == "completed" %}
+            <span class="status-completed">{{ run.get_status_display }}</span>
+          {% elif run.status == "failed" %}
+            <span class="status-failed">{{ run.get_status_display }}</span>
+          {% elif run.status == "running" %}
+            <span class="status-running">{{ run.get_status_display }}</span>
+          {% else %}
+            {{ run.get_status_display }}
+          {% endif %}
+        </td>
+        <td>
+          {% if run.progress_total > 0 %}
+            {{ run.progress_current }}/{{ run.progress_total }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>{{ run.progress_detail|default:"-" }}</td>
+        <td>
+          {% if run.started_at %}
+            {% if run.completed_at %}
+              {{ run.started_at|timesince:run.completed_at }}
+            {% else %}
+              {{ run.started_at|timesince }} (running)
+            {% endif %}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td>{{ run.started_at|default:"-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No job runs yet.</p>
+  {% endif %}
+</div>
+{% endblock %}
