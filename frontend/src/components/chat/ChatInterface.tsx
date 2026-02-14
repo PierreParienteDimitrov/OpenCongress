@@ -292,7 +292,7 @@ export function ChatInterface() {
               // Wrap both header and thread in one provider so clear button works
               <AssistantRuntimeProvider runtime={runtime}>
                 <ChatPanelHeader
-                  session={session}
+                  session={!!session}
                   hasKeys={hasKeys}
                   showClearButton
                   apiKeys={apiKeys}
@@ -310,7 +310,7 @@ export function ChatInterface() {
             ) : (
               <>
                 <ChatPanelHeader
-                  session={session}
+                  session={!!session}
                   hasKeys={hasKeys}
                   showClearButton={false}
                   apiKeys={apiKeys}
@@ -427,7 +427,7 @@ function ChatPanelHeader({
   onClose,
   onPointerDown,
 }: {
-  session: unknown;
+  session: boolean;
   hasKeys: boolean;
   showClearButton: boolean;
   apiKeys: ConfiguredAPIKey[];
