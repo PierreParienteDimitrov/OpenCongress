@@ -10,6 +10,7 @@ from .ai import (
     generate_weekly_preview,
     generate_weekly_recap,
 )
+from .sync import sync_members, sync_recent_votes
 
 __all__ = [
     "generate_bill_summary",
@@ -18,4 +19,6 @@ __all__ = [
     "generate_weekly_preview",
     "generate_member_bio",
     "generate_member_bios",
+    "sync_recent_votes",
+    "sync_members",
 ]
