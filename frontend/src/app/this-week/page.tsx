@@ -64,11 +64,11 @@ function SummaryArticle({ summary }: { summary: WeeklySummary }) {
       </div>
 
       {/* Body paragraphs */}
-      <div className="space-y-5">
+      <div className="space-y-6">
         {paragraphs.map((paragraph, i) => (
           <p
             key={i}
-            className="text-base leading-relaxed text-foreground/85"
+            className="text-xl leading-relaxed text-foreground/85"
           >
             {paragraph.replace(/\*([^*]+)\*/g, "$1").trim()}
           </p>

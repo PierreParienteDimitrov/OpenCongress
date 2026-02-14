@@ -25,7 +25,6 @@ import {
   truncate,
 } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import FindYourRep from "@/components/home/FindYourRep";
 import MiniHemicycle from "@/components/home/MiniHemicycle";
 
@@ -135,9 +134,9 @@ export default async function Home() {
       }}
     >
       <main className="min-h-screen bg-background">
-        <GridContainer className="py-6">
+        <GridContainer className="py-10">
           {/* Date header */}
-          <div className="mb-6 border-b-2 border-foreground pb-3">
+          <div className="mb-10 border-b-2 border-foreground pb-5">
             <time className="text-sm uppercase tracking-widest text-muted-foreground">
               {formatDateLong(formatDateParam(now))}
             </time>
@@ -147,11 +146,11 @@ export default async function Home() {
           </div>
 
           {/* Main grid: 8 + 4 columns on large screens */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-12">
             {/* ============ LEFT COLUMN ============ */}
-            <div className="flex flex-col gap-6 lg:col-span-8">
+            <div className="flex flex-col gap-10 lg:col-span-8">
               {/* Lead Story: Week in Review */}
-              <div className="border-b-4 border-accent pb-6">
+              <div className="border-b border-border pb-10">
                 <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
                   {recap?.summary_type_display || "Week in Review"}
                 </h2>
@@ -162,9 +161,9 @@ export default async function Home() {
                     week
                   </p>
                 )}
-                <div className="mt-4 flex flex-col gap-6 md:flex-row md:items-start">
+                <div className="mt-6 flex flex-col gap-8 md:flex-row md:items-start">
                   {/* Left: text */}
-                  <div className="flex-1 space-y-4">
+                  <div className="space-y-4 md:w-2/5">
                     {recap ? (
                       <p className="leading-relaxed text-foreground/80">
                         {extractExcerpt(recap.content, 3)}
@@ -184,14 +183,12 @@ export default async function Home() {
                   </div>
                   {/* Right: hemicycle */}
                   {senateSeats.length > 0 && (
-                    <div className="w-full shrink-0 md:w-[340px]">
+                    <div className="w-full md:flex-1">
                       <MiniHemicycle seats={senateSeats} />
                     </div>
                   )}
                 </div>
               </div>
-
-              <Separator />
 
               {/* Latest Activity Feed */}
               <div>
@@ -272,10 +269,10 @@ export default async function Home() {
             </div>
 
             {/* ============ RIGHT COLUMN (sidebar) ============ */}
-            <div className="flex flex-col gap-6 lg:col-span-4">
+            <div className="flex flex-col divide-y divide-border lg:col-span-4 lg:border-l lg:border-border lg:pl-10">
               {/* Week by the Numbers */}
-              <div>
-                <h3 className="border-b border-border pb-3 text-lg font-bold text-foreground">
+              <div className="pb-10">
+                <h3 className="text-lg font-bold text-foreground">
                   Week by the Numbers
                 </h3>
                 <div>
@@ -323,8 +320,8 @@ export default async function Home() {
               </div>
 
               {/* Find Your Rep */}
-              <div>
-                <h3 className="border-b border-border pb-3 text-lg font-bold text-foreground">
+              <div className="py-10">
+                <h3 className="text-lg font-bold text-foreground">
                   Find Your Representative
                 </h3>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -336,7 +333,7 @@ export default async function Home() {
               </div>
 
               {/* Week Ahead */}
-              <div className="border-l-4 border-green-500 pl-4">
+              <div className="border-l-4 border-green-500 pl-4 pt-10">
                 <h3 className="text-lg font-bold text-foreground">
                   {preview?.summary_type_display || "Week Ahead"}
                 </h3>
@@ -364,7 +361,7 @@ export default async function Home() {
           </div>
 
           {/* Quick Links */}
-          <nav className="mt-8 border-t border-border pt-6">
+          <nav className="mt-12 border-t border-border pt-8">
             <div className="flex flex-wrap items-center justify-center gap-6">
               <Link
                 href={routes.senate.index}
