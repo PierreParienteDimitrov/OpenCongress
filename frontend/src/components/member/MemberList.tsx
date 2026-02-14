@@ -3,6 +3,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import type { MemberListItem, PaginatedResponse } from "@/types";
@@ -28,57 +29,58 @@ function MemberCard({ member, chamber }: { member: MemberListItem; chamber: "sen
   return (
     <Link href={getMemberRoute(member.bioguide_id, chamber)}>
       <Card className="group flex flex-row items-center gap-4 p-4 py-4 transition-all hover:border-muted-foreground/30 hover:shadow-md">
-      {/* Photo */}
-      <div className="shrink-0">
-        {member.photo_url ? (
-          <img
-            src={member.photo_url}
-            alt={member.full_name}
-            className="h-16 w-16 rounded-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-            <span className="text-lg font-medium text-muted-foreground">
-              {member.full_name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .slice(0, 2)}
+        {/* Photo */}
+        <div className="shrink-0">
+          {member.photo_url ? (
+            <Image
+              src={member.photo_url}
+              alt={member.full_name}
+              width={64}
+              height={64}
+              className="h-16 w-16 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
+              <span className="text-lg font-medium text-muted-foreground">
+                {member.full_name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-semibold text-foreground group-hover:text-accent">
+            {member.full_name}
+          </h3>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <Badge className={cn(getPartyBgColor(member.party))}>
+              {getPartyName(member.party)}
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              {getMemberLocation(member.state, member.district, member.chamber)}
             </span>
           </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate font-semibold text-foreground group-hover:text-accent">
-          {member.full_name}
-        </h3>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <Badge className={cn(getPartyBgColor(member.party))}>
-            {getPartyName(member.party)}
-          </Badge>
-          <span className="text-sm text-muted-foreground">
-            {getMemberLocation(member.state, member.district, member.chamber)}
-          </span>
         </div>
-      </div>
 
-      {/* Arrow */}
-      <svg
-        className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-foreground"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 5l7 7-7 7"
-        />
-      </svg>
+        {/* Arrow */}
+        <svg
+          className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-foreground"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
       </Card>
     </Link>
   );

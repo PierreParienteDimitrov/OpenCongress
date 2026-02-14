@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import DOMPurify from "isomorphic-dompurify";
 
@@ -159,9 +160,11 @@ export default async function LegislationPage({ params }: PageProps) {
             <h3 className="text-sm font-medium text-muted-foreground mb-2">Sponsor</h3>
             <div className="flex items-center gap-3">
               {bill.sponsor.photo_url && (
-                <img
+                <Image
                   src={bill.sponsor.photo_url}
                   alt={bill.sponsor.full_name}
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-full object-cover"
                 />
               )}

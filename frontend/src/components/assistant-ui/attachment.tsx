@@ -67,6 +67,10 @@ type AttachmentPreviewProps = {
 const AttachmentPreview: FC<AttachmentPreviewProps> = ({ src }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   return (
+    /* eslint-disable-next-line @next/next/no-img-element --
+       User-uploaded attachment with unknown source & dimensions;
+       next/image requires whitelisted hosts or fill layout which
+       doesn't suit this flexible preview container. */
     <img
       src={src}
       alt="Image Preview"

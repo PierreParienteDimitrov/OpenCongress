@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import type { SeatWithVote } from "@/types";
@@ -155,11 +156,12 @@ export default function VoteMemberTable({
                         className="flex items-center gap-3 group"
                       >
                         {m.photo_url ? (
-                          <img
+                          <Image
                             src={m.photo_url}
                             alt={m.full_name}
+                            width={32}
+                            height={32}
                             className="h-8 w-8 rounded-full object-cover shrink-0"
-                            loading="lazy"
                           />
                         ) : (
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary shrink-0">

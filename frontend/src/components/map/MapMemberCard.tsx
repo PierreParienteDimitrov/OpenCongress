@@ -1,11 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
 import type { MemberListItem } from "@/types";
 import { cn, getPartyBgColor, getPartyName, getMemberLocation } from "@/lib/utils";
 import { getMemberRoute } from "@/lib/routes";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 interface MapMemberCardProps {
@@ -15,14 +15,15 @@ interface MapMemberCardProps {
 export default function MapMemberCard({ member }: MapMemberCardProps) {
   return (
     <Link href={getMemberRoute(member.bioguide_id, member.chamber)}>
-      <Card className="group flex flex-row items-center gap-4 p-4 py-4 transition-all hover:border-muted-foreground/30 hover:shadow-md">
+      <div className="group flex flex-row items-center gap-4 border-b border-border p-4 transition-colors hover:bg-accent/5">
         <div className="shrink-0">
           {member.photo_url ? (
-            <img
+            <Image
               src={member.photo_url}
               alt={member.full_name}
+              width={48}
+              height={48}
               className="h-12 w-12 rounded-full object-cover"
-              loading="lazy"
             />
           ) : (
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
@@ -62,7 +63,7 @@ export default function MapMemberCard({ member }: MapMemberCardProps) {
             d="M9 5l7 7-7 7"
           />
         </svg>
-      </Card>
+      </div>
     </Link>
   );
 }

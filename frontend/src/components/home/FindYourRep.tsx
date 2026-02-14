@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 import ZipCodeSearch from "@/components/map/ZipCodeSearch";
@@ -23,11 +24,12 @@ export default function FindYourRep() {
               href={getMemberRoute(member.bioguide_id, member.chamber)}
               className="flex items-center gap-3 cursor-pointer rounded border border-border bg-card p-3 transition-all hover:border-muted-foreground/30 hover:shadow-sm"
             >
-              <img
+              <Image
                 src={member.photo_url}
                 alt={member.full_name}
+                width={40}
+                height={40}
                 className="h-10 w-10 rounded-full object-cover"
-                loading="lazy"
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">

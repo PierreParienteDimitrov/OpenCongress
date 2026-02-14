@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 import { GridContainer } from "@/components/layout/GridContainer";
@@ -93,9 +94,11 @@ export default function MemberProfile({ member }: MemberProfileProps) {
             {/* Photo */}
             <div className="shrink-0">
               {member.photo_url ? (
-                <img
+                <Image
                   src={member.photo_url}
                   alt={member.full_name}
+                  width={160}
+                  height={160}
                   className="w-32 h-32 md:w-40 md:h-40 rounded-lg object-cover"
                 />
               ) : (

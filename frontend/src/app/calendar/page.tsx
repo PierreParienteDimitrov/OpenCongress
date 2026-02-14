@@ -18,9 +18,7 @@ import {
   getChamberShortName,
   truncate,
 } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 export const revalidate = 300; // 5 minutes
 
@@ -52,16 +50,20 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
   const monthName = date.toLocaleDateString("en-US", { month: "short" });
 
   return (
-    <div
-      className={`min-h-[200px] border-r last:border-r-0 ${isToday ? "bg-accent/10" : "bg-card"}`}
-    >
+    <div className="min-h-[200px] border-r border-border last:border-r-0">
       {/* Day header */}
       <div
-        className={`p-2 border-b text-center ${isToday ? "bg-accent/15" : "bg-secondary"}`}
+        className={cn(
+          "p-2 border-b border-border text-center",
+          isToday && "border-b-2 border-b-accent"
+        )}
       >
         <div className="text-xs text-muted-foreground uppercase">{dayName}</div>
         <div
-          className={`text-lg font-semibold ${isToday ? "text-accent" : "text-foreground"}`}
+          className={cn(
+            "text-lg font-semibold",
+            isToday ? "text-accent" : "text-foreground"
+          )}
         >
           {dayNumber}
         </div>
@@ -69,7 +71,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
       </div>
 
       {/* Content */}
-      <div className="p-2 space-y-2 overflow-y-auto max-h-[400px]">
+      <div className="divide-y divide-border overflow-y-auto max-h-[400px]">
         {/* Votes */}
         {votes.map((vote) => (
           <ClickableCard
@@ -77,7 +79,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
             href={vote.bill ? routes.legislation.detail(vote.bill) : routes.vote.detail(vote.vote_id)}
             itemId={vote.vote_id}
             itemType="vote"
-            className="block p-2 rounded bg-gradient-to-r from-secondary to-secondary/50 border-l-4 border-muted-foreground text-xs hover:from-muted hover:to-secondary transition-colors"
+            className="block px-2 py-2.5 text-xs transition-colors hover:bg-accent/5"
           >
             <div className="flex items-center justify-between mb-1">
               <span className="text-muted-foreground">
@@ -87,7 +89,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
                 {getResultLabel(vote.result)}
               </Badge>
             </div>
-            <p className="text-foreground/80 font-medium leading-tight">
+            <p className="text-foreground font-medium leading-tight">
               {truncate(vote.description, 60)}
             </p>
             {vote.bill_display_number && (
@@ -113,7 +115,7 @@ function CalendarDay({ date, votes, bills, isToday }: CalendarDayProps) {
               href={routes.legislation.detail(bill.bill_id)}
               itemId={bill.bill_id}
               itemType="bill"
-              className="block p-2 bg-accent/10 border-l-4 border-accent text-xs hover:bg-accent/20 transition-colors"
+              className="block px-2 py-2.5 text-xs transition-colors hover:bg-accent/5"
             >
               <div className="font-medium text-accent">
                 {bill.display_number}
@@ -196,19 +198,19 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   return (
     <ChatContextProvider context={{ type: "calendar", data: { week_start: dateFrom, week_end: dateTo } }}>
     <main className="min-h-screen bg-background">
-      <GridContainer className="py-6">
+      <GridContainer className="py-10">
         {/* Header */}
-        <Card className="p-4 py-4 mb-6">
+        <div className="mb-8 border-b-2 border-foreground pb-5">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Legislative Calendar
             </h1>
 
             {/* Week Navigation */}
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild>
               <Link
                 href={routes.calendar.week(formatDateParam(prevWeek))}
+                className="p-1 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <svg
                   className="w-5 h-5"
@@ -224,17 +226,14 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                   />
                 </svg>
               </Link>
-              </Button>
 
-              <div className="text-center">
-                <span className="font-medium text-foreground">
-                  {formatWeekRange(weekStart, weekEnd)}
-                </span>
-              </div>
+              <span className="font-medium text-foreground">
+                {formatWeekRange(weekStart, weekEnd)}
+              </span>
 
-              <Button variant="ghost" size="icon" asChild>
               <Link
                 href={routes.calendar.week(formatDateParam(nextWeek))}
+                className="p-1 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <svg
                   className="w-5 h-5"
@@ -250,34 +249,32 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                   />
                 </svg>
               </Link>
-              </Button>
 
-              <Button variant="outline" size="sm" className="ml-2" asChild>
-                <Link href={routes.calendar.index}>
-                  Today
-                </Link>
-              </Button>
+              <Link
+                href={routes.calendar.index}
+                className="ml-2 text-sm font-medium text-accent hover:underline"
+              >
+                Today
+              </Link>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Legend */}
-        <Card className="p-3 py-3 mb-4">
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 border-l-4 border-muted-foreground bg-secondary" />
-              <span className="text-muted-foreground">Vote</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 border-l-4 border-accent bg-accent/10" />
-              <span className="text-muted-foreground">Bill Activity</span>
-            </div>
+        <div className="mb-4 flex items-center gap-6 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-0.5 bg-muted-foreground" />
+            <span className="text-muted-foreground">Vote</span>
           </div>
-        </Card>
+          <div className="flex items-center gap-2">
+            <div className="h-3 w-0.5 bg-accent" />
+            <span className="text-muted-foreground">Bill Activity</span>
+          </div>
+        </div>
 
         {/* Calendar Grid */}
-        <Card className="overflow-hidden p-0 py-0">
-          <div className="grid grid-cols-7 divide-x border-b">
+        <div className="border-t border-border">
+          <div className="grid grid-cols-7">
             {weekDates.map((date) => {
               const dateKey = formatDateParam(date);
               const isToday = date.getTime() === today.getTime();
@@ -293,37 +290,49 @@ export default async function CalendarPage({ searchParams }: PageProps) {
               );
             })}
           </div>
-        </Card>
+        </div>
 
         {/* Summary Stats */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="p-4 py-4 text-center">
-            <p className="text-3xl font-bold text-foreground">
-              {votesResponse.results.length}
-            </p>
-            <p className="text-sm text-muted-foreground">Votes This Week</p>
-          </Card>
-          <Card className="p-4 py-4 text-center">
-            <p className="text-3xl font-bold text-foreground">
-              {billsResponse.results.length}
-            </p>
-            <p className="text-sm text-muted-foreground">Bills With Activity</p>
-          </Card>
-          <Card className="p-4 py-4 text-center">
-            <p className="text-3xl font-bold text-green-600">
-              {votesResponse.results.filter((v) => v.result === "passed" || v.result === "agreed").length}
-            </p>
-            <p className="text-sm text-muted-foreground">Passed/Agreed</p>
-          </Card>
-          <Card className="p-4 py-4 text-center">
-            <p className="text-3xl font-bold text-red-600">
-              {votesResponse.results.filter((v) => v.result === "failed" || v.result === "rejected").length}
-            </p>
-            <p className="text-sm text-muted-foreground">Failed/Rejected</p>
-          </Card>
+        <div className="mt-8 border-t border-border pt-6">
+          <h3 className="mb-2 text-lg font-bold text-foreground">Week at a Glance</h3>
+          <div className="divide-y divide-border">
+            <CalendarStatRow label="Votes This Week" value={votesResponse.results.length} />
+            <CalendarStatRow label="Bills With Activity" value={billsResponse.results.length} />
+            <CalendarStatRow
+              label="Passed / Agreed"
+              value={votesResponse.results.filter((v) => v.result === "passed" || v.result === "agreed").length}
+              color="text-green-600"
+            />
+            <CalendarStatRow
+              label="Failed / Rejected"
+              value={votesResponse.results.filter((v) => v.result === "failed" || v.result === "rejected").length}
+              color="text-red-600"
+            />
+          </div>
         </div>
       </GridContainer>
     </main>
     </ChatContextProvider>
+  );
+}
+
+// --- Stat row helper (matches Home page pattern) ---
+
+function CalendarStatRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  color?: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between py-3 last:border-b-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={cn("text-xl font-bold", color || "text-foreground")}>
+        {value}
+      </span>
+    </div>
   );
 }
