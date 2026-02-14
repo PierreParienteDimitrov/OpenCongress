@@ -306,6 +306,25 @@ export async function getAllRepresentatives(): Promise<MemberListItem[]> {
   return data.results ?? [];
 }
 
+// Calendar (client-side, for Schedule-X)
+export async function getVotesCalendarClient(
+  dateFrom: string,
+  dateTo: string
+): Promise<PaginatedResponse<VoteCalendarItem>> {
+  return fetchAPIClient<PaginatedResponse<VoteCalendarItem>>(
+    `/votes/calendar/?date_from=${dateFrom}&date_to=${dateTo}`
+  );
+}
+
+export async function getBillsCalendarClient(
+  dateFrom: string,
+  dateTo: string
+): Promise<PaginatedResponse<BillCalendarItem>> {
+  return fetchAPIClient<PaginatedResponse<BillCalendarItem>>(
+    `/bills/calendar/?date_from=${dateFrom}&date_to=${dateTo}`
+  );
+}
+
 // Zip code lookup (client-side)
 export async function lookupZipCode(zip: string): Promise<ZipLookupResult> {
   return fetchAPIClient<ZipLookupResult>(
