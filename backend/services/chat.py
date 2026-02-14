@@ -434,11 +434,22 @@ class ChatService:
 
         for _round in range(MAX_TOOL_ROUNDS):
             # Non-streaming call with DB function tools
-            sync_response = client.models.generate_content(
-                model=self.MODELS["google"],
-                contents=contents,
-                config=config_with_db_tools,
-            )
+            try:
+                sync_response = client.models.generate_content(
+                    model=self.MODELS["google"],
+                    contents=contents,
+                    config=config_with_db_tools,
+                )
+            except Exception as e:
+                if "function calling" in str(e).lower():
+                    # Model or API tier doesn't support function calling;
+                    # fall back to search-only streaming.
+                    logger.info(
+                        "Gemini function calling unavailable, using search only"
+                    )
+                    yield from _stream_with_search()
+                    return
+                raise
 
             has_function_calls = False
             function_responses: list[types.Part] = []
