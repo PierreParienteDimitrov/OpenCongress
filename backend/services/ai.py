@@ -59,6 +59,62 @@ class AIService:
             logger.error(f"Error generating completion: {e}")
             raise
 
+    def generate_completion_with_grounding(
+        self, prompt: str, max_tokens: int = 400
+    ) -> tuple[str, int]:
+        """
+        Generate a completion with Google Search grounding enabled.
+
+        This allows the model to search the web during generation for
+        supplementary facts (education, career history, etc.).
+
+        Args:
+            prompt: The prompt to send to the model
+            max_tokens: Maximum number of output tokens
+
+        Returns:
+            Tuple of (generated text, total tokens used)
+        """
+        try:
+            google_search_tool = types.Tool(google_search=types.GoogleSearch())
+
+            response = self.client.models.generate_content(
+                model=self.MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=0.3,
+                    thinking_config=types.ThinkingConfig(
+                        thinking_budget=0,
+                    ),
+                    tools=[google_search_tool],
+                ),
+            )
+
+            text = response.text.strip()
+            tokens = response.usage_metadata.total_token_count
+
+            # Log grounding metadata if available
+            if response.candidates and response.candidates[0].grounding_metadata:
+                supports = (
+                    response.candidates[0].grounding_metadata.grounding_supports or []
+                )
+                logger.info(
+                    f"Generated grounded completion with {tokens} tokens, "
+                    f"{len(supports)} grounding supports using {self.MODEL}"
+                )
+            else:
+                logger.info(
+                    f"Generated grounded completion with {tokens} tokens "
+                    f"(no grounding metadata) using {self.MODEL}"
+                )
+
+            return text, tokens
+
+        except Exception as e:
+            logger.error(f"Error generating grounded completion: {e}")
+            raise
+
     def generate_bill_summary(
         self,
         display_number: str,
@@ -98,10 +154,14 @@ class AIService:
         state: str,
         district: int | None,
         term_start: str | None,
-        committees: list[str],
-        recent_bills_count: int,
+        seniority_date: str | None,
+        birth_date: str | None,
+        gender: str,
+        committee_roles: list[tuple[str, str]],
+        top_bills: list[str],
+        total_bills_count: int,
     ) -> tuple[str, int]:
-        """Generate a biographical summary for a member."""
+        """Generate a biographical summary for a member using search grounding."""
         from prompts import MEMBER_BIO_PROMPT
 
         party_name = {"D": "Democrat", "R": "Republican", "I": "Independent"}.get(
@@ -110,18 +170,42 @@ class AIService:
         chamber_name = "House of Representatives" if chamber == "house" else "Senate"
         district_str = f"District {district}" if district else "At-large"
 
+        # Map gender to pronouns
+        gender_map = {
+            "M": ("He", "him"),
+            "F": ("She", "her"),
+        }
+        pronoun_subject, pronoun_object = gender_map.get(gender, ("They", "them"))
+
+        # Format committee roles: "Committee Name (Role)"
+        if committee_roles:
+            formatted_committees = ", ".join(
+                f"{name} ({role})" for name, role in committee_roles
+            )
+        else:
+            formatted_committees = "None listed"
+
+        # Format top bills
+        formatted_bills = "; ".join(top_bills[:5]) if top_bills else "None"
+
         prompt = MEMBER_BIO_PROMPT.format(
             full_name=full_name,
             party=party_name,
             chamber=chamber_name,
             state=state,
             district=district_str if chamber == "house" else "N/A",
+            gender={"M": "Male", "F": "Female"}.get(gender, "Unknown"),
+            birth_date=birth_date or "Unknown",
             term_start=term_start or "Unknown",
-            committees=", ".join(committees) if committees else "None listed",
-            recent_bills_count=recent_bills_count,
+            seniority_date=seniority_date or "Unknown",
+            committee_roles=formatted_committees,
+            top_bills=formatted_bills,
+            total_bills_count=total_bills_count,
+            pronoun_subject=pronoun_subject,
+            pronoun_object=pronoun_object,
         )
 
-        return self.generate_completion(prompt, max_tokens=200)
+        return self.generate_completion_with_grounding(prompt, max_tokens=400)
 
     def generate_vote_summary(
         self,

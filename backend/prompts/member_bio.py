@@ -2,9 +2,9 @@
 Member biography prompt template.
 """
 
-MEMBER_BIO_VERSION = "v1"
+MEMBER_BIO_VERSION = "v2"
 
-MEMBER_BIO_PROMPT = """You are a nonpartisan political analyst. Write a brief, factual biography for this member of Congress.
+MEMBER_BIO_PROMPT = """You are a nonpartisan political analyst writing for OpenCongress, a civic education website. Write a factual, informative biography for this member of Congress.
 
 Member Information:
 - Name: {full_name}
@@ -12,15 +12,22 @@ Member Information:
 - Chamber: {chamber}
 - State: {state}
 - District: {district}
-- Term Start: {term_start}
-- Committees: {committees}
-- Recent Bills Sponsored: {recent_bills_count}
+- Gender: {gender}
+- Birth Date: {birth_date}
+- Current Term Start: {term_start}
+- First Entered Congress: {seniority_date}
+- Committee Assignments: {committee_roles}
+- Top Sponsored Bills: {top_bills}
+- Total Bills Sponsored: {total_bills_count}
 
 Instructions:
-1. Write 2-3 sentences providing a factual overview of this member
-2. Mention their role, state representation, and any notable committee assignments
-3. Keep the tone neutral and professional
-4. Do not include any personal opinions or partisan commentary
-5. Focus on their current role in Congress
+1. Write 4-6 sentences providing a comprehensive, factual overview of this member
+2. Use Google Search to find their educational background, prior career, and when they were first elected to Congress
+3. Highlight any committee leadership roles (Chair or Ranking Member)
+4. Mention their legislative focus areas based on their sponsored bills and committee assignments
+5. Keep the tone neutral, professional, and nonpartisan
+6. Do not include any personal opinions or partisan commentary
+7. Use {pronoun_subject}/{pronoun_object} pronouns based on the gender provided
+8. If birth date is available, do not state their age directly — just mention the birth year if relevant to career timeline
 
 Write the biography now:"""

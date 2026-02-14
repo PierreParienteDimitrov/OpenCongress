@@ -106,7 +106,6 @@ def run_health_check(self) -> dict:
                 {
                     "name": name,
                     "value": f"{r['status']}: {r['detail']}",
-                    "inline": True,
                 }
                 for name, r in results.items()
             ],
@@ -137,7 +136,7 @@ def daily_health_summary(self) -> dict:
             description=f"All systems operational as of {timestamp}",
             level=AlertLevel.INFO,
             fields=[
-                {"name": name, "value": f"OK: {detail}", "inline": True}
+                {"name": name, "value": f"OK: {detail}"}
                 for name, (_, detail) in checks.items()
             ],
         )
@@ -151,7 +150,6 @@ def daily_health_summary(self) -> dict:
                 {
                     "name": name,
                     "value": f"{'OK' if healthy else 'FAIL'}: {detail}",
-                    "inline": True,
                 }
                 for name, (healthy, detail) in checks.items()
             ],

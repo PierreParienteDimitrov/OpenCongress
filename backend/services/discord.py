@@ -28,7 +28,7 @@ def send_discord_message(
     title: str,
     description: str,
     level: AlertLevel = AlertLevel.INFO,
-    fields: list[dict[str, str | bool]] | None = None,
+    fields: list[dict[str, str]] | None = None,
     webhook_url: str = "",
 ) -> bool:
     """

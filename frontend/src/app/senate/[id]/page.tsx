@@ -19,7 +19,9 @@ export async function generateMetadata({ params }: PageProps) {
   try {
     const member = await getMember(bioguideId);
     const title = `Sen. ${member.full_name} (${member.party}-${member.state})`;
-    const description = `Profile and voting record for Senator ${member.full_name}`;
+    const description = member.ai_bio
+      ? member.ai_bio.substring(0, 160)
+      : `Profile and voting record for Senator ${member.full_name}`;
     const canonicalSlug = `${member.bioguide_id}-${slugifyName(member.full_name)}`;
     return {
       title,
@@ -95,6 +97,7 @@ export default async function SenatorPage({ params }: PageProps) {
             "@type": "GovernmentOrganization",
             name: "United States Senate",
           },
+          description: member.ai_bio || undefined,
           image: member.photo_url || undefined,
           url: `https://www.opencongress.app/senate/${expectedSlug}`,
           sameAs: [
