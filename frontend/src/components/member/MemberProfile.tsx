@@ -27,11 +27,11 @@ function RecentVoteItem({ vote }: { vote: MemberRecentVote }) {
   return (
     <Link
       href={routes.vote.detail(vote.vote_id)}
-      className="block border-b last:border-b-0 py-3 -mx-2 px-2 rounded-md transition-colors hover:bg-accent/50"
+      className="block py-3 first:pt-0 -mx-2 px-2 rounded-md transition-colors hover:bg-accent/50"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground/80 truncate">{vote.description}</p>
+          <p className="text-sm text-foreground/80 line-clamp-2">{vote.description}</p>
           <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
             <span>{formatDate(vote.date)}</span>
             {vote.bill_display_number && vote.bill_id && (
@@ -41,7 +41,7 @@ function RecentVoteItem({ vote }: { vote: MemberRecentVote }) {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <Badge className={cn(getPositionBgColor(vote.position))}>
             {getPositionLabel(vote.position)}
           </Badge>
@@ -88,8 +88,8 @@ export default function MemberProfile({ member }: MemberProfileProps) {
   return (
     <main className="min-h-screen bg-background">
       <GridContainer className="py-8">
-        {/* Header */}
-        <div className="mb-6 pb-6">
+        {/* Header — Photo + Name */}
+        <div className="mb-6">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Photo */}
             <div className="shrink-0">
@@ -117,7 +117,7 @@ export default function MemberProfile({ member }: MemberProfileProps) {
                 {member.full_name}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-2 mb-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge className={cn("text-sm px-3 py-1", getPartyBgColor(member.party))}>
                   {getPartyName(member.party)}
                 </Badge>
@@ -145,19 +145,111 @@ export default function MemberProfile({ member }: MemberProfileProps) {
                   </span>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
 
-              {/* Term info */}
-              {(member.term_start || member.term_end) && (
-                <p className="text-sm text-muted-foreground mb-4">
-                  Term:{" "}
-                  {member.term_start && formatDate(member.term_start)}
-                  {member.term_start && member.term_end && " - "}
-                  {member.term_end && formatDate(member.term_end)}
-                </p>
-              )}
+        <Separator className="mb-6" />
 
-              {/* Social links */}
-              {socialLinks.length > 0 && (
+        {/* Three-column layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_280px] gap-6 lg:gap-8">
+          {/* Left column — Member metadata */}
+          <div className="space-y-5">
+            {/* Term */}
+            {(member.term_start || member.term_end) && (
+              <>
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                    Term
+                  </h3>
+                  <p className="text-sm font-medium">
+                    {member.term_start && formatDate(member.term_start)}
+                    {member.term_start && member.term_end && " – "}
+                    {member.term_end && formatDate(member.term_end)}
+                  </p>
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Contact */}
+            <div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                Contact
+              </h3>
+              <div className="space-y-3">
+                {member.phone && (
+                  <div>
+                    <span className="text-xs text-muted-foreground">Phone</span>
+                    <p className="text-sm font-medium">
+                      <a
+                        href={`tel:${member.phone}`}
+                        className="text-accent hover:text-accent/80"
+                      >
+                        {member.phone}
+                      </a>
+                    </p>
+                  </div>
+                )}
+                {member.office_address && (
+                  <div>
+                    <span className="text-xs text-muted-foreground">Office</span>
+                    <p className="text-sm text-foreground/80">
+                      {member.office_address}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Links */}
+            <div>
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                Links
+              </h3>
+              <div className="space-y-2">
+                {member.website_url && (
+                  <a
+                    href={member.website_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="cursor-pointer inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80"
+                  >
+                    Official Website
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                      />
+                    </svg>
+                  </a>
+                )}
+                {member.contact_url && (
+                  <a
+                    href={member.contact_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="cursor-pointer block text-sm text-accent hover:text-accent/80"
+                  >
+                    Contact Form
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Social */}
+            {socialLinks.length > 0 && (
+              <>
+                <Separator />
                 <div className="flex gap-3">
                   {socialLinks.map((link) => (
                     <a
@@ -165,127 +257,74 @@ export default function MemberProfile({ member }: MemberProfileProps) {
                       href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                      className="cursor-pointer text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                       title={link.label}
                     >
                       {link.icon}
                     </a>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <Separator className="mb-6" />
-
-        {/* Contact Info */}
-        <div className="mb-6 pb-6">
-          <h2 className="text-lg font-semibold mb-4">Contact Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {member.phone && (
-              <div>
-                <span className="text-sm text-muted-foreground">Phone</span>
-                <p className="font-medium">
-                  <a
-                    href={`tel:${member.phone}`}
-                    className="text-accent hover:text-accent/80"
-                  >
-                    {member.phone}
-                  </a>
-                </p>
-              </div>
-            )}
-            {member.office_address && (
-              <div>
-                <span className="text-sm text-muted-foreground">Office</span>
-                <p className="font-medium text-foreground/80">
-                  {member.office_address}
-                </p>
-              </div>
-            )}
-            {member.website_url && (
-              <div>
-                <span className="text-sm text-muted-foreground">Website</span>
-                <p>
-                  <a
-                    href={member.website_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent hover:text-accent/80"
-                  >
-                    Official Website
-                  </a>
-                </p>
-              </div>
-            )}
-            {member.contact_url && (
-              <div>
-                <span className="text-sm text-muted-foreground">Contact Form</span>
-                <p>
-                  <a
-                    href={member.contact_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-accent hover:text-accent/80"
-                  >
-                    Send a Message
-                  </a>
-                </p>
-              </div>
+              </>
             )}
           </div>
-        </div>
 
-        <Separator className="mb-6" />
+          {/* Center column — About */}
+          <div className="lg:border-l lg:border-r lg:border-border lg:px-8">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              About
+            </h3>
+            {member.ai_bio ? (
+              <div>
+                <div className="space-y-3 font-domine text-base text-foreground/80 leading-relaxed">
+                  {member.ai_bio.split("\n").map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground/60 mt-3">AI-generated biography</p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No biography available.</p>
+            )}
 
-        {/* Bio */}
-        {member.ai_bio && (
-          <>
-            <div className="mb-6 pb-6">
-              <h2 className="text-lg font-semibold mb-4">About</h2>
-              <p className="text-foreground/80 whitespace-pre-wrap">{member.ai_bio}</p>
-              <p className="text-xs text-muted-foreground/60 mt-2">AI-generated biography</p>
+            <Separator className="my-5" />
+
+            {/* Legislative Activity Stats */}
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Legislative Activity
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-4">
+                <p className="text-3xl font-bold text-foreground">
+                  {member.sponsored_bills_count}
+                </p>
+                <p className="text-sm text-muted-foreground">Bills Sponsored</p>
+              </div>
+              <div className="text-center p-4">
+                <p className="text-3xl font-bold text-foreground">
+                  {member.recent_votes.length}
+                </p>
+                <p className="text-sm text-muted-foreground">Recent Votes</p>
+              </div>
             </div>
-            <Separator className="mb-6" />
-          </>
-        )}
+          </div>
 
-        {/* Stats */}
-        <div className="mb-6 pb-6">
-          <h2 className="text-lg font-semibold mb-4">Legislative Activity</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-4">
-              <p className="text-3xl font-bold text-foreground">
-                {member.sponsored_bills_count}
+          {/* Right column — Recent Votes */}
+          <div>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Recent Votes ({member.recent_votes.length})
+            </h3>
+            {member.recent_votes.length > 0 ? (
+              <div className="divide-y divide-border">
+                {member.recent_votes.map((vote) => (
+                  <RecentVoteItem key={vote.vote_id} vote={vote} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No recent votes recorded.
               </p>
-              <p className="text-sm text-muted-foreground">Bills Sponsored</p>
-            </div>
-            <div className="text-center p-4">
-              <p className="text-3xl font-bold text-foreground">
-                {member.recent_votes.length}
-              </p>
-              <p className="text-sm text-muted-foreground">Recent Votes</p>
-            </div>
+            )}
           </div>
-        </div>
-
-        <Separator className="mb-6" />
-
-        {/* Recent Votes */}
-        <div>
-          <h2 className="text-lg font-semibold mb-4">Recent Votes</h2>
-          {member.recent_votes.length > 0 ? (
-            <div>
-              {member.recent_votes.map((vote) => (
-                <RecentVoteItem key={vote.vote_id} vote={vote} />
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-4">
-              No recent votes recorded.
-            </p>
-          )}
         </div>
       </GridContainer>
     </main>

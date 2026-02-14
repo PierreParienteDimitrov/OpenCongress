@@ -217,7 +217,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
 
         {/* Header */}
         <div className="mb-8 border-b-2 border-foreground pb-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               Legislative Calendar
             </h1>
@@ -226,7 +226,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
             <div className="flex items-center gap-4">
               <Link
                 href={routes.calendar.week(formatDateParam(prevWeek))}
-                className="p-1 text-muted-foreground transition-colors hover:text-foreground"
+                className="cursor-pointer p-1 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <svg
                   className="w-5 h-5"
@@ -243,13 +243,13 @@ export default async function CalendarPage({ searchParams }: PageProps) {
                 </svg>
               </Link>
 
-              <span className="font-medium text-foreground">
+              <span className="font-medium text-foreground whitespace-nowrap">
                 {formatWeekRange(weekStart, weekEnd)}
               </span>
 
               <Link
                 href={routes.calendar.week(formatDateParam(nextWeek))}
-                className="p-1 text-muted-foreground transition-colors hover:text-foreground"
+                className="cursor-pointer p-1 text-muted-foreground transition-colors hover:text-foreground"
               >
                 <svg
                   className="w-5 h-5"
@@ -268,7 +268,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
 
               <Link
                 href={routes.calendar.index}
-                className="ml-2 text-sm font-medium text-accent hover:underline"
+                className="cursor-pointer ml-2 text-sm font-medium text-accent hover:underline"
               >
                 Today
               </Link>
@@ -289,8 +289,8 @@ export default async function CalendarPage({ searchParams }: PageProps) {
         </div>
 
         {/* Calendar Grid */}
-        <div className="border-t border-border">
-          <div className="grid grid-cols-7">
+        <div className="border-t border-border overflow-x-auto">
+          <div className="grid grid-cols-7 min-w-[700px]">
             {weekDates.map((date) => {
               const dateKey = formatDateParam(date);
               const isToday = date.getTime() === today.getTime();
