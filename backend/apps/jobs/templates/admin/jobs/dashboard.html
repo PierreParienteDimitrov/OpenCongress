@@ -126,7 +126,7 @@
     </thead>
     <tbody>
       {% for run in recent_jobs %}
-      <tr>
+      <tr style="cursor: pointer;" onclick="window.location='{% url 'admin:jobs_jobrun_change' run.id %}';">
         <td>
           <a href="{% url 'admin:jobs_jobrun_change' run.id %}">{{ run.id }}</a>
         </td>

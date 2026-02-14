@@ -1,0 +1,166 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {% if original.status == "running" or original.status == "pending" %}
+    <meta http-equiv="refresh" content="3">
+  {% endif %}
+  <style>
+    .log-viewer {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Menlo', 'Consolas', 'Courier New', monospace;
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      padding: 16px 20px;
+      border-radius: 6px;
+      max-height: 500px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-bottom: 1.5em;
+    }
+    .log-section { margin-bottom: 2em; }
+    .log-section h3 {
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--body-quiet-color, #666);
+      margin-bottom: 0.5em;
+    }
+    .log-error { color: #f48771; }
+    .log-empty { color: #666; font-style: italic; }
+    .job-detail-header {
+      display: flex;
+      gap: 2em;
+      flex-wrap: wrap;
+      margin-bottom: 1.5em;
+      padding: 16px 20px;
+      background: var(--darkened-bg, #f8f8f8);
+      border-radius: 6px;
+    }
+    .job-detail-header dt {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--body-quiet-color, #666);
+      margin-bottom: 2px;
+    }
+    .job-detail-header dd {
+      margin: 0 0 0.75em 0;
+      font-weight: 600;
+    }
+    .status-running { color: #fd7e14; }
+    .status-completed { color: #28a745; }
+    .status-failed { color: #dc3545; }
+    .status-cancelled { color: #6c757d; }
+    .progress-bar-container { background: #eee; border-radius: 4px; height: 20px; width: 300px; position: relative; overflow: hidden; margin-top: 4px; }
+    .progress-bar-fill { background: #417690; height: 100%; border-radius: 4px; transition: width 0.3s ease; }
+    .progress-bar-text { position: absolute; top: 0; left: 0; right: 0; text-align: center; line-height: 20px; font-size: 0.75rem; color: #333; }
+  </style>
+{% endblock %}
+
+{% block content %}
+{% if original %}
+<div class="job-detail-header">
+  <dl>
+    <dt>Job</dt>
+    <dd>{{ original.job_type_label }}</dd>
+  </dl>
+  <dl>
+    <dt>Status</dt>
+    <dd class="status-{{ original.status }}">{{ original.get_status_display }}</dd>
+  </dl>
+  <dl>
+    <dt>Progress</dt>
+    <dd>
+      {% if original.progress_total > 0 %}
+        {{ original.progress_current }}/{{ original.progress_total }} ({{ original.progress_percent }}%)
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width: {{ original.progress_percent }}%;"></div>
+          <div class="progress-bar-text">{{ original.progress_percent }}%</div>
+        </div>
+      {% else %}
+        -
+      {% endif %}
+    </dd>
+  </dl>
+  <dl>
+    <dt>Current</dt>
+    <dd>{{ original.progress_detail|default:"-" }}</dd>
+  </dl>
+  <dl>
+    <dt>Succeeded</dt>
+    <dd>{{ original.items_succeeded }}</dd>
+  </dl>
+  <dl>
+    <dt>Failed</dt>
+    <dd>{{ original.items_failed }}</dd>
+  </dl>
+  <dl>
+    <dt>Duration</dt>
+    <dd>{{ original.duration_display }}</dd>
+  </dl>
+  <dl>
+    <dt>Triggered By</dt>
+    <dd>{{ original.triggered_by|default:"-" }}</dd>
+  </dl>
+</div>
+
+{% if original.error_message %}
+<div class="log-section">
+  <h3>Error</h3>
+  <div class="log-viewer">
+    <span class="log-error">{{ original.error_message }}</span>
+  </div>
+</div>
+{% endif %}
+
+{% if original.result.stdout %}
+<div class="log-section">
+  <h3>Output Log</h3>
+  <div class="log-viewer" id="stdout-log">{{ original.result.stdout }}</div>
+</div>
+{% endif %}
+
+{% if original.result.stderr %}
+<div class="log-section">
+  <h3>Error Log</h3>
+  <div class="log-viewer">
+    <span class="log-error">{{ original.result.stderr }}</span>
+  </div>
+</div>
+{% endif %}
+
+{% if original.result.errors %}
+<div class="log-section">
+  <h3>Item Errors ({{ original.result.errors|length }})</h3>
+  <div class="log-viewer">
+    {% for err in original.result.errors %}{{ err.id }}: {{ err.error }}
+{% endfor %}{% if not original.result.errors %}<span class="log-empty">No errors.</span>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if not original.error_message and not original.result.stdout and not original.result.stderr and not original.result.errors %}
+  {% if original.status == "running" or original.status == "pending" %}
+  <div class="log-section">
+    <h3>Output Log</h3>
+    <div class="log-viewer">
+      <span class="log-empty">Job is {{ original.status }}... logs will appear when complete.</span>
+    </div>
+  </div>
+  {% endif %}
+{% endif %}
+
+{% endif %}
+
+{{ block.super }}
+
+<script>
+  // Auto-scroll log viewers to bottom
+  document.querySelectorAll('.log-viewer').forEach(function(el) {
+    el.scrollTop = el.scrollHeight;
+  });
+</script>
+{% endblock %}

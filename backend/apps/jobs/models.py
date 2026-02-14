@@ -76,3 +76,24 @@ class JobRun(models.Model):
             return None
         end = self.completed_at or timezone.now()
         return end - self.started_at
+
+    @property
+    def job_type_label(self):
+        from .registry import JOB_REGISTRY
+
+        entry = JOB_REGISTRY.get(self.job_type, {})
+        return entry.get("label", self.job_type)
+
+    @property
+    def duration_display(self):
+        if not self.started_at:
+            return "-"
+        end = self.completed_at or timezone.now()
+        total_seconds = int((end - self.started_at).total_seconds())
+        minutes, seconds = divmod(total_seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}h {minutes}m {seconds}s"
+        if minutes:
+            return f"{minutes}m {seconds}s"
+        return f"{seconds}s"

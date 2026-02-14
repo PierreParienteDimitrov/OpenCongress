@@ -30,7 +30,7 @@ class JobRunAdmin(admin.ModelAdmin):
         "status_display",
         "progress_display",
         "progress_detail",
-        "duration_display",
+        "duration_col",
         "triggered_by",
         "created_at",
         "actions_display",
@@ -54,8 +54,9 @@ class JobRunAdmin(admin.ModelAdmin):
     ]
     ordering = ["-created_at"]
 
-    # Custom changelist template with auto-refresh
+    # Custom templates
     change_list_template = "admin/jobs/jobrun/change_list.html"
+    change_form_template = "admin/jobs/jobrun/change_form.html"
 
     def has_add_permission(self, request):
         return False
@@ -65,8 +66,7 @@ class JobRunAdmin(admin.ModelAdmin):
 
     @admin.display(description="Job")
     def job_type_label(self, obj):
-        entry = JOB_REGISTRY.get(obj.job_type, {})
-        return entry.get("label", obj.job_type)
+        return obj.job_type_label
 
     @admin.display(description="Status")
     def status_display(self, obj):
@@ -87,19 +87,8 @@ class JobRunAdmin(admin.ModelAdmin):
         return f"{obj.progress_current}/{obj.progress_total} ({obj.progress_percent}%)"
 
     @admin.display(description="Duration")
-    def duration_display(self, obj):
-        if not obj.started_at:
-            return "-"
-        end = obj.completed_at or timezone.now()
-        delta = end - obj.started_at
-        total_seconds = int(delta.total_seconds())
-        minutes, seconds = divmod(total_seconds, 60)
-        hours, minutes = divmod(minutes, 60)
-        if hours:
-            return f"{hours}h {minutes}m {seconds}s"
-        if minutes:
-            return f"{minutes}m {seconds}s"
-        return f"{seconds}s"
+    def duration_col(self, obj):
+        return obj.duration_display
 
     @admin.display(description="")
     def actions_display(self, obj):
