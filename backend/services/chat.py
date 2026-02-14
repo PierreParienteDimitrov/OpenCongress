@@ -6,7 +6,7 @@ the user's configured provider and API key.
 """
 
 import logging
-from typing import Generator
+from typing import Any, Generator
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class ChatService:
 
     def stream_chat(
         self,
-        messages: list[dict],
+        messages: list[dict[str, Any]],
         system_context: str = "",
     ) -> Generator[str, None, None]:
         """
@@ -50,31 +50,37 @@ class ChatService:
             yield from self._stream_google(messages, system_context)
 
     def _stream_anthropic(
-        self, messages: list[dict], system_context: str
+        self, messages: list[dict[str, Any]], system_context: str
     ) -> Generator[str, None, None]:
         from anthropic import Anthropic
+        from anthropic.types import MessageParam
 
         client = Anthropic(api_key=self.api_key)
+        typed_messages: list[MessageParam] = [
+            MessageParam(role=m["role"], content=m["content"]) for m in messages  # type: ignore[misc]
+        ]
         with client.messages.stream(
             model=self.MODELS["anthropic"],
             max_tokens=2048,
             system=system_context,
-            messages=messages,
+            messages=typed_messages,
         ) as stream:
             for text in stream.text_stream:
                 yield text
 
     def _stream_openai(
-        self, messages: list[dict], system_context: str
+        self, messages: list[dict[str, Any]], system_context: str
     ) -> Generator[str, None, None]:
         from openai import OpenAI
+        from openai.types.chat import ChatCompletionMessageParam
 
         client = OpenAI(api_key=self.api_key)
 
-        openai_messages = []
+        openai_messages: list[ChatCompletionMessageParam] = []
         if system_context:
             openai_messages.append({"role": "system", "content": system_context})
-        openai_messages.extend(messages)
+        for m in messages:
+            openai_messages.append({"role": m["role"], "content": m["content"]})  # type: ignore[arg-type]
 
         stream = client.chat.completions.create(
             model=self.MODELS["openai"],
@@ -83,12 +89,14 @@ class ChatService:
             stream=True,
         )
         for chunk in stream:
+            if not hasattr(chunk, "choices") or not chunk.choices:
+                continue
             delta = chunk.choices[0].delta
             if delta.content:
                 yield delta.content
 
     def _stream_google(
-        self, messages: list[dict], system_context: str
+        self, messages: list[dict[str, Any]], system_context: str
     ) -> Generator[str, None, None]:
         from google import genai
         from google.genai import types
