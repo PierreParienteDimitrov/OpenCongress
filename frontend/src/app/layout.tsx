@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Source_Code_Pro } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { Navbar } from "@/components/nav/Navbar";
+import { ChatInterface } from "@/components/chat/ChatInterface";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
         <QueryProvider>
           <Navbar />
           <div className="flex-1">{children}</div>
+          <ChatInterface />
         </QueryProvider>
       </body>
     </html>

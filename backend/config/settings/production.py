@@ -13,7 +13,12 @@ from .base import *  # noqa: F401, F403
 DEBUG = False
 
 # Require critical secrets in production — fail fast if missing
-_REQUIRED_SECRETS = ["SECRET_KEY", "AUTH_SYNC_SECRET", "REVALIDATION_SECRET"]
+_REQUIRED_SECRETS = [
+    "SECRET_KEY",
+    "AUTH_SYNC_SECRET",
+    "REVALIDATION_SECRET",
+    "ENCRYPTION_KEY",
+]
 for _var in _REQUIRED_SECRETS:
     _val = os.environ.get(_var, "")
     if not _val or _val.startswith("django-insecure") or _val.startswith("dev-"):

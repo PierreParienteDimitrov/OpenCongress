@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { getMember } from "@/lib/api";
+import { ChatContextProvider } from "@/lib/chat-context";
 import MemberProfile from "@/components/member/MemberProfile";
 
 export const revalidate = 3600; // 1 hour
@@ -39,5 +40,19 @@ export default async function RepresentativePage({ params }: PageProps) {
     redirect(`/senate/${id}`);
   }
 
-  return <MemberProfile member={member} />;
+  return (
+    <ChatContextProvider
+      context={{
+        type: "member",
+        data: {
+          full_name: member.full_name,
+          party: member.party,
+          state: member.state,
+          chamber: member.chamber,
+        },
+      }}
+    >
+      <MemberProfile member={member} />
+    </ChatContextProvider>
+  );
 }

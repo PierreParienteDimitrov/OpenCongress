@@ -179,6 +179,9 @@ CONGRESS_API_KEY = os.environ.get("CONGRESS_API_KEY")
 GOOGLE_CIVIC_API_KEY = os.environ.get("GOOGLE_CIVIC_API_KEY")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
+# Encryption key for user API key storage (Fernet)
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")
+
 # Frontend integration (for ISR revalidation)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 REVALIDATION_SECRET = os.environ.get("REVALIDATION_SECRET", "dev-secret")

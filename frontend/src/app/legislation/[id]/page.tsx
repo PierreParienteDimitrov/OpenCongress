@@ -4,6 +4,7 @@ import DOMPurify from "isomorphic-dompurify";
 
 import { getBill } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
+import { ChatContextProvider } from "@/lib/chat-context";
 import { routes, getMemberRoute } from "@/lib/routes";
 import {
   cn,
@@ -121,6 +122,18 @@ export default async function LegislationPage({ params }: PageProps) {
   }
 
   return (
+    <ChatContextProvider
+      context={{
+        type: "bill",
+        data: {
+          display_number: bill.display_number,
+          title: bill.short_title || bill.title,
+          sponsor_name: bill.sponsor?.full_name,
+          latest_action: bill.latest_action_text,
+          summary: bill.ai_summary || bill.summary_text || "",
+        },
+      }}
+    >
     <main className="min-h-screen bg-background">
       <GridContainer className="py-8">
         {/* Header */}
@@ -274,5 +287,6 @@ export default async function LegislationPage({ params }: PageProps) {
         )}
       </GridContainer>
     </main>
+    </ChatContextProvider>
   );
 }

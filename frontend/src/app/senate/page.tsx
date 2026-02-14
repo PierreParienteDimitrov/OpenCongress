@@ -7,6 +7,7 @@ import {
   getSeats,
   getVotes,
 } from "@/lib/api";
+import { ChatContextProvider } from "@/lib/chat-context";
 import ChamberPageClient from "@/components/chamber/ChamberPageClient";
 
 export const metadata: Metadata = {
@@ -27,15 +28,17 @@ export default async function SenatePage() {
   ]);
 
   return (
-    <Suspense>
-      <ChamberPageClient
-        chamber="senate"
-        initialData={initialData}
-        allMembers={allSenators}
-        initialSeats={seats}
-        votes={votesResponse.results}
-        memberCount={initialData.count}
-      />
-    </Suspense>
+    <ChatContextProvider context={{ type: "chamber", data: { chamber: "senate" } }}>
+      <Suspense>
+        <ChamberPageClient
+          chamber="senate"
+          initialData={initialData}
+          allMembers={allSenators}
+          initialSeats={seats}
+          votes={votesResponse.results}
+          memberCount={initialData.count}
+        />
+      </Suspense>
+    </ChatContextProvider>
   );
 }

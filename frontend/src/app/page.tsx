@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { routes } from "@/lib/routes";
 import { GridContainer } from "@/components/layout/GridContainer";
+import { ChatContextProvider } from "@/lib/chat-context";
 import { Card } from "@/components/ui/card";
 
 export default function Home() {
   return (
+    <ChatContextProvider context={{ type: "home", data: {} }}>
     <div className="flex min-h-[calc(100vh-var(--navbar-height))] items-center justify-center bg-background font-sans">
       <GridContainer className="flex flex-col items-center gap-16 py-16">
         <header className="flex flex-col items-center gap-4 text-center">
@@ -108,5 +110,6 @@ export default function Home() {
         </footer>
       </GridContainer>
     </div>
+    </ChatContextProvider>
   );
 }

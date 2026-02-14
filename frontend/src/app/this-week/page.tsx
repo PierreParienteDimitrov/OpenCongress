@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { getCurrentWeeklySummaries } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
+import { ChatContextProvider } from "@/lib/chat-context";
 import { routes } from "@/lib/routes";
 import { cn, formatDateLong } from "@/lib/utils";
 import type { WeeklySummary } from "@/types";
@@ -148,6 +149,16 @@ export default async function ThisWeekPage() {
   const currentYear = recap?.year || preview?.year;
 
   return (
+    <ChatContextProvider
+      context={{
+        type: "this-week",
+        data: {
+          summary: recap?.content?.slice(0, 500) || "",
+          week_number: currentWeek,
+          year: currentYear,
+        },
+      }}
+    >
     <main className="min-h-screen bg-background">
       <GridContainer className="py-6">
         {/* Header */}
@@ -221,5 +232,6 @@ export default async function ThisWeekPage() {
         </Alert>
       </GridContainer>
     </main>
+    </ChatContextProvider>
   );
 }

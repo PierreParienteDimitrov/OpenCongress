@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { getVote, getSeatVoteOverlay } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
+import { ChatContextProvider } from "@/lib/chat-context";
 import { routes } from "@/lib/routes";
 import {
   cn,
@@ -51,6 +52,19 @@ export default async function VotePage({ params }: PageProps) {
 
 
   return (
+    <ChatContextProvider
+      context={{
+        type: "vote",
+        data: {
+          vote_id: vote.vote_id,
+          question: vote.question,
+          result: vote.result,
+          date: vote.date,
+          total_yea: vote.total_yea,
+          total_nay: vote.total_nay,
+        },
+      }}
+    >
     <main className="min-h-screen bg-background">
       <GridContainer className="py-8">
         {/* Header */}
@@ -216,5 +230,6 @@ export default async function VotePage({ params }: PageProps) {
         </Card>
       </GridContainer>
     </main>
+    </ChatContextProvider>
   );
 }

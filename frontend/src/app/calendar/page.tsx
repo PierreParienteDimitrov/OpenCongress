@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ClickableCard } from "./ClickableCard";
 import { getBillsCalendar, getVotesCalendar } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
+import { ChatContextProvider } from "@/lib/chat-context";
 import { routes } from "@/lib/routes";
 import type { BillCalendarItem, VoteCalendarItem } from "@/types";
 import {
@@ -193,6 +194,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   };
 
   return (
+    <ChatContextProvider context={{ type: "calendar", data: { week_start: dateFrom, week_end: dateTo } }}>
     <main className="min-h-screen bg-background">
       <GridContainer className="py-6">
         {/* Header */}
@@ -322,5 +324,6 @@ export default async function CalendarPage({ searchParams }: PageProps) {
         </div>
       </GridContainer>
     </main>
+    </ChatContextProvider>
   );
 }
