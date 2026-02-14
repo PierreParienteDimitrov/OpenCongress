@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { LogIn, LogOut, Settings } from "lucide-react";
+import { LogIn, LogOut, MapPin, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -72,6 +72,12 @@ export function UserMenu() {
           <Link href="/settings">
             <Settings className="mr-2 size-4" />
             Settings
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/settings/representatives">
+            <MapPin className="mr-2 size-4" />
+            Find Your Rep
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer">

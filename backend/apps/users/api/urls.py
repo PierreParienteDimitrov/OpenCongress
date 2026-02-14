@@ -5,6 +5,7 @@ from .views import (
     APIKeyCreateUpdateView,
     APIKeyDeleteView,
     APIKeyListView,
+    FollowMemberView,
     MeView,
     MyRepresentativesView,
     SocialAuthSyncView,
@@ -28,6 +29,11 @@ urlpatterns = [
         "my-representatives/",
         MyRepresentativesView.as_view(),
         name="my_representatives",
+    ),
+    path(
+        "follow/<str:bioguide_id>/",
+        FollowMemberView.as_view(),
+        name="follow_member",
     ),
     # Chat
     path("chat/stream/", chat_stream_view, name="chat_stream"),

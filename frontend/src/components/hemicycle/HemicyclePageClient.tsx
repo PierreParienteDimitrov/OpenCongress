@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import type { Seat, SeatWithVote, VoteSummary } from "@/types";
@@ -9,29 +9,21 @@ import { cn, formatDate, getResultLabel, getResultBgColor } from "@/lib/utils";
 import HemicycleChart, { VIEWBOX } from "./HemicycleChart";
 import { useMapZoom } from "@/components/map/useMapZoom";
 import MapZoomControls from "@/components/map/MapZoomControls";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface HemicyclePageClientProps {
   chamber: "house" | "senate";
   initialSeats: Seat[];
   votes: VoteSummary[];
+  selectedVoteId: string;
 }
 
 export default function HemicyclePageClient({
   chamber,
   initialSeats,
   votes,
+  selectedVoteId,
 }: HemicyclePageClientProps) {
-  const [selectedVoteId, setSelectedVoteId] = useState<string>("");
-
   const vb = VIEWBOX[chamber];
   const extent = useMemo<[[number, number], [number, number]]>(
     () => [[vb.minX, vb.minY], [vb.minX + vb.width, vb.minY + vb.height]],
@@ -40,7 +32,7 @@ export default function HemicyclePageClient({
   const { svgRef, gRef, transform, isZoomed, zoomIn, zoomOut, resetZoom } =
     useMapZoom({ width: vb.width, height: vb.height, translateExtent: extent });
 
-  const { data: overlaySeats, isFetching } = useQuery({
+  const { data: overlaySeats } = useQuery({
     queryKey: ["seat-vote-overlay", chamber, selectedVoteId],
     queryFn: () => getSeatVoteOverlayClient(chamber, selectedVoteId),
     enabled: !!selectedVoteId,
@@ -53,130 +45,87 @@ export default function HemicyclePageClient({
   const selectedVote = votes.find((v) => v.vote_id === selectedVoteId);
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      {/* Vote selector + legend — compact, doesn't grow */}
-      <div className="shrink-0 space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label
-            htmlFor="vote-select"
-            className="text-sm font-medium text-foreground"
-          >
-            Vote Overlay:
-          </label>
-          <Select
-            value={selectedVoteId || "__default__"}
-            onValueChange={(value) => setSelectedVoteId(value === "__default__" ? "" : value)}
-          >
-            <SelectTrigger className="max-w-lg">
-              <SelectValue placeholder="Show by party (default)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__default__">Show by party (default)</SelectItem>
-              {votes.map((vote) => (
-                <SelectItem key={vote.vote_id} value={vote.vote_id}>
-                  {formatDate(vote.date)} — {vote.question} (
-                  {getResultLabel(vote.result)})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isFetching && (
-            <span className="text-sm text-muted-foreground animate-pulse">
-              Loading overlay...
-            </span>
+    <div className="relative h-full">
+      {/* Hemicycle chart — fills the entire area */}
+      <MapZoomControls
+        isZoomed={isZoomed}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onReset={resetZoom}
+      />
+      <HemicycleChart
+        chamber={chamber}
+        seats={displaySeats}
+        showVoteOverlay={isOverlay}
+        svgRef={svgRef}
+        gRef={gRef}
+        zoomTransform={transform}
+      />
+
+      {/* Legend — overlaid at the bottom center of the hemicycle */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+        <div className="pointer-events-auto flex flex-wrap justify-center gap-x-4 gap-y-1 rounded-md bg-background/80 px-3 py-1.5 text-xs text-foreground backdrop-blur-sm">
+          {isOverlay ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full border border-border bg-card" />
+                <span>Yea</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#18181b" }} />
+                <span>Nay</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-yellow-500" />
+                <span>Present</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-gray-500" />
+                <span>Not Voting</span>
+              </div>
+              <div className="flex items-center gap-1.5 border-l border-border pl-3">
+                <span className="text-muted-foreground">Border = party</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#2563eb" }} />
+                <span>Democrat</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#dc2626" }} />
+                <span>Republican</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#7c3aed" }} />
+                <span>Independent</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-secondary" />
+                <span>Vacant</span>
+              </div>
+            </>
           )}
         </div>
-
-        {/* Legend */}
-        {isOverlay ? (
-          <div className="flex flex-wrap gap-4 text-sm text-foreground">
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-full border border-border bg-card" />
-              <span>Yea</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: "#18181b" }} />
-              <span>Nay</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-full bg-yellow-500" />
-              <span>Present</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-full bg-gray-500" />
-              <span>Not Voting</span>
-            </div>
-            <div className="ml-2 flex items-center gap-1.5 border-l border-border pl-3">
-              <span className="text-muted-foreground">
-                Border = party color
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-4 text-sm text-foreground">
-            <div className="flex items-center gap-1.5">
-              <span
-                className="inline-block h-3 w-3 rounded-full"
-                style={{ backgroundColor: "#2563eb" }}
-              />
-              <span>Democrat</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span
-                className="inline-block h-3 w-3 rounded-full"
-                style={{ backgroundColor: "#dc2626" }}
-              />
-              <span>Republican</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span
-                className="inline-block h-3 w-3 rounded-full"
-                style={{ backgroundColor: "#7c3aed" }}
-              />
-              <span>Independent</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-3 w-3 rounded-full bg-secondary" />
-              <span>Vacant</span>
-            </div>
-          </div>
-        )}
-
-        {/* Selected vote info */}
-        {selectedVote && (
-          <Card className="bg-secondary p-3 py-3 text-sm">
-            <p className="font-medium text-foreground">
-              {selectedVote.question}
-            </p>
-            <p className="mt-1 text-muted-foreground">
-              {formatDate(selectedVote.date)} &mdash;{" "}
-              <Badge className={cn("px-1.5", getResultBgColor(selectedVote.result))}>
-                {getResultLabel(selectedVote.result)}
-              </Badge>{" "}
-              &mdash; Yea: {selectedVote.total_yea}, Nay:{" "}
-              {selectedVote.total_nay}
-            </p>
-          </Card>
-        )}
       </div>
 
-      {/* Hemicycle chart — fills remaining space */}
-      <div className="relative min-h-0 flex-1">
-        <MapZoomControls
-          isZoomed={isZoomed}
-          onZoomIn={zoomIn}
-          onZoomOut={zoomOut}
-          onReset={resetZoom}
-        />
-        <HemicycleChart
-          chamber={chamber}
-          seats={displaySeats}
-          showVoteOverlay={isOverlay}
-          svgRef={svgRef}
-          gRef={gRef}
-          zoomTransform={transform}
-        />
-      </div>
+      {/* Selected vote info — overlaid at top left */}
+      {selectedVote && (
+        <div className="absolute left-4 top-2 max-w-sm rounded-md bg-background/80 px-3 py-2 text-sm backdrop-blur-sm">
+          <p className="font-medium text-foreground">
+            {selectedVote.question}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {formatDate(selectedVote.date)} &mdash;{" "}
+            <Badge className={cn("px-1.5", getResultBgColor(selectedVote.result))}>
+              {getResultLabel(selectedVote.result)}
+            </Badge>{" "}
+            &mdash; Yea: {selectedVote.total_yea}, Nay:{" "}
+            {selectedVote.total_nay}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

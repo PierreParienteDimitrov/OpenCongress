@@ -79,24 +79,13 @@ export async function deleteAPIKey(provider: string): Promise<void> {
   });
 }
 
-// ── My Representatives ──
+// ── My Representatives / Follows ──
 
 import type { MemberListItem } from "@/types";
 
 export interface MyRepresentativesResponse {
-  has_representatives: boolean;
-  zip_code: string;
-  state: string;
-  state_name: string;
-  district: string;
-  representatives: MemberListItem[];
-}
-
-export interface MultipleDistrictsResponse {
-  multiple_districts: true;
-  districts: number[];
-  state: string;
-  state_name: string;
+  followed_ids: string[];
+  followed_members: MemberListItem[];
 }
 
 export async function fetchMyRepresentatives(): Promise<MyRepresentativesResponse> {
@@ -105,20 +94,16 @@ export async function fetchMyRepresentatives(): Promise<MyRepresentativesRespons
   );
 }
 
-export async function saveMyRepresentatives(
-  zipCode: string,
-  district?: number,
-): Promise<MyRepresentativesResponse | MultipleDistrictsResponse> {
-  return fetchAuthenticated<
-    MyRepresentativesResponse | MultipleDistrictsResponse
-  >("/auth/my-representatives/", {
+export async function followMember(
+  bioguideId: string,
+): Promise<{ bioguide_id: string; followed: boolean }> {
+  return fetchAuthenticated(`/auth/follow/${bioguideId}/`, {
     method: "POST",
-    body: JSON.stringify({ zip_code: zipCode, district }),
   });
 }
 
-export async function clearMyRepresentatives(): Promise<void> {
-  return fetchAuthenticated("/auth/my-representatives/", {
+export async function unfollowMember(bioguideId: string): Promise<void> {
+  return fetchAuthenticated(`/auth/follow/${bioguideId}/`, {
     method: "DELETE",
   });
 }

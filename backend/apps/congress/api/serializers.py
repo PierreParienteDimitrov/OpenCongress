@@ -97,6 +97,20 @@ class MemberRecentVoteSerializer(serializers.ModelSerializer):
         ]
 
 
+class RepSponsoredBillSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for a member's recently active sponsored bills."""
+
+    class Meta:
+        model = Bill
+        fields = [
+            "bill_id",
+            "display_number",
+            "short_title",
+            "latest_action_date",
+            "latest_action_text",
+        ]
+
+
 class BillListSerializer(serializers.ModelSerializer):
     """Serializer for bill list views."""
 

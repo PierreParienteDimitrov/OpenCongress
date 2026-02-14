@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Loader2, Unlink, Search } from "lucide-react";
+import { MapPin, Loader2, Search, UserPlus, UserMinus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,60 +15,74 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
   fetchMyRepresentatives,
-  saveMyRepresentatives,
-  clearMyRepresentatives,
-} from "@/lib/api-client";
-import type {
-  MyRepresentativesResponse,
-  MultipleDistrictsResponse,
+  followMember,
+  unfollowMember,
 } from "@/lib/api-client";
 import { lookupZipCode } from "@/lib/api";
 import { cn, getPartyBgColor, getPartyName } from "@/lib/utils";
 import { getMemberRoute } from "@/lib/routes";
 import type { ZipLookupResult, MemberListItem } from "@/types";
 
-function isMultipleDistricts(
-  resp: MyRepresentativesResponse | MultipleDistrictsResponse,
-): resp is MultipleDistrictsResponse {
-  return "multiple_districts" in resp && resp.multiple_districts === true;
-}
-
-function RepCard({ member }: { member: MemberListItem }) {
+function RepCard({
+  member,
+  isFollowed,
+  onFollow,
+  onUnfollow,
+  isPending,
+}: {
+  member: MemberListItem;
+  isFollowed: boolean;
+  onFollow: () => void;
+  onUnfollow: () => void;
+  isPending: boolean;
+}) {
   return (
-    <Link
-      href={getMemberRoute(member.bioguide_id, member.chamber)}
-      className="flex items-center gap-3 cursor-pointer rounded border border-border bg-card p-3 transition-all hover:border-muted-foreground/30 hover:shadow-sm"
-    >
-      <Image
-        src={member.photo_url}
-        alt={member.full_name}
-        width={40}
-        height={40}
-        className="h-10 w-10 rounded-full object-cover"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">
-          {member.full_name}
-        </p>
-        <div className="mt-1 flex items-center gap-2">
-          <Badge className={cn("text-xs", getPartyBgColor(member.party))}>
-            {getPartyName(member.party)}
-          </Badge>
-          <span className="text-xs text-muted-foreground">
-            {member.chamber === "senate" ? "Senator" : "Representative"}
-          </span>
+    <div className="flex items-center gap-3 rounded border border-border bg-card p-3">
+      <Link
+        href={getMemberRoute(member.bioguide_id, member.chamber)}
+        className="flex flex-1 items-center gap-3 cursor-pointer min-w-0"
+      >
+        <Image
+          src={member.photo_url}
+          alt={member.full_name}
+          width={40}
+          height={40}
+          className="h-10 w-10 rounded-full object-cover"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {member.full_name}
+          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <Badge className={cn("text-xs", getPartyBgColor(member.party))}>
+              {getPartyName(member.party)}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {member.chamber === "senate" ? "Senator" : "Representative"}
+            </span>
+          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+      <Button
+        variant={isFollowed ? "outline" : "default"}
+        size="sm"
+        onClick={isFollowed ? onUnfollow : onFollow}
+        disabled={isPending}
+        className="shrink-0 cursor-pointer"
+      >
+        {isPending ? (
+          <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+        ) : isFollowed ? (
+          <UserMinus className="mr-1.5 size-3.5" />
+        ) : (
+          <UserPlus className="mr-1.5 size-3.5" />
+        )}
+        {isFollowed ? "Following" : "Follow"}
+      </Button>
+    </div>
   );
 }
 
@@ -80,31 +94,42 @@ export function MyRepresentatives() {
     queryFn: fetchMyRepresentatives,
   });
 
-  const saveMutation = useMutation({
-    mutationFn: ({
-      zipCode,
-      district,
-    }: {
-      zipCode: string;
-      district?: number;
-    }) => saveMyRepresentatives(zipCode, district),
-    onSuccess: (resp) => {
-      if (!isMultipleDistricts(resp)) {
-        queryClient.invalidateQueries({ queryKey: ["my-representatives"] });
-      }
+  const followedIds = new Set(data?.followed_ids ?? []);
+
+  const followMut = useMutation({
+    mutationFn: followMember,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-representatives"] });
     },
   });
 
-  const clearMutation = useMutation({
-    mutationFn: clearMyRepresentatives,
+  const unfollowMut = useMutation({
+    mutationFn: unfollowMember,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-representatives"] });
-      setSearchResult(null);
-      setMultiDistricts(null);
-      setSelectedDistrict(undefined);
-      setZip("");
     },
   });
+
+  // Track which member is being toggled to show spinner on the right button
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  async function handleFollow(bioguideId: string) {
+    setPendingId(bioguideId);
+    try {
+      await followMut.mutateAsync(bioguideId);
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  async function handleUnfollow(bioguideId: string) {
+    setPendingId(bioguideId);
+    try {
+      await unfollowMut.mutateAsync(bioguideId);
+    } finally {
+      setPendingId(null);
+    }
+  }
 
   // Search state
   const [zip, setZip] = useState("");
@@ -113,14 +138,6 @@ export function MyRepresentatives() {
   const [searchResult, setSearchResult] = useState<ZipLookupResult | null>(
     null,
   );
-  const [multiDistricts, setMultiDistricts] = useState<{
-    districts: number[];
-    state: string;
-    state_name: string;
-  } | null>(null);
-  const [selectedDistrict, setSelectedDistrict] = useState<
-    number | undefined
-  >();
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -134,8 +151,6 @@ export function MyRepresentatives() {
 
     setSearching(true);
     setSearchError(null);
-    setMultiDistricts(null);
-    setSelectedDistrict(undefined);
 
     try {
       const result = await lookupZipCode(trimmed);
@@ -153,27 +168,6 @@ export function MyRepresentatives() {
     setZip("");
     setSearchError(null);
     setSearchResult(null);
-    setMultiDistricts(null);
-    setSelectedDistrict(undefined);
-  }
-
-  async function handleSave() {
-    const trimmed = zip.trim();
-    if (!trimmed) return;
-
-    const resp = await saveMutation.mutateAsync({
-      zipCode: trimmed,
-      district: selectedDistrict,
-    });
-
-    if (isMultipleDistricts(resp)) {
-      setMultiDistricts({
-        districts: resp.districts,
-        state: resp.state,
-        state_name: resp.state_name,
-      });
-      setSearchResult(null);
-    }
   }
 
   if (isLoading) {
@@ -195,46 +189,8 @@ export function MyRepresentatives() {
     );
   }
 
-  // Display mode — user has saved reps
-  if (data?.has_representatives) {
-    return (
-      <Card className="py-4">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="size-5" />
-            My Representatives
-          </CardTitle>
-          <CardDescription>
-            {data.state_name}
-            {data.district ? `, District ${data.district}` : ""}
-            {data.zip_code ? ` (zip: ${data.zip_code})` : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            {data.representatives.map((member) => (
-              <RepCard key={member.bioguide_id} member={member} />
-            ))}
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => clearMutation.mutate()}
-            disabled={clearMutation.isPending}
-            className="cursor-pointer"
-          >
-            {clearMutation.isPending ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <Unlink className="mr-2 size-4" />
-            )}
-            Unlink Representatives
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  const hasFollowed = data && data.followed_members.length > 0;
 
-  // Search mode — no saved reps
   return (
     <Card className="py-4">
       <CardHeader>
@@ -243,111 +199,96 @@ export function MyRepresentatives() {
           My Representatives
         </CardTitle>
         <CardDescription>
-          Enter your zip code to find and save your congressional
-          representatives. Saved representatives will be used for your
-          personalized feed and notifications.
+          Find your congressional representatives by zip code and follow them to
+          get a personalized feed and notifications.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Zip code search */}
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              value={zip}
-              onChange={(e) => setZip(e.target.value)}
-              placeholder="Search by zip code..."
-              maxLength={5}
-              className="h-10 w-full rounded-md border border-input bg-card pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={searching}
-            className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            {searching ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              "Search"
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={handleClear}
-            className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-input bg-card px-4 text-sm font-medium text-foreground hover:bg-accent"
-          >
-            Clear
-          </button>
-        </form>
-        {searchError && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {searchError}
-          </p>
-        )}
-
-        {/* Multi-district picker */}
-        {multiDistricts && (
+      <CardContent className="space-y-6">
+        {/* Followed members */}
+        {hasFollowed && (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              This zip code spans multiple congressional districts in{" "}
-              {multiDistricts.state_name}. Please select your district:
-            </p>
-            <Select
-              onValueChange={(val) => setSelectedDistrict(Number(val))}
-              value={selectedDistrict?.toString()}
-            >
-              <SelectTrigger className="w-48 cursor-pointer">
-                <SelectValue placeholder="Select district" />
-              </SelectTrigger>
-              <SelectContent>
-                {multiDistricts.districts.map((d) => (
-                  <SelectItem
-                    key={d}
-                    value={d.toString()}
-                    className="cursor-pointer"
-                  >
-                    {multiDistricts.state} District {d}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={handleSave}
-              disabled={
-                selectedDistrict === undefined || saveMutation.isPending
-              }
-              className="cursor-pointer"
-            >
-              {saveMutation.isPending && (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              )}
-              Save These Representatives
-            </Button>
-          </div>
-        )}
-
-        {/* Search results */}
-        {searchResult && searchResult.members.length > 0 && !multiDistricts && (
-          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-foreground">Following</h3>
             <div className="space-y-2">
-              {searchResult.members.map((member) => (
-                <RepCard key={member.bioguide_id} member={member} />
+              {data.followed_members.map((member) => (
+                <RepCard
+                  key={member.bioguide_id}
+                  member={member}
+                  isFollowed={true}
+                  onFollow={() => handleFollow(member.bioguide_id)}
+                  onUnfollow={() => handleUnfollow(member.bioguide_id)}
+                  isPending={pendingId === member.bioguide_id}
+                />
               ))}
             </div>
-            <Button
-              onClick={handleSave}
-              disabled={saveMutation.isPending}
-              className="cursor-pointer"
-            >
-              {saveMutation.isPending && (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              )}
-              Save These Representatives
-            </Button>
           </div>
         )}
+
+        {hasFollowed && <Separator />}
+
+        {/* Zip code search */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-foreground">
+            Find Representatives
+          </h3>
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+                placeholder="Search by zip code..."
+                maxLength={5}
+                className="h-10 w-full rounded-md border border-input bg-card pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={searching}
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {searching ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                "Search"
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-input bg-card px-4 text-sm font-medium text-foreground hover:bg-accent"
+            >
+              Clear
+            </button>
+          </form>
+          {searchError && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {searchError}
+            </p>
+          )}
+
+          {/* Search results */}
+          {searchResult && searchResult.members.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {searchResult.state_name}
+                {searchResult.district
+                  ? `, District ${searchResult.district}`
+                  : ""}
+              </p>
+              {searchResult.members.map((member) => (
+                <RepCard
+                  key={member.bioguide_id}
+                  member={member}
+                  isFollowed={followedIds.has(member.bioguide_id)}
+                  onFollow={() => handleFollow(member.bioguide_id)}
+                  onUnfollow={() => handleUnfollow(member.bioguide_id)}
+                  isPending={pendingId === member.bioguide_id}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

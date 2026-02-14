@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Landmark, Map, List } from "lucide-react";
 
@@ -13,8 +14,15 @@ import {
   getSenatorsPaginated,
   getRepresentativesPaginated,
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, formatDate, getResultLabel } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { GridContainer } from "@/components/layout/GridContainer";
 import MemberList from "@/components/member/MemberList";
 import CongressMap from "@/components/map/CongressMap";
@@ -57,6 +65,7 @@ export default function ChamberPageClient({
   const router = useRouter();
   const pathname = usePathname();
   const currentView = searchParams.get("view") ?? "seats";
+  const [selectedVoteId, setSelectedVoteId] = useState<string>("");
 
   function handleTabChange(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -90,7 +99,7 @@ export default function ChamberPageClient({
         <p className="mt-1 text-sm text-muted-foreground">
           Browse all {memberCount} current {LABELS[chamber].desc}.
         </p>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <Tabs value={currentView} onValueChange={handleTabChange}>
             <TabsList>
               <TabsTrigger value="seats">
@@ -107,19 +116,41 @@ export default function ChamberPageClient({
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          {isSeats && (
+            <Select
+              value={selectedVoteId || "__default__"}
+              onValueChange={(value) =>
+                setSelectedVoteId(value === "__default__" ? "" : value)
+              }
+            >
+              <SelectTrigger className="w-auto max-w-xs sm:max-w-md">
+                <SelectValue placeholder="Show by party (default)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">
+                  Show by party (default)
+                </SelectItem>
+                {votes.map((vote) => (
+                  <SelectItem key={vote.vote_id} value={vote.vote_id}>
+                    {formatDate(vote.date)} — {vote.question} (
+                    {getResultLabel(vote.result)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
       </GridContainer>
 
       {/* Content — layout depends on active tab */}
       {isSeats ? (
-        <div className="min-h-0 flex-1 px-4 pb-4">
-          <div className="flex h-full flex-col p-4">
-            <HemicyclePageClient
-              chamber={chamber}
-              initialSeats={initialSeats}
-              votes={votes}
-            />
-          </div>
+        <div className="min-h-0 flex-1">
+          <HemicyclePageClient
+            chamber={chamber}
+            initialSeats={initialSeats}
+            votes={votes}
+            selectedVoteId={selectedVoteId}
+          />
         </div>
       ) : currentView === "map" ? (
         <GridContainer className="py-4">

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { Menu, LogOut } from "lucide-react";
+import { Menu, LogOut, MapPin, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,9 +74,34 @@ export function MobileMenu() {
               <p className="text-xs text-nav-foreground/60 truncate px-1">
                 {session.user.email}
               </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10 cursor-pointer"
+                  asChild
+                >
+                  <Link href="/settings" onClick={() => setOpen(false)}>
+                    <Settings className="mr-2 size-4" />
+                    Settings
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10 cursor-pointer"
+                  asChild
+                >
+                  <Link
+                    href="/settings/representatives"
+                    onClick={() => setOpen(false)}
+                  >
+                    <MapPin className="mr-2 size-4" />
+                    My Rep
+                  </Link>
+                </Button>
+              </div>
               <Button
                 variant="outline"
-                className="w-full border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10"
+                className="w-full border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10 cursor-pointer"
                 onClick={() => {
                   setOpen(false);
                   signOut();

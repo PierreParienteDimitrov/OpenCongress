@@ -9,7 +9,7 @@ import { navLinks } from "./NavLinks";
 
 export function Navbar() {
   return (
-    <nav className="sticky top-0 z-50 bg-nav">
+    <nav className="sticky top-0 z-50 bg-nav border-b border-border">
       <GridContainer className="flex h-14 items-center justify-between">
         {/* Left: Logo + desktop links */}
         <div className="flex items-center gap-1">
