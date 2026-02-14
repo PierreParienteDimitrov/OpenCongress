@@ -216,92 +216,139 @@ export function ChatInterface() {
   const showChat = session && hasKeys && adapter;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
-  // ── Shared chat content (used in both modes) ──
-  const chatContent = showChat ? (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <ChatPanelHeader
-        showClearButton
-        isMobile={isMobile}
-        isExpanded={isExpanded}
-        onToggleExpand={() => toggleExpanded()}
-        onClose={closeChat}
-        onPointerDown={(e) => {
-          if (!isMobile && !isExpanded) dragControls.start(e);
-        }}
-      />
-      <Thread contextLabel={contextLabel} />
-    </AssistantRuntimeProvider>
-  ) : (
-    <>
-      <ChatPanelHeader
-        showClearButton={false}
-        isMobile={isMobile}
-        isExpanded={isExpanded}
-        onToggleExpand={() => toggleExpanded()}
-        onClose={closeChat}
-        onPointerDown={(e) => {
-          if (!isMobile && !isExpanded) dragControls.start(e);
-        }}
-      />
-      {/* Not logged in */}
-      {!session ? (
-        <div className="flex flex-1 items-center justify-center p-6">
-          <div className="text-center space-y-3">
-            <LogIn className="mx-auto size-10 text-muted-foreground/40" />
-            <div>
-              <p className="font-medium text-sm">Sign in to get started</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Log in with your account to use the AI assistant.
-              </p>
-            </div>
-            <Button asChild size="sm" variant="outline">
-              <Link
-                href={buildLoginUrl()}
-                onClick={closeChat}
-                className="cursor-pointer"
-              >
-                Sign in
-              </Link>
-            </Button>
-          </div>
-        </div>
-      ) : (
-        /* No API keys */
-        <div className="flex flex-1 items-center justify-center p-6">
-          <div className="text-center space-y-3">
-            <Settings className="mx-auto size-10 text-muted-foreground/40" />
-            <div>
-              <p className="font-medium text-sm">No API keys configured</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Add at least one AI provider API key in settings to use the
-                chat.
-              </p>
-            </div>
-            <Button asChild size="sm" variant="outline">
-              <Link
-                href="/settings"
-                onClick={closeChat}
-                className="cursor-pointer"
-              >
-                Go to Settings
-              </Link>
-            </Button>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  // ── Shared header + thread content (rendered inside both modes) ──
+  const headerProps = {
+    isMobile,
+    isExpanded,
+    onToggleExpand: () => toggleExpanded(),
+    onClose: closeChat,
+    onPointerDown: (e: React.PointerEvent) => {
+      if (!isMobile && !isExpanded) dragControls.start(e);
+    },
+  };
 
-  // ── Sidebar mode: portal into the sidebar slot ──
+  // ── Non-authenticated / no-keys fallback (no runtime needed) ──
+  if (!showChat) {
+    const fallbackContent = (
+      <>
+        <ChatPanelHeader showClearButton={false} {...headerProps} />
+        {!session ? (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <div className="text-center space-y-3">
+              <LogIn className="mx-auto size-10 text-muted-foreground/40" />
+              <div>
+                <p className="font-medium text-sm">Sign in to get started</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Log in with your account to use the AI assistant.
+                </p>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link
+                  href={buildLoginUrl()}
+                  onClick={closeChat}
+                  className="cursor-pointer"
+                >
+                  Sign in
+                </Link>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <div className="text-center space-y-3">
+              <Settings className="mx-auto size-10 text-muted-foreground/40" />
+              <div>
+                <p className="font-medium text-sm">No API keys configured</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Add at least one AI provider API key in settings to use the
+                  chat.
+                </p>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link
+                  href="/settings"
+                  onClick={closeChat}
+                  className="cursor-pointer"
+                >
+                  Go to Settings
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+
+    return (
+      <ChatShell
+        isOpen={isOpen}
+        isExpanded={isExpanded}
+        isMobile={isMobile}
+        panelSize={panelSize}
+        panelPositionResolved={panelPositionResolved}
+        dragControls={dragControls}
+        setPanelPosition={setPanelPosition}
+        startResize={startResize}
+      >
+        {fallbackContent}
+      </ChatShell>
+    );
+  }
+
+  // ── Authenticated chat: runtime wraps both modes so conversation persists ──
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ChatShell
+        isOpen={isOpen}
+        isExpanded={isExpanded}
+        isMobile={isMobile}
+        panelSize={panelSize}
+        panelPositionResolved={panelPositionResolved}
+        dragControls={dragControls}
+        setPanelPosition={setPanelPosition}
+        startResize={startResize}
+      >
+        <ChatPanelHeader showClearButton {...headerProps} />
+        <Thread contextLabel={contextLabel} />
+      </ChatShell>
+    </AssistantRuntimeProvider>
+  );
+}
+
+// ── Shell: handles sidebar-portal vs floating-panel rendering ──
+function ChatShell({
+  isOpen,
+  isExpanded,
+  isMobile,
+  panelSize,
+  panelPositionResolved,
+  dragControls,
+  setPanelPosition,
+  startResize,
+  children,
+}: {
+  isOpen: boolean;
+  isExpanded: boolean;
+  isMobile: boolean;
+  panelSize: { width: number; height: number };
+  panelPositionResolved: { x: number; y: number } | null;
+  dragControls: ReturnType<typeof useDragControls>;
+  setPanelPosition: React.Dispatch<
+    React.SetStateAction<{ x: number; y: number } | null>
+  >;
+  startResize: (e: React.MouseEvent, direction: "se" | "e" | "s") => void;
+  children: React.ReactNode;
+}) {
   const sidebarSlot =
     typeof document !== "undefined"
       ? document.getElementById("chat-sidebar-slot")
       : null;
 
+  // ── Sidebar mode: portal into the sidebar slot ──
   if (isOpen && isExpanded && sidebarSlot) {
     return createPortal(
       <div className="flex h-full flex-col overflow-hidden bg-muted/90">
-        {chatContent}
+        {children}
       </div>,
       sidebarSlot,
     );
@@ -352,7 +399,7 @@ export function ChatInterface() {
             isMobile && "rounded-none",
           )}
         >
-          {chatContent}
+          {children}
 
           {/* Resize handles (desktop only) */}
           {!isMobile && (
