@@ -26,7 +26,7 @@ export default function QueryProvider({
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="light"
+      defaultTheme="system"
       enableSystem={true}
       disableTransitionOnChange={false}
     >

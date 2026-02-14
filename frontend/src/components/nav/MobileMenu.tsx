@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
-import { Menu, LogOut, MapPin, Settings } from "lucide-react";
+import { Menu, LogOut, MapPin, Moon, Settings, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { routes } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -18,10 +20,16 @@ import {
 import { navLinks } from "./NavLinks";
 import { useChatUI } from "@/lib/chat-store";
 
+const allMobileLinks = [
+  ...navLinks,
+  { label: "Calendar", href: routes.calendar.index },
+];
+
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { theme, setTheme } = useTheme();
   const openChat = useChatUI((s) => s.open);
 
   return (
@@ -48,7 +56,7 @@ export function MobileMenu() {
         </SheetHeader>
 
         <nav className="flex flex-col p-4 gap-1">
-          {navLinks.map((link) => {
+          {allMobileLinks.map((link) => {
             const isActive =
               pathname === link.href ||
               pathname.startsWith(link.href + "/");
@@ -61,7 +69,7 @@ export function MobileMenu() {
                   "px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
                   isActive
                     ? "bg-nav-foreground/15 text-nav-foreground"
-                    : "text-nav-foreground/70 hover:bg-nav-foreground/10 hover:text-nav-foreground"
+                    : "text-nav-foreground/70 hover:bg-nav-foreground/10 hover:text-nav-foreground",
                 )}
               >
                 {link.label}
@@ -110,17 +118,31 @@ export function MobileMenu() {
                   </Link>
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                className="w-full border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10 cursor-pointer"
-                onClick={() => {
-                  setOpen(false);
-                  signOut();
-                }}
-              >
-                <LogOut className="mr-2 size-4" />
-                Sign out
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10 cursor-pointer"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                >
+                  {theme === "dark" ? (
+                    <Sun className="mr-2 size-4" />
+                  ) : (
+                    <Moon className="mr-2 size-4" />
+                  )}
+                  {theme === "dark" ? "Light" : "Dark"}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 border-nav-foreground/20 text-nav-foreground bg-transparent hover:bg-nav-foreground/10 cursor-pointer"
+                  onClick={() => {
+                    setOpen(false);
+                    signOut();
+                  }}
+                >
+                  <LogOut className="mr-2 size-4" />
+                  Sign out
+                </Button>
+              </div>
             </div>
           ) : (
             <Button

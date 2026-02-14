@@ -2,10 +2,10 @@ import Link from "next/link";
 import { routes } from "@/lib/routes";
 import { GridContainer } from "@/components/layout/GridContainer";
 import { ActiveLink } from "./ActiveLink";
-import { ThemeToggle } from "./ThemeToggle";
 import { MobileMenu } from "./MobileMenu";
 import { UserMenu } from "./UserMenu";
 import { NavChatButton } from "./NavChatButton";
+import { NavCalendarButton } from "./NavCalendarButton";
 import { navLinks } from "./NavLinks";
 
 export function Navbar() {
@@ -31,10 +31,10 @@ export function Navbar() {
           </div>
         </div>
 
-        {/* Right: AI Bot + Theme toggle + User menu + Mobile menu */}
-        <div className="flex items-center gap-1">
+        {/* Right: Calendar + AI Bot + User menu + Mobile menu */}
+        <div className="flex items-center gap-1.5">
+          <NavCalendarButton />
           <NavChatButton />
-          <ThemeToggle />
           <UserMenu />
           <MobileMenu />
         </div>

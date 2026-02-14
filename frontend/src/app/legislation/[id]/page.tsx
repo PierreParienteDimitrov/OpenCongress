@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import DOMPurify from "isomorphic-dompurify";
+import { ChevronLeft } from "lucide-react";
 
 import { getBill } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
@@ -141,10 +142,11 @@ export default async function LegislationPage({ params }: PageProps) {
         {/* Header */}
         <div className="mb-6">
           <Link
-            href={routes.calendar.index}
-            className="cursor-pointer text-accent hover:text-accent/80 text-sm mb-2 inline-block"
+            href={routes.home}
+            className="cursor-pointer inline-flex items-center gap-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
           >
-            &larr; Back to Calendar
+            <ChevronLeft className="size-4" />
+            Back
           </Link>
           <h1 className="text-3xl font-bold text-foreground mb-1">
             {bill.display_number}

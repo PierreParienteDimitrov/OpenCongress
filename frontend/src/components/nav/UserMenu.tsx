@@ -1,19 +1,30 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
+import { useTheme } from "next-themes";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LogIn, LogOut, MapPin, Settings } from "lucide-react";
+import { LogIn, LogOut, MapPin, Moon, Settings, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const emptySubscribe = () => () => {};
+
 export function UserMenu() {
   const { data: session, status } = useSession();
+  const { theme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
 
   if (status === "loading") {
     return (
@@ -41,6 +52,8 @@ export function UserMenu() {
     session.user.email?.[0] ||
     "U"
   ).toUpperCase();
+
+  const isDark = mounted && theme === "dark";
 
   return (
     <DropdownMenu>
@@ -80,6 +93,22 @@ export function UserMenu() {
             Find Your Rep
           </Link>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={(e) => {
+            e.preventDefault();
+            setTheme(isDark ? "light" : "dark");
+          }}
+          className="cursor-pointer"
+        >
+          {isDark ? (
+            <Sun className="mr-2 size-4" />
+          ) : (
+            <Moon className="mr-2 size-4" />
+          )}
+          {isDark ? "Light mode" : "Dark mode"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => signOut()} className="cursor-pointer">
           <LogOut className="mr-2 size-4" />
           Sign out

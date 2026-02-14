@@ -25,6 +25,7 @@ import {
   truncate,
 } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { CalendarDays } from "lucide-react";
 import FindYourRep from "@/components/home/FindYourRep";
 import MiniHemicycle from "@/components/home/MiniHemicycle";
 import YourRepsThisWeek from "@/components/home/YourRepsThisWeek";
@@ -137,13 +138,22 @@ export default async function Home() {
       <main className="min-h-screen bg-background">
         <GridContainer className="py-10">
           {/* Date header */}
-          <div className="mb-10 border-b-2 border-foreground pb-5">
-            <time className="text-sm uppercase tracking-widest text-muted-foreground">
-              {formatDateLong(formatDateParam(now))}
-            </time>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              OpenCongress
-            </h1>
+          <div className="mb-10 flex items-end justify-between border-b-2 border-foreground pb-5">
+            <div>
+              <time className="text-sm uppercase tracking-widest text-muted-foreground">
+                {formatDateLong(formatDateParam(now))}
+              </time>
+              <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                OpenCongress
+              </h1>
+            </div>
+            <Link
+              href={routes.calendar.index}
+              className="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <CalendarDays className="size-4" />
+              See Calendar
+            </Link>
           </div>
 
           {/* Main grid: 8 + 4 columns on large screens */}

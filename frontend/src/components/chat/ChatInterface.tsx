@@ -320,7 +320,7 @@ export function ChatInterface() {
 
   if (isOpen && isExpanded && sidebarSlot) {
     return createPortal(
-      <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex h-full flex-col overflow-hidden bg-muted/90">
         {chatContent}
       </div>,
       sidebarSlot,
@@ -368,7 +368,7 @@ export function ChatInterface() {
                 }
           }
           className={cn(
-            "flex flex-col rounded-lg border bg-background shadow-xl overflow-hidden",
+            "flex flex-col rounded-lg border bg-muted/90 shadow-xl overflow-hidden",
             isMobile && "rounded-none",
           )}
         >

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 import { ClickableCard } from "./ClickableCard";
 import { getBillsCalendar, getVotesCalendar } from "@/lib/api";
@@ -199,6 +200,15 @@ export default async function CalendarPage({ searchParams }: PageProps) {
     <ChatContextProvider context={{ type: "calendar", data: { week_start: dateFrom, week_end: dateTo } }}>
     <main className="min-h-screen bg-background">
       <GridContainer className="py-10">
+        {/* Back link */}
+        <Link
+          href={routes.home}
+          className="cursor-pointer inline-flex items-center gap-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
+        >
+          <ChevronLeft className="size-4" />
+          Back
+        </Link>
+
         {/* Header */}
         <div className="mb-8 border-b-2 border-foreground pb-5">
           <div className="flex items-center justify-between">

@@ -1,20 +1,31 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Landmark, Map, List } from "lucide-react";
 
 import type {
   MemberListItem,
   PaginatedResponse,
   Seat,
+  SeatWithVote,
   VoteSummary,
 } from "@/types";
 import {
   getSenatorsPaginated,
   getRepresentativesPaginated,
+  getSeatVoteOverlayClient,
 } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, formatDate, getResultLabel } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { GridContainer } from "@/components/layout/GridContainer";
 import MemberList from "@/components/member/MemberList";
 import CongressMap from "@/components/map/CongressMap";
@@ -45,6 +56,8 @@ const LABELS = {
   },
 };
 
+const DEFAULT_VOTE = "__default__";
+
 export default function ChamberPageClient({
   chamber,
   initialData,
@@ -57,6 +70,13 @@ export default function ChamberPageClient({
   const router = useRouter();
   const pathname = usePathname();
   const currentView = searchParams.get("view") ?? "seats";
+  const [selectedVoteId, setSelectedVoteId] = useState(DEFAULT_VOTE);
+
+  const { data: voteOverlaySeats } = useQuery<SeatWithVote[]>({
+    queryKey: ["seat-vote-overlay", chamber, selectedVoteId],
+    queryFn: () => getSeatVoteOverlayClient(chamber, selectedVoteId),
+    enabled: selectedVoteId !== DEFAULT_VOTE,
+  });
 
   function handleTabChange(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -72,6 +92,9 @@ export default function ChamberPageClient({
   }
 
   const isSeats = currentView === "seats";
+  const showVoteOverlay =
+    selectedVoteId !== DEFAULT_VOTE && !!voteOverlaySeats;
+  const displaySeats = showVoteOverlay ? voteOverlaySeats : initialSeats;
 
   return (
     <main
@@ -79,7 +102,7 @@ export default function ChamberPageClient({
         "flex flex-col bg-background",
         isSeats
           ? "h-[calc(100vh-var(--navbar-height))]"
-          : "min-h-screen"
+          : "min-h-screen",
       )}
     >
       {/* Header + Tab bar */}
@@ -90,7 +113,7 @@ export default function ChamberPageClient({
         <p className="mt-1 text-sm text-muted-foreground">
           Browse all {memberCount} current {LABELS[chamber].desc}.
         </p>
-        <div className="mt-3">
+        <div className="mt-3 flex items-center justify-between gap-4">
           <Tabs value={currentView} onValueChange={handleTabChange}>
             <TabsList>
               <TabsTrigger value="seats">
@@ -107,6 +130,51 @@ export default function ChamberPageClient({
               </TabsTrigger>
             </TabsList>
           </Tabs>
+
+          {isSeats && votes.length > 0 && (
+            <div className="flex flex-col items-end gap-1.5">
+              <Select value={selectedVoteId} onValueChange={setSelectedVoteId}>
+                <SelectTrigger className="w-[340px] cursor-pointer">
+                  <SelectValue placeholder="Show by party (default)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DEFAULT_VOTE} className="cursor-pointer">
+                    Show by party (default)
+                  </SelectItem>
+                  {votes.map((vote) => (
+                    <SelectItem
+                      key={vote.vote_id}
+                      value={vote.vote_id}
+                      className="cursor-pointer"
+                    >
+                      {formatDate(vote.date)} — {vote.question} (
+                      {getResultLabel(vote.result)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {showVoteOverlay && (
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-full bg-white border border-zinc-400" />
+                    <span>Yea</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-full bg-zinc-900" />
+                    <span>Nay</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-full bg-yellow-500" />
+                    <span>Present</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block size-2.5 rounded-full bg-gray-500" />
+                    <span>Not Voting</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </GridContainer>
 
@@ -115,7 +183,8 @@ export default function ChamberPageClient({
         <div className="min-h-0 flex-1">
           <HemicyclePageClient
             chamber={chamber}
-            initialSeats={initialSeats}
+            initialSeats={displaySeats}
+            showVoteOverlay={showVoteOverlay}
           />
         </div>
       ) : currentView === "map" ? (
