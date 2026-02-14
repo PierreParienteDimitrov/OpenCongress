@@ -49,6 +49,17 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute=0, hour=10, day_of_week=6),
         "options": {"queue": "notifications"},
     },
+    # Health Monitoring
+    "health-check-5min": {
+        "task": "tasks.monitoring.run_health_check",
+        "schedule": crontab(minute="*/5"),
+        "options": {"queue": "default"},
+    },
+    "daily-health-summary": {
+        "task": "tasks.monitoring.daily_health_summary",
+        "schedule": crontab(minute=0, hour=9),
+        "options": {"queue": "default"},
+    },
 }
 
 # Queue routing
@@ -56,6 +67,7 @@ app.conf.task_routes = {
     "tasks.sync.*": {"queue": "sync"},
     "tasks.ai.*": {"queue": "ai"},
     "tasks.notifications.*": {"queue": "notifications"},
+    "tasks.monitoring.*": {"queue": "default"},
 }
 
 # Task settings

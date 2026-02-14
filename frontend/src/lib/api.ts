@@ -3,6 +3,7 @@
  * Designed for use with Next.js Server Components.
  */
 
+import * as Sentry from "@sentry/nextjs";
 import type {
   BillCalendarItem,
   BillDetail,
@@ -74,6 +75,9 @@ async function fetchAPI<T>(
 
     // During build/prerendering, network errors return empty defaults so
     // pages render with fallback state and revalidate with real data at runtime
+    Sentry.captureException(error, {
+      tags: { source: "api", endpoint },
+    });
     console.warn(
       `[API] Request failed for ${endpoint}: ${error instanceof Error ? error.message : error}`
     );

@@ -189,6 +189,9 @@ REVALIDATION_SECRET = os.environ.get("REVALIDATION_SECRET", "dev-secret")
 # Auth sync secret (shared between Next.js Auth.js and Django for social auth)
 AUTH_SYNC_SECRET = os.environ.get("AUTH_SYNC_SECRET", "dev-auth-sync-secret")
 
+# Discord webhook for alerts (optional — no-ops when empty)
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
+
 # API Documentation
 SPECTACULAR_SETTINGS = {
     "TITLE": "CongressTrack API",

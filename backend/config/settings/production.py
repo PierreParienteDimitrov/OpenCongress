@@ -109,6 +109,14 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # Sentry
 SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
 if SENTRY_DSN and SENTRY_DSN.startswith("https://"):
+
+    def _before_send(event, hint):
+        """Filter out noise from health check endpoints."""
+        request_url = event.get("request", {}).get("url", "")
+        if request_url.endswith(("/api/health/", "/api/ready/")):
+            return None
+        return event
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[
@@ -118,6 +126,9 @@ if SENTRY_DSN and SENTRY_DSN.startswith("https://"):
         traces_sample_rate=0.1,
         profiles_sample_rate=0.1,
         environment=os.environ.get("ENVIRONMENT", "production"),
+        release=os.environ.get("RELEASE_VERSION", ""),
+        send_default_pii=False,
+        before_send=_before_send,
     )
 
 # Email

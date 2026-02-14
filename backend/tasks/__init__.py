@@ -10,6 +10,8 @@ from .ai import (
     generate_weekly_preview,
     generate_weekly_recap,
 )
+from .monitoring import daily_health_summary, run_health_check
+from .notifications import send_weekly_forecast, send_weekly_recap
 from .sync import sync_members, sync_recent_votes
 
 __all__ = [
@@ -21,4 +23,8 @@ __all__ = [
     "generate_member_bios",
     "sync_recent_votes",
     "sync_members",
+    "run_health_check",
+    "daily_health_summary",
+    "send_weekly_forecast",
+    "send_weekly_recap",
 ]

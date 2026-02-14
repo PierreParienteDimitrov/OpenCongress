@@ -168,7 +168,7 @@ class VoteSummarySerializer(serializers.ModelSerializer):
 class BillDetailSerializer(serializers.ModelSerializer):
     """Serializer for bill detail views with votes."""
 
-    sponsor = MemberListSerializer(read_only=True)
+    sponsor = MemberListSerializer(read_only=True, allow_null=True)
     votes = VoteSummarySerializer(many=True, read_only=True)
 
     class Meta:
