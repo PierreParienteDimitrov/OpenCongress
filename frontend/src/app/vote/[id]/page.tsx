@@ -195,7 +195,7 @@ export default async function VotePage({ params }: PageProps) {
               </div>
               <div className="ml-2 flex items-center gap-1.5 border-l border-border pl-3">
                 <span className="text-muted-foreground/60">
-                  Aura = party color
+                  Border = party color
                 </span>
               </div>
             </div>

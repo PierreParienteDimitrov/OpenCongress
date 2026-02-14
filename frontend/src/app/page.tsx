@@ -1,115 +1,446 @@
 import Link from "next/link";
-import { routes } from "@/lib/routes";
+
+import {
+  getCurrentWeeklySummaries,
+  getVotesCalendar,
+  getBillsCalendar,
+  getSeats,
+} from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
 import { ChatContextProvider } from "@/lib/chat-context";
-import { Card } from "@/components/ui/card";
+import { routes } from "@/lib/routes";
+import type { BillCalendarItem, VoteCalendarItem } from "@/types";
+import {
+  cn,
+  formatDateLong,
+  formatDateParam,
+  formatRelativeTime,
+  generateBillHeadline,
+  generateVoteHeadline,
+  getResultBgColor,
+  getResultLabel,
+  getChamberShortName,
+  getWeekStart,
+  getWeekEnd,
+  truncate,
+} from "@/lib/utils";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import FindYourRep from "@/components/home/FindYourRep";
+import MiniHemicycle from "@/components/home/MiniHemicycle";
 
-export default function Home() {
+export const revalidate = 300; // 5 minutes
+
+export const metadata = {
+  title: "OpenCongress - Congressional Activity Tracker",
+  description:
+    "Track congressional activity, explore legislation, and follow your representatives with real-time updates and AI-generated summaries.",
+};
+
+// --- Activity feed types ---
+
+type ActivityItem =
+  | { type: "vote"; data: VoteCalendarItem; date: string; headline: string }
+  | { type: "bill"; data: BillCalendarItem; date: string; headline: string };
+
+// --- Page ---
+
+export default async function Home() {
+  const now = new Date();
+  const weekStart = getWeekStart(now);
+  const weekEnd = getWeekEnd(now);
+  const dateFrom = formatDateParam(weekStart);
+  const dateTo = formatDateParam(weekEnd);
+
+  const [summaries, votesResponse, billsResponse, senateSeats] =
+    await Promise.all([
+      getCurrentWeeklySummaries(),
+      getVotesCalendar(dateFrom, dateTo),
+      getBillsCalendar(dateFrom, dateTo),
+      getSeats("senate"),
+    ]);
+
+  const recap = summaries.find((s) => s.summary_type === "recap");
+  const preview = summaries.find((s) => s.summary_type === "preview");
+
+  const votes = votesResponse.results;
+  const bills = billsResponse.results;
+
+  // --- Stats ---
+  const passedAgreed = votes.filter(
+    (v) => v.result === "passed" || v.result === "agreed"
+  ).length;
+  const failedRejected = votes.filter(
+    (v) => v.result === "failed" || v.result === "rejected"
+  ).length;
+  const bipartisanCount = votes.filter((v) => v.is_bipartisan).length;
+  const bipartisanPercent =
+    votes.length > 0 ? Math.round((bipartisanCount / votes.length) * 100) : 0;
+  const closestVote =
+    votes.length > 0
+      ? votes.reduce((closest, vote) => {
+          const margin = Math.abs(vote.total_yea - vote.total_nay);
+          const closestMargin = Math.abs(
+            closest.total_yea - closest.total_nay
+          );
+          return margin < closestMargin ? vote : closest;
+        })
+      : null;
+
+  // --- Activity feed ---
+  const voteIds = new Set(votes.map((v) => v.bill).filter(Boolean));
+  const activityItems: ActivityItem[] = [
+    ...votes.map((vote) => ({
+      type: "vote" as const,
+      data: vote,
+      date: vote.date,
+      headline: generateVoteHeadline(vote),
+    })),
+    ...bills
+      .filter((bill) => !voteIds.has(bill.bill_id))
+      .map((bill) => ({
+        type: "bill" as const,
+        data: bill,
+        date: bill.latest_action_date || "",
+        headline: generateBillHeadline(bill),
+      })),
+  ];
+  activityItems.sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  const latestActivity = activityItems.slice(0, 6);
+
+  // --- Excerpt helper ---
+  function extractExcerpt(text: string, sentences: number = 3): string {
+    // Strip markdown bold/italic markers and skip title lines
+    const cleaned = text
+      .replace(/\*\*[^*]+\*\*\s*/g, "") // remove **bold** blocks (title lines)
+      .replace(/\*([^*]+)\*/g, "$1") // convert *italic* to plain
+      .replace(/#{1,6}\s+/g, "") // remove markdown headers
+      .trim();
+    const parts = cleaned.split(/(?<=\.)\s+/);
+    const excerpt = parts.slice(0, sentences).join(" ");
+    return parts.length > sentences ? excerpt + " ..." : excerpt;
+  }
+
   return (
-    <ChatContextProvider context={{ type: "home", data: {} }}>
-    <div className="flex min-h-[calc(100vh-var(--navbar-height))] items-center justify-center bg-background font-sans">
-      <GridContainer className="flex flex-col items-center gap-16 py-16">
-        <header className="flex flex-col items-center gap-4 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-            OpenCongress
-          </h1>
-          <p className="max-w-xl text-lg text-muted-foreground">
-            Track congressional activity, explore legislation, and follow your representatives.
-          </p>
-        </header>
+    <ChatContextProvider
+      context={{
+        type: "home",
+        data: {
+          week_summary: recap?.content?.slice(0, 500) || "",
+          total_votes: votes.length,
+          total_bills: bills.length,
+        },
+      }}
+    >
+      <main className="min-h-screen bg-background">
+        <GridContainer className="py-6">
+          {/* Date header */}
+          <div className="mb-6 border-b-2 border-foreground pb-3">
+            <time className="text-sm uppercase tracking-widest text-muted-foreground">
+              {formatDateLong(formatDateParam(now))}
+            </time>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              OpenCongress
+            </h1>
+          </div>
 
-        <nav className="grid w-full gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <Link href={routes.thisWeek.index} className="group">
-            <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📰</span>
-                <h2 className="text-xl font-semibold text-foreground">
-                  This Week
+          {/* Main grid: 8 + 4 columns on large screens */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            {/* ============ LEFT COLUMN ============ */}
+            <div className="flex flex-col gap-6 lg:col-span-8">
+              {/* Lead Story: Week in Review */}
+              <Card className="gap-0 overflow-hidden border-b-4 border-accent py-0">
+                <CardHeader className="py-4">
+                  <CardTitle className="text-2xl font-bold text-foreground sm:text-3xl">
+                    {recap?.summary_type_display || "Week in Review"}
+                  </CardTitle>
+                  {votes.length > 0 && (
+                    <CardDescription className="text-base">
+                      {votes.length} vote{votes.length !== 1 ? "s" : ""},{" "}
+                      {bills.length} bill{bills.length !== 1 ? "s" : ""} this
+                      week
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-4 pb-6">
+                  {/* Mini Hemicycle hero */}
+                  {senateSeats.length > 0 && (
+                    <MiniHemicycle seats={senateSeats} />
+                  )}
+                  {/* Excerpt */}
+                  {recap ? (
+                    <p className="leading-relaxed text-foreground/80">
+                      {extractExcerpt(recap.content, 3)}
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Weekly summaries are generated automatically. Check back
+                      on Saturday for the weekly recap.
+                    </p>
+                  )}
+                  <Link
+                    href={routes.thisWeek.index}
+                    className="inline-flex cursor-pointer items-center gap-1 font-semibold text-accent hover:underline"
+                  >
+                    Read Full Summary →
+                  </Link>
+                </CardContent>
+              </Card>
+
+              <Separator />
+
+              {/* Latest Activity Feed */}
+              <div>
+                <h2 className="mb-4 text-xl font-bold text-foreground">
+                  Latest Activity
                 </h2>
-              </div>
-              <p className="text-muted-foreground">
-                AI-generated summaries of the week in review and the week ahead in Congress.
-              </p>
-              <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                Read Summary →
-              </span>
-            </Card>
-          </Link>
+                {latestActivity.length > 0 ? (
+                  <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                    {latestActivity.map((item) => {
+                      const key =
+                        item.type === "vote"
+                          ? item.data.vote_id
+                          : item.data.bill_id;
+                      const href =
+                        item.type === "vote"
+                          ? item.data.bill
+                            ? routes.legislation.detail(item.data.bill)
+                            : routes.vote.detail(item.data.vote_id)
+                          : routes.legislation.detail(item.data.bill_id);
 
-          <Link href={routes.calendar.index} className="group">
-            <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📅</span>
-                <h2 className="text-xl font-semibold text-foreground">
-                  Legislative Calendar
-                </h2>
+                      return (
+                        <Link
+                          key={key}
+                          href={href}
+                          className="flex cursor-pointer items-start justify-between gap-4 p-4 transition-colors hover:bg-accent/5"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-1 flex flex-wrap items-center gap-2">
+                              <Badge variant="outline" className="text-xs">
+                                {item.type === "vote" ? "Vote" : "Bill"}
+                              </Badge>
+                              {item.type === "vote" && (
+                                <>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {getChamberShortName(item.data.chamber)}
+                                  </Badge>
+                                  <Badge
+                                    className={cn(
+                                      "text-xs",
+                                      getResultBgColor(item.data.result)
+                                    )}
+                                  >
+                                    {getResultLabel(item.data.result)}
+                                  </Badge>
+                                  {item.data.is_bipartisan && (
+                                    <Badge variant="outline" className="text-xs border-violet-400 text-violet-600">
+                                      Bipartisan
+                                    </Badge>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <h3 className="font-semibold leading-snug text-foreground">
+                              {item.headline}
+                            </h3>
+                          </div>
+                          <time className="shrink-0 text-xs text-muted-foreground">
+                            {formatRelativeTime(item.date)}
+                          </time>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Card className="p-6 py-6 text-center">
+                    <p className="text-muted-foreground">
+                      No activity this week yet.
+                    </p>
+                  </Card>
+                )}
+                <div className="mt-3 text-right">
+                  <Link
+                    href={routes.calendar.index}
+                    className="cursor-pointer text-sm font-medium text-accent hover:underline"
+                  >
+                    View Full Calendar →
+                  </Link>
+                </div>
               </div>
-              <p className="text-muted-foreground">
-                View upcoming and past votes, bills, and congressional activity by week.
-              </p>
-              <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                View Calendar →
-              </span>
-            </Card>
-          </Link>
+            </div>
 
-          <Link href={routes.senate.index} className="group">
-            <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏛️</span>
-                <h2 className="text-xl font-semibold text-foreground">
-                  Senate
-                </h2>
-              </div>
-              <p className="text-muted-foreground">
-                Explore the 100 U.S. Senate seats, state map, and senator profiles.
-              </p>
-              <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                Explore Senate →
-              </span>
-            </Card>
-          </Link>
+            {/* ============ RIGHT COLUMN (sidebar) ============ */}
+            <div className="flex flex-col gap-6 lg:col-span-4">
+              {/* Week by the Numbers */}
+              <Card className="gap-0 py-0">
+                <CardHeader className="border-b border-border py-4">
+                  <CardTitle className="text-lg font-bold">
+                    Week by the Numbers
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-0 p-0">
+                  <StatRow label="Total Votes" value={votes.length} />
+                  <StatRow label="Bills with Activity" value={bills.length} />
+                  <StatRow
+                    label="Passed / Agreed"
+                    value={passedAgreed}
+                    color="text-green-600"
+                  />
+                  <StatRow
+                    label="Failed / Rejected"
+                    value={failedRejected}
+                    color="text-red-600"
+                  />
+                  <StatRow
+                    label="Bipartisan Votes"
+                    value={`${bipartisanPercent}%`}
+                  />
+                  {closestVote && (
+                    <div className="border-t border-border px-4 py-3">
+                      <p className="text-xs text-muted-foreground">
+                        Closest Vote
+                      </p>
+                      <Link
+                        href={
+                          closestVote.bill
+                            ? routes.legislation.detail(closestVote.bill)
+                            : routes.vote.detail(closestVote.vote_id)
+                        }
+                        className="cursor-pointer text-sm font-medium text-foreground hover:text-accent"
+                      >
+                        {truncate(closestVote.description, 50)}
+                      </Link>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {closestVote.total_yea}-{closestVote.total_nay} (margin:{" "}
+                        {Math.abs(
+                          closestVote.total_yea - closestVote.total_nay
+                        )}
+                        )
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-          <Link href={routes.house.index} className="group">
-            <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🏠</span>
-                <h2 className="text-xl font-semibold text-foreground">
-                  House
-                </h2>
-              </div>
-              <p className="text-muted-foreground">
-                Explore the 435 U.S. House seats, district map, and representative profiles.
-              </p>
-              <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                Explore House →
-              </span>
-            </Card>
-          </Link>
+              {/* Find Your Rep */}
+              <Card className="gap-0 py-0">
+                <CardHeader className="border-b border-border py-4">
+                  <CardTitle className="text-lg font-bold">
+                    Find Your Representative
+                  </CardTitle>
+                  <CardDescription>
+                    Enter your zip code to find your members of Congress
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="py-4">
+                  <FindYourRep />
+                </CardContent>
+              </Card>
 
-          <Link href={routes.documentation.index} className="group">
-            <Card className="flex h-full flex-col gap-3 p-6 py-6 transition-all hover:border-muted-foreground/30 hover:shadow-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">📖</span>
-                <h2 className="text-xl font-semibold text-foreground">
-                  Documentation
-                </h2>
-              </div>
-              <p className="text-muted-foreground">
-                Learn how OpenCongress works, our data sources, and technology.
-              </p>
-              <span className="mt-auto text-sm font-medium text-accent group-hover:underline">
-                Learn More →
-              </span>
-            </Card>
-          </Link>
-        </nav>
+              {/* Week Ahead */}
+              <Card className="gap-0 border-l-4 border-green-500 py-0">
+                <CardHeader className="py-4">
+                  <CardTitle className="text-lg font-bold">
+                    {preview?.summary_type_display || "Week Ahead"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  {preview ? (
+                    <>
+                      <p className="mb-4 text-sm leading-relaxed text-foreground/80">
+                        {extractExcerpt(preview.content, 2)}
+                      </p>
+                      <Link
+                        href={routes.thisWeek.index}
+                        className="inline-flex cursor-pointer items-center gap-1 text-sm font-semibold text-accent hover:underline"
+                      >
+                        Read Full Preview →
+                      </Link>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Week ahead preview will be available Sunday evening.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
-        <footer className="mt-auto text-center text-sm text-muted-foreground">
-          Making congressional data accessible and transparent.
-        </footer>
-      </GridContainer>
-    </div>
+          {/* Quick Links */}
+          <nav className="mt-8 border-t border-border pt-6">
+            <div className="flex flex-wrap items-center justify-center gap-6">
+              <Link
+                href={routes.senate.index}
+                className="cursor-pointer text-sm font-medium text-foreground hover:text-accent"
+              >
+                Senate
+              </Link>
+              <span className="text-muted-foreground">·</span>
+              <Link
+                href={routes.house.index}
+                className="cursor-pointer text-sm font-medium text-foreground hover:text-accent"
+              >
+                House
+              </Link>
+              <span className="text-muted-foreground">·</span>
+              <Link
+                href={routes.calendar.index}
+                className="cursor-pointer text-sm font-medium text-foreground hover:text-accent"
+              >
+                Calendar
+              </Link>
+              <span className="text-muted-foreground">·</span>
+              <Link
+                href={routes.thisWeek.index}
+                className="cursor-pointer text-sm font-medium text-foreground hover:text-accent"
+              >
+                This Week
+              </Link>
+              <span className="text-muted-foreground">·</span>
+              <Link
+                href={routes.documentation.index}
+                className="cursor-pointer text-sm font-medium text-foreground hover:text-accent"
+              >
+                Documentation
+              </Link>
+            </div>
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              Making congressional data accessible and transparent.
+            </p>
+          </nav>
+        </GridContainer>
+      </main>
     </ChatContextProvider>
+  );
+}
+
+// --- Stat row helper ---
+
+function StatRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number | string;
+  color?: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between border-b border-border px-4 py-3 last:border-b-0">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={cn("text-xl font-bold", color || "text-foreground")}>
+        {value}
+      </span>
+    </div>
   );
 }

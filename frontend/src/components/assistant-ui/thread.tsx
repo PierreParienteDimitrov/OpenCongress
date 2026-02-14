@@ -35,10 +35,10 @@ interface ThreadProps {
 
 export const Thread: FC<ThreadProps> = ({ contextLabel }) => {
   return (
-    <ThreadPrimitive.Root className="aui-root aui-thread-root @container flex h-full flex-col">
+    <ThreadPrimitive.Root className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col">
       <ThreadPrimitive.Viewport
         turnAnchor="top"
-        className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-3 pt-3"
+        className="aui-thread-viewport relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth px-3 pt-3"
       >
         <AuiIf condition={(s) => s.thread.isEmpty}>
           <ThreadWelcome contextLabel={contextLabel} />
@@ -51,12 +51,12 @@ export const Thread: FC<ThreadProps> = ({ contextLabel }) => {
             AssistantMessage,
           }}
         />
-
-        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full flex-col gap-3 overflow-visible rounded-t-2xl bg-background pb-3">
-          <ThreadScrollToBottom />
-          <Composer />
-        </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
+
+      <div className="relative shrink-0 bg-background px-3 pb-3">
+        <ThreadScrollToBottom />
+        <Composer />
+      </div>
     </ThreadPrimitive.Root>
   );
 };
@@ -67,7 +67,7 @@ const ThreadScrollToBottom: FC = () => {
       <TooltipIconButton
         tooltip="Scroll to bottom"
         variant="outline"
-        className="aui-thread-scroll-to-bottom absolute -top-10 z-10 self-center rounded-full p-3 disabled:invisible dark:bg-background dark:hover:bg-accent"
+        className="aui-thread-scroll-to-bottom absolute -top-10 left-1/2 z-10 -translate-x-1/2 rounded-full p-3 disabled:invisible dark:bg-background dark:hover:bg-accent"
       >
         <ArrowDownIcon />
       </TooltipIconButton>

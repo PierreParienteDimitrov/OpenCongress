@@ -152,6 +152,15 @@ export default function HemicycleChart({
               </clipPath>
             );
           })}
+          {/* Clip paths for aura-sized photos in vote overlay mode */}
+          {showVoteOverlay && seats.map((seat) => {
+            if (!seat.member) return null;
+            return (
+              <clipPath key={`aura-clip-${seat.seat_id}`} id={`seat-aura-clip-${seat.seat_id}`}>
+                <circle cx={seat.svg_x} cy={seat.svg_y} r={seatRadius * AURA_MULTIPLIER} />
+              </clipPath>
+            );
+          })}
         </defs>
 
         {seats.map((seat) => {
@@ -181,17 +190,6 @@ export default function HemicycleChart({
               }}
               onMouseLeave={handleMouseLeave}
             >
-              {/* Aura — party-colored outer glow, only in overlay mode */}
-              {isOverlay && (
-                <circle
-                  cx={seat.svg_x}
-                  cy={seat.svg_y}
-                  r={seatRadius * AURA_MULTIPLIER}
-                  fill={partyColor}
-                  opacity={0.35}
-                />
-              )}
-
               {seat.member && !isOverlay ? (
                 /* Default view: member photo with party color tint */
                 <g opacity={isHovered ? 0 : 1}>
@@ -230,21 +228,55 @@ export default function HemicycleChart({
                     strokeWidth={0.5 / k}
                   />
                 </g>
+              ) : isOverlay && seat.member ? (
+                /* Vote overlay with member photo: photo fills the aura circle, vote color tint */
+                <g opacity={isHovered ? 0 : 1}>
+                  {/* White background behind photo */}
+                  <circle
+                    cx={seat.svg_x}
+                    cy={seat.svg_y}
+                    r={seatRadius * AURA_MULTIPLIER}
+                    fill="#ffffff"
+                  />
+                  {/* Member photo clipped to aura-sized circle */}
+                  <image
+                    href={seat.member.photo_url}
+                    x={seat.svg_x - seatRadius * AURA_MULTIPLIER}
+                    y={seat.svg_y - seatRadius * AURA_MULTIPLIER}
+                    width={seatRadius * AURA_MULTIPLIER * 2}
+                    height={seatRadius * AURA_MULTIPLIER * 2}
+                    clipPath={`url(#seat-aura-clip-${seat.seat_id})`}
+                    preserveAspectRatio="xMidYMid slice"
+                  />
+                  {/* Vote color overlay — tints the photo with the vote position color */}
+                  <circle
+                    cx={seat.svg_x}
+                    cy={seat.svg_y}
+                    r={seatRadius * AURA_MULTIPLIER}
+                    fill={getVotePositionFillColor(
+                      (seat as SeatWithVote).vote_position
+                    )}
+                    opacity={PHOTO_OVERLAY_OPACITY}
+                  />
+                  {/* Border ring in party color */}
+                  <circle
+                    cx={seat.svg_x}
+                    cy={seat.svg_y}
+                    r={seatRadius * AURA_MULTIPLIER}
+                    fill="none"
+                    stroke={partyColor}
+                    strokeWidth={0.8 / k}
+                  />
+                </g>
               ) : (
-                /* Vote overlay mode or vacant seat: solid circle */
+                /* Vacant seat: solid circle */
                 <circle
                   cx={seat.svg_x}
                   cy={seat.svg_y}
                   r={seatRadius}
-                  fill={
-                    isOverlay
-                      ? getVotePositionFillColor(
-                          (seat as SeatWithVote).vote_position
-                        )
-                      : partyColor
-                  }
-                  stroke={isOverlay ? partyColor : seat.member ? "#ffffff" : "none"}
-                  strokeWidth={(isOverlay ? 0.8 : seat.member ? 0.5 : 0) / k}
+                  fill={partyColor}
+                  stroke={seat.member ? "#ffffff" : "none"}
+                  strokeWidth={(seat.member ? 0.5 : 0) / k}
                   opacity={isHovered ? 0 : 1}
                 />
               )}

@@ -5,7 +5,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-import type { VotePosition, VoteResult } from "@/types";
+import type { BillCalendarItem, VoteCalendarItem, VotePosition, VoteResult } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -295,4 +295,50 @@ export function getBillTypeLabel(billType: string): string {
 export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength - 3) + "...";
+}
+
+// Relative time formatting
+export function formatRelativeTime(dateString: string): string {
+  if (!dateString) return "";
+  const now = new Date();
+  const date = new Date(dateString + "T12:00:00"); // noon to avoid timezone issues
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "1d ago";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 14) return "1 week ago";
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  return formatDate(dateString);
+}
+
+// News-style vote headline: "Senate Passes Defense Bill 62-38"
+export function generateVoteHeadline(vote: VoteCalendarItem): string {
+  const chamber = getChamberShortName(vote.chamber);
+  const resultVerb: Record<string, string> = {
+    passed: "Passes",
+    failed: "Rejects",
+    agreed: "Agrees To",
+    rejected: "Rejects",
+  };
+  const verb = resultVerb[vote.result] || "Votes On";
+  const tally = `${vote.total_yea}-${vote.total_nay}`;
+
+  // Prefer bill title for a readable headline
+  if (vote.bill_short_title) {
+    return `${chamber} ${verb} ${truncate(vote.bill_short_title, 60)} ${tally}`;
+  }
+  // If we have a bill number but no title, use that
+  if (vote.bill_display_number) {
+    return `${chamber} ${verb} ${vote.bill_display_number} (${vote.description}) ${tally}`;
+  }
+  // Fallback: use question/description directly without verb to avoid "Passes On Passage"
+  return `${chamber}: ${truncate(vote.description, 60)} — ${tally}`;
+}
+
+// News-style bill headline: "H.R. 1234: Referred to Committee"
+export function generateBillHeadline(bill: BillCalendarItem): string {
+  const title = bill.short_title || bill.latest_action_text;
+  return `${bill.display_number}: ${truncate(title, 70)}`;
 }
