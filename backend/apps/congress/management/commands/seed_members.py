@@ -11,6 +11,7 @@ import time
 import requests
 from django.core.management.base import BaseCommand
 
+from apps.congress.api.constants import STATE_ABBREVS
 from apps.congress.models import Member
 
 
@@ -80,7 +81,7 @@ class Command(BaseCommand):
                 "nickname": member_data.get("nickName", "") or "",
                 "party": self._map_party(member_data.get("partyName", "")),
                 "chamber": chamber if chamber in ["house", "senate"] else "house",
-                "state": member_data.get("state", ""),
+                "state": self._normalize_state(member_data.get("state", "")),
                 "district": district,
                 "photo_url": member_data.get("depiction", {}).get("imageUrl", "") or "",
                 "twitter_handle": social.get("twitter", ""),
@@ -157,6 +158,16 @@ class Command(BaseCommand):
         except Exception as e:
             self.stderr.write(f"Failed to fetch social media: {e}")
             return {}
+
+    def _normalize_state(self, raw_state: str) -> str:
+        """Convert full state name to 2-letter abbreviation if needed."""
+        if not raw_state:
+            return ""
+        # Already a 2-letter code
+        if len(raw_state) <= 2:
+            return raw_state.upper()
+        # Look up full name → abbreviation
+        return STATE_ABBREVS.get(raw_state.lower(), raw_state[:2].upper())
 
     def _map_party(self, party_name: str) -> str:
         """Map party name to single-letter code."""

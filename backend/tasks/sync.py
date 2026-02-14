@@ -136,7 +136,7 @@ def sync_members(self) -> dict:
                 "nickname": member_data.get("nickName", "") or "",
                 "party": _map_party(member_data.get("partyName", "")),
                 "chamber": chamber if chamber in ["house", "senate"] else "house",
-                "state": member_data.get("state", ""),
+                "state": _normalize_state(member_data.get("state", "")),
                 "district": district,
                 "photo_url": member_data.get("depiction", {}).get("imageUrl", "") or "",
                 "twitter_handle": social.get("twitter", ""),
@@ -729,6 +729,17 @@ def _fetch_social_media() -> dict:
     except Exception as e:
         logger.warning(f"Failed to fetch social media: {e}")
         return {}
+
+
+def _normalize_state(raw_state: str) -> str:
+    """Convert full state name to 2-letter abbreviation if needed."""
+    from apps.congress.api.constants import STATE_ABBREVS
+
+    if not raw_state:
+        return ""
+    if len(raw_state) <= 2:
+        return raw_state.upper()
+    return STATE_ABBREVS.get(raw_state.lower(), raw_state[:2].upper())
 
 
 def _map_party(party_name: str) -> str:
