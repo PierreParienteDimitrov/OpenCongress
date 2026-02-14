@@ -120,7 +120,7 @@ export default function ChamberPageClient({
         <p className="mt-1 text-sm text-muted-foreground">
           Browse all {memberCount} current {LABELS[chamber].desc}.
         </p>
-        <div className="mt-3 flex items-center justify-between gap-4">
+        <div className="mt-3">
           <Tabs value={currentView} onValueChange={handleTabChange}>
             <TabsList>
               <TabsTrigger value="seats">
@@ -137,52 +137,52 @@ export default function ChamberPageClient({
               </TabsTrigger>
             </TabsList>
           </Tabs>
-
-          {isSeats && votes.length > 0 && (
-            <div className="flex flex-col items-end gap-1.5">
-              <Select value={selectedVoteId} onValueChange={handleVoteChange}>
-                <SelectTrigger className="w-[340px] cursor-pointer">
-                  <SelectValue placeholder="Show by party (default)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={DEFAULT_VOTE} className="cursor-pointer">
-                    Show by party (default)
-                  </SelectItem>
-                  {votes.map((vote) => (
-                    <SelectItem
-                      key={vote.vote_id}
-                      value={vote.vote_id}
-                      className="cursor-pointer"
-                    >
-                      {formatDate(vote.date)} — {vote.question} (
-                      {getResultLabel(vote.result)})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {showVoteOverlay && (
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block size-2.5 rounded-full bg-white border border-zinc-400" />
-                    <span>Yea</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block size-2.5 rounded-full bg-zinc-900" />
-                    <span>Nay</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block size-2.5 rounded-full bg-yellow-500" />
-                    <span>Present</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block size-2.5 rounded-full bg-gray-500" />
-                    <span>Not Voting</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
+
+        {isSeats && votes.length > 0 && (
+          <div className="mt-3 flex items-center gap-4">
+            <Select value={selectedVoteId} onValueChange={handleVoteChange}>
+              <SelectTrigger className="w-[340px] cursor-pointer rounded-none border-0 border-b bg-transparent px-0 text-sm shadow-none focus:ring-0">
+                <SelectValue placeholder="Show by party (default)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={DEFAULT_VOTE} className="cursor-pointer">
+                  Show by party (default)
+                </SelectItem>
+                {votes.map((vote) => (
+                  <SelectItem
+                    key={vote.vote_id}
+                    value={vote.vote_id}
+                    className="cursor-pointer"
+                  >
+                    {formatDate(vote.date)} — {vote.question} (
+                    {getResultLabel(vote.result)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {showVoteOverlay && (
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block size-2.5 rounded-full bg-white border border-zinc-400" />
+                  <span>Yea</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block size-2.5 rounded-full bg-zinc-900" />
+                  <span>Nay</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block size-2.5 rounded-full bg-yellow-500" />
+                  <span>Present</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block size-2.5 rounded-full bg-gray-500" />
+                  <span>Not Voting</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </GridContainer>
 
       {/* Content — layout depends on active tab */}

@@ -179,7 +179,6 @@
 
 /* Grid container */
 .grid-container {
-  width: 100%;
   max-width: var(--grid-max-width);
   margin-inline: var(--grid-margin-size);
 }
