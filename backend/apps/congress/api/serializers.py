@@ -140,7 +140,14 @@ class BillListSerializer(serializers.ModelSerializer):
 
 
 class VoteSummarySerializer(serializers.ModelSerializer):
-    """Serializer for vote summary (used in bill detail)."""
+    """Serializer for vote summary (used in bill detail and vote detail)."""
+
+    bill_id = serializers.CharField(source="bill.bill_id", allow_null=True)
+    bill_display_number = serializers.CharField(
+        source="bill.display_number", allow_null=True
+    )
+    bill_short_title = serializers.CharField(source="bill.short_title", allow_null=True)
+    bill_title = serializers.CharField(source="bill.title", allow_null=True)
 
     class Meta:
         model = Vote
@@ -162,6 +169,11 @@ class VoteSummarySerializer(serializers.ModelSerializer):
             "ind_yea",
             "ind_nay",
             "is_bipartisan",
+            "ai_summary",
+            "bill_id",
+            "bill_display_number",
+            "bill_short_title",
+            "bill_title",
         ]
 
 

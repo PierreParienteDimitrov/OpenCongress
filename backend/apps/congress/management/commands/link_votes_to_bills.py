@@ -127,7 +127,13 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Would link {vote.vote_id} -> {bill.bill_id}")
             else:
                 vote.bill = bill
-                vote.save(update_fields=["bill"])
+                # Enrich the description with bill title
+                bill_title = bill.short_title or bill.title
+                if bill_title and bill.display_number:
+                    vote.description = (
+                        f"{vote.question} - {bill.display_number}: {bill_title}"
+                    )
+                vote.save(update_fields=["bill", "description"])
             return "linked"
 
         return "not_found"

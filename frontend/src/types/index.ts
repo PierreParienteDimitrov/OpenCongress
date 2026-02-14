@@ -133,6 +133,11 @@ export interface VoteSummary {
   ind_yea: number;
   ind_nay: number;
   is_bipartisan: boolean;
+  ai_summary: string;
+  bill_id: string | null;
+  bill_display_number: string | null;
+  bill_short_title: string | null;
+  bill_title: string | null;
 }
 
 export interface VoteCalendarItem {

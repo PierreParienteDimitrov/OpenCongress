@@ -5,6 +5,7 @@ import { getVote, getSeatVoteOverlay } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
 import { ChatContextProvider } from "@/lib/chat-context";
 import { routes } from "@/lib/routes";
+import type { SeatWithVote } from "@/types";
 import {
   cn,
   formatDate,
@@ -27,8 +28,12 @@ export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
   try {
     const vote = await getVote(id);
-    const title = `${vote.question} - ${getChamberName(vote.chamber)} Vote`;
-    const description = `${getResultLabel(vote.result)}: ${vote.total_yea} Yea, ${vote.total_nay} Nay`;
+    const billLabel = vote.bill_short_title || vote.bill_display_number;
+    const title = billLabel
+      ? `${vote.question}: ${billLabel} - ${getChamberName(vote.chamber)} Vote`
+      : `${vote.question} - ${getChamberName(vote.chamber)} Vote`;
+    const description = vote.ai_summary
+      || `${getResultLabel(vote.result)}: ${vote.total_yea} Yea, ${vote.total_nay} Nay`;
     return {
       title,
       description,
@@ -61,7 +66,12 @@ export default async function VotePage({ params }: PageProps) {
     notFound();
   }
 
-  const overlaySeats = await getSeatVoteOverlay(vote.chamber, vote.vote_id);
+  let overlaySeats: SeatWithVote[];
+  try {
+    overlaySeats = await getSeatVoteOverlay(vote.chamber, vote.vote_id);
+  } catch {
+    overlaySeats = [];
+  }
 
 
   return (
@@ -103,8 +113,28 @@ export default async function VotePage({ params }: PageProps) {
             )}
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-3">
-            {vote.question}
+            {vote.bill_short_title || vote.question}
           </h1>
+          {vote.bill_display_number && (
+            <p className="text-base text-muted-foreground mb-3">
+              {vote.question}
+              {" \u2014 "}
+              <Link
+                href={routes.legislation.detail(vote.bill_id!)}
+                className="text-accent hover:text-accent/80 cursor-pointer"
+              >
+                {vote.bill_display_number}
+              </Link>
+              {vote.bill_title && !vote.bill_short_title && (
+                <span>: {vote.bill_title}</span>
+              )}
+            </p>
+          )}
+          {vote.ai_summary && (
+            <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+              {vote.ai_summary}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-2">
             <Badge className={cn("text-sm px-3 py-1", getResultBgColor(vote.result))}>
               {getResultLabel(vote.result)}

@@ -247,6 +247,12 @@ class Vote(models.Model):
     # Source URL
     source_url = models.URLField(blank=True)
 
+    # AI-generated summary
+    ai_summary = models.TextField(blank=True)
+    ai_summary_model = models.CharField(max_length=50, blank=True)
+    ai_summary_created_at = models.DateTimeField(null=True, blank=True)
+    ai_summary_prompt_version = models.CharField(max_length=20, blank=True)
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-# Build version: 2026-02-12-v2
+# Build version: 2026-02-14-v1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV DJANGO_SETTINGS_MODULE=config.settings.production

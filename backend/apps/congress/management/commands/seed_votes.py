@@ -186,8 +186,20 @@ class Command(BaseCommand):
         bill = None
         leg_type = vote_data.get("legislationType", "").lower()
         leg_number = vote_data.get("legislationNumber")
+        leg_display = ""
         if leg_type and leg_number:
             bill_id = f"{leg_type}{leg_number}-{congress}"
+            type_display = {
+                "hr": "H.R.",
+                "s": "S.",
+                "hjres": "H.J.Res.",
+                "sjres": "S.J.Res.",
+                "hconres": "H.Con.Res.",
+                "sconres": "S.Con.Res.",
+                "hres": "H.Res.",
+                "sres": "S.Res.",
+            }
+            leg_display = f"{type_display.get(leg_type, leg_type.upper())} {leg_number}"
             try:
                 bill = Bill.objects.get(bill_id=bill_id)
             except Bill.DoesNotExist:
@@ -253,7 +265,9 @@ class Command(BaseCommand):
             date=vote_date,
             question=detail.get("voteQuestion", "")[:200],
             question_text=detail.get("voteQuestion", ""),
-            description=detail.get("voteQuestion", ""),
+            description=self._build_description(
+                detail.get("voteQuestion", ""), leg_display, bill
+            ),
             vote_type=detail.get("voteType", ""),
             result=result,
             bill=bill,
@@ -356,6 +370,17 @@ class Command(BaseCommand):
                 )
 
         return created
+
+    def _build_description(
+        self, question: str, leg_display: str, bill: Bill | None
+    ) -> str:
+        """Build a descriptive string for the vote."""
+        if bill and (bill.short_title or bill.title):
+            title = bill.short_title or bill.title
+            return f"{question} - {leg_display}: {title}"
+        if leg_display:
+            return f"{question} - {leg_display}"
+        return question
 
     def _map_result(self, result: str) -> str:
         """Map result string to choices."""

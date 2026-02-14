@@ -241,6 +241,120 @@ def generate_member_bios() -> dict:
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_vote_summary(self, vote_id: str) -> dict:
+    """
+    Generate an AI summary for a single vote.
+
+    Args:
+        vote_id: The vote ID to generate a summary for
+
+    Returns:
+        Dict with success status and summary info
+    """
+    from apps.congress.models import Vote
+    from prompts import VOTE_SUMMARY_VERSION
+    from services import AIService, CacheService
+
+    try:
+        vote = Vote.objects.select_related("bill").get(vote_id=vote_id)
+    except Vote.DoesNotExist:
+        logger.error(f"Vote not found: {vote_id}")
+        return {"success": False, "error": "Vote not found"}
+
+    try:
+        ai_service = AIService()
+
+        bill_display_number = vote.bill.display_number if vote.bill else None
+        bill_title = vote.bill.short_title or vote.bill.title if vote.bill else None
+
+        summary, tokens = ai_service.generate_vote_summary(
+            chamber=vote.chamber,
+            date=str(vote.date),
+            question=vote.question,
+            vote_type=vote.vote_type,
+            result=vote.result,
+            bill_display_number=bill_display_number,
+            bill_title=bill_title,
+            total_yea=vote.total_yea,
+            total_nay=vote.total_nay,
+            dem_yea=vote.dem_yea,
+            dem_nay=vote.dem_nay,
+            rep_yea=vote.rep_yea,
+            rep_nay=vote.rep_nay,
+            is_bipartisan=vote.is_bipartisan,
+        )
+
+        # Update the vote
+        vote.ai_summary = summary
+        vote.ai_summary_model = AIService.MODEL
+        vote.ai_summary_created_at = timezone.now()
+        vote.ai_summary_prompt_version = VOTE_SUMMARY_VERSION
+        vote.save(
+            update_fields=[
+                "ai_summary",
+                "ai_summary_model",
+                "ai_summary_created_at",
+                "ai_summary_prompt_version",
+            ]
+        )
+
+        # Invalidate caches
+        CacheService.invalidate_vote(vote_id)
+
+        logger.info(f"Generated summary for vote {vote_id} ({tokens} tokens)")
+
+        return {
+            "success": True,
+            "vote_id": vote_id,
+            "tokens": tokens,
+            "model": AIService.MODEL,
+        }
+
+    except Exception as e:
+        logger.error(f"Error generating summary for vote {vote_id}: {e}")
+        raise self.retry(exc=e)
+
+
+@shared_task
+def generate_vote_summaries() -> dict:
+    """
+    Batch generate summaries for votes that need them.
+    Runs daily at 7am.
+
+    Returns:
+        Dict with processing statistics
+    """
+    from apps.congress.models import Vote
+
+    from prompts import VOTE_SUMMARY_VERSION
+
+    votes_needing_summaries = Vote.objects.filter(
+        Q(ai_summary="") | ~Q(ai_summary_prompt_version=VOTE_SUMMARY_VERSION)
+    ).values_list("vote_id", flat=True)[
+        :50
+    ]  # Process up to 50 per run
+
+    processed = 0
+    errors = 0
+
+    for vote_id in votes_needing_summaries:
+        try:
+            generate_vote_summary.delay(vote_id)
+            processed += 1
+        except Exception as e:
+            logger.error(f"Failed to queue summary for vote {vote_id}: {e}")
+            errors += 1
+
+    logger.info(f"Queued {processed} vote summaries, {errors} errors")
+
+    return {
+        "queued": processed,
+        "errors": errors,
+        "total_needing_summaries": len(votes_needing_summaries),
+    }
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def generate_weekly_recap(self) -> dict:
     """
     Generate the weekly recap summary.

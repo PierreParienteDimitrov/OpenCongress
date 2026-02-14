@@ -48,6 +48,19 @@ class CacheService:
         CacheService._trigger_isr_revalidation(f"/{route}/{bioguide_id}")
 
     @staticmethod
+    def invalidate_vote(vote_id: str) -> None:
+        """Invalidate cache for a specific vote and trigger ISR."""
+        cache_keys = [
+            f"vote_detail_{vote_id}",
+        ]
+        for key in cache_keys:
+            cache.delete(key)
+
+        logger.info(f"Invalidated cache for vote {vote_id}")
+
+        CacheService._trigger_isr_revalidation(f"/vote/{vote_id}")
+
+    @staticmethod
     def invalidate_weekly_summary(year: int, week: int, summary_type: str) -> None:
         """Invalidate cache for a weekly summary and trigger ISR."""
         # Clear Django cache keys

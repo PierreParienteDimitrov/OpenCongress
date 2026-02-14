@@ -4,6 +4,7 @@ Prompt templates for AI content generation.
 
 from .bill_summary import BILL_SUMMARY_PROMPT, BILL_SUMMARY_VERSION
 from .member_bio import MEMBER_BIO_PROMPT, MEMBER_BIO_VERSION
+from .vote_summary import VOTE_SUMMARY_PROMPT, VOTE_SUMMARY_VERSION
 from .weekly_preview import WEEKLY_PREVIEW_PROMPT, WEEKLY_PREVIEW_VERSION
 from .weekly_recap import WEEKLY_RECAP_PROMPT, WEEKLY_RECAP_VERSION
 
@@ -12,6 +13,8 @@ __all__ = [
     "BILL_SUMMARY_VERSION",
     "MEMBER_BIO_PROMPT",
     "MEMBER_BIO_VERSION",
+    "VOTE_SUMMARY_PROMPT",
+    "VOTE_SUMMARY_VERSION",
     "WEEKLY_RECAP_PROMPT",
     "WEEKLY_RECAP_VERSION",
     "WEEKLY_PREVIEW_PROMPT",

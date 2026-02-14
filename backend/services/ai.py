@@ -123,6 +123,47 @@ class AIService:
 
         return self.generate_completion(prompt, max_tokens=200)
 
+    def generate_vote_summary(
+        self,
+        chamber: str,
+        date: str,
+        question: str,
+        vote_type: str,
+        result: str,
+        bill_display_number: str | None,
+        bill_title: str | None,
+        total_yea: int,
+        total_nay: int,
+        dem_yea: int,
+        dem_nay: int,
+        rep_yea: int,
+        rep_nay: int,
+        is_bipartisan: bool,
+    ) -> tuple[str, int]:
+        """Generate a plain-English summary for a vote."""
+        from prompts import VOTE_SUMMARY_PROMPT
+
+        chamber_name = "House of Representatives" if chamber == "house" else "Senate"
+
+        prompt = VOTE_SUMMARY_PROMPT.format(
+            chamber=chamber_name,
+            date=date,
+            question=question or "Unknown",
+            vote_type=vote_type or "Unknown",
+            result=result or "Unknown",
+            bill_display_number=bill_display_number or "No linked bill",
+            bill_title=bill_title or "N/A",
+            total_yea=total_yea,
+            total_nay=total_nay,
+            dem_yea=dem_yea,
+            dem_nay=dem_nay,
+            rep_yea=rep_yea,
+            rep_nay=rep_nay,
+            is_bipartisan="Yes" if is_bipartisan else "No",
+        )
+
+        return self.generate_completion(prompt, max_tokens=200)
+
     def generate_weekly_recap(
         self,
         week_start: str,
