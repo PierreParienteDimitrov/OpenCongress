@@ -48,8 +48,6 @@ export default async function VotePage({ params }: PageProps) {
 
   const overlaySeats = await getSeatVoteOverlay(vote.chamber, vote.vote_id);
 
-  const totalVotes = vote.total_yea + vote.total_nay;
-  const yeaPercent = totalVotes > 0 ? (vote.total_yea / totalVotes) * 100 : 0;
 
   return (
     <main className="min-h-screen bg-background">
@@ -89,107 +87,61 @@ export default async function VotePage({ params }: PageProps) {
             <CardTitle className="text-lg">Results</CardTitle>
           </CardHeader>
           <CardContent>
-
-          {/* Vote bar */}
-          <div className="mb-6">
-            <div className="flex h-8 rounded-full overflow-hidden bg-secondary">
-              <div
-                className="bg-green-500 transition-all flex items-center justify-center text-white text-sm font-medium"
-                style={{ width: `${yeaPercent}%` }}
-              >
-                {yeaPercent > 10 && `${vote.total_yea}`}
-              </div>
-              <div
-                className="bg-red-500 transition-all flex items-center justify-center text-white text-sm font-medium"
-                style={{ width: `${100 - yeaPercent}%` }}
-              >
-                {100 - yeaPercent > 10 && `${vote.total_nay}`}
-              </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {/* Yea */}
+            <div className="flex flex-col items-center gap-1 rounded-sm bg-white/90 dark:bg-white/10 p-4">
+              <span className="text-3xl font-bold text-foreground">{vote.total_yea}</span>
+              <span className="text-sm font-medium text-muted-foreground">Yea</span>
             </div>
-            <div className="flex justify-between text-sm mt-2">
-              <span className="text-green-600 font-medium">
-                Yea: {vote.total_yea}
-              </span>
-              <span className="text-muted-foreground">
-                Present: {vote.total_present} | Not Voting: {vote.total_not_voting}
-              </span>
-              <span className="text-red-600 font-medium">
-                Nay: {vote.total_nay}
-              </span>
+            {/* Nay */}
+            <div className="flex flex-col items-center gap-1 rounded-sm p-4" style={{ backgroundColor: "#18181b" }}>
+              <span className="text-3xl font-bold text-white">{vote.total_nay}</span>
+              <span className="text-sm font-medium text-white/60">Nay</span>
+            </div>
+            {/* Present */}
+            <div className="flex flex-col items-center gap-1 rounded-sm bg-yellow-500/20 p-4">
+              <span className="text-3xl font-bold text-foreground">{vote.total_present}</span>
+              <span className="text-sm font-medium text-muted-foreground">Present</span>
+            </div>
+            {/* Not Voting */}
+            <div className="flex flex-col items-center gap-1 rounded-sm bg-secondary p-4">
+              <span className="text-3xl font-bold text-foreground">{vote.total_not_voting}</span>
+              <span className="text-sm font-medium text-muted-foreground">Not Voting</span>
             </div>
           </div>
 
           {/* Party breakdown */}
-          <h3 className="text-md font-medium text-foreground/80 mb-3">Party Breakdown</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Democrats */}
-            <div className="bg-blue-50 rounded-lg p-4">
-              <div className="font-medium text-blue-800 mb-2">Democrats</div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-green-600">Yea</span>
-                  <span className="font-medium">{vote.dem_yea}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-red-600">Nay</span>
-                  <span className="font-medium">{vote.dem_nay}</span>
-                </div>
-              </div>
-              <div className="mt-2 h-2 rounded-full overflow-hidden bg-secondary">
-                <div
-                  className="h-full bg-green-500"
-                  style={{
-                    width: `${vote.dem_yea + vote.dem_nay > 0 ? (vote.dem_yea / (vote.dem_yea + vote.dem_nay)) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Republicans */}
-            <div className="bg-red-50 rounded-lg p-4">
-              <div className="font-medium text-red-800 mb-2">Republicans</div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-green-600">Yea</span>
-                  <span className="font-medium">{vote.rep_yea}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-red-600">Nay</span>
-                  <span className="font-medium">{vote.rep_nay}</span>
-                </div>
-              </div>
-              <div className="mt-2 h-2 rounded-full overflow-hidden bg-secondary">
-                <div
-                  className="h-full bg-green-500"
-                  style={{
-                    width: `${vote.rep_yea + vote.rep_nay > 0 ? (vote.rep_yea / (vote.rep_yea + vote.rep_nay)) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Independents */}
-            <div className="bg-violet-50 rounded-lg p-4">
-              <div className="font-medium text-violet-800 mb-2">Independents</div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-green-600">Yea</span>
-                  <span className="font-medium">{vote.ind_yea}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-red-600">Nay</span>
-                  <span className="font-medium">{vote.ind_nay}</span>
-                </div>
-              </div>
-              <div className="mt-2 h-2 rounded-full overflow-hidden bg-secondary">
-                <div
-                  className="h-full bg-green-500"
-                  style={{
-                    width: `${vote.ind_yea + vote.ind_nay > 0 ? (vote.ind_yea / (vote.ind_yea + vote.ind_nay)) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-            </div>
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-muted-foreground">
+                  <th className="text-left py-2 font-medium">Party</th>
+                  <th className="text-right py-2 font-medium">Yea</th>
+                  <th className="text-right py-2 font-medium">Nay</th>
+                  <th className="text-right py-2 font-medium">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-border/50">
+                  <td className="py-2 text-blue-500 font-medium">Democrats</td>
+                  <td className="py-2 text-right">{vote.dem_yea}</td>
+                  <td className="py-2 text-right">{vote.dem_nay}</td>
+                  <td className="py-2 text-right font-medium">{vote.dem_yea + vote.dem_nay}</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="py-2 text-red-500 font-medium">Republicans</td>
+                  <td className="py-2 text-right">{vote.rep_yea}</td>
+                  <td className="py-2 text-right">{vote.rep_nay}</td>
+                  <td className="py-2 text-right font-medium">{vote.rep_yea + vote.rep_nay}</td>
+                </tr>
+                <tr>
+                  <td className="py-2 text-violet-500 font-medium">Independents</td>
+                  <td className="py-2 text-right">{vote.ind_yea}</td>
+                  <td className="py-2 text-right">{vote.ind_nay}</td>
+                  <td className="py-2 text-right font-medium">{vote.ind_yea + vote.ind_nay}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           {vote.is_bipartisan && (
