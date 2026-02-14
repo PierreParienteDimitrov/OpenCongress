@@ -24,9 +24,9 @@ NO_CACHE = {"CACHE_TIMEOUTS": {}}
 def assert_not_500(response, url: str):
     """Any status < 500 is fine (200, 201, 400, 401, 403, 404 are all OK).
     A 500 means something is broken in our code."""
-    assert response.status_code < 500, (
-        f"{url} returned {response.status_code}: {response.content[:300]}"
-    )
+    assert (
+        response.status_code < 500
+    ), f"{url} returned {response.status_code}: {response.content[:300]}"
 
 
 # ===========================================================================
@@ -233,9 +233,7 @@ class TestWeeklySummaryEndpoints:
         assert resp.status_code == 200
 
     def test_retrieve(self, api_client, weekly_summary):
-        resp = api_client.get(
-            f"/api/v1/content/weekly-summaries/{weekly_summary.pk}/"
-        )
+        resp = api_client.get(f"/api/v1/content/weekly-summaries/{weekly_summary.pk}/")
         assert resp.status_code == 200
 
     def test_retrieve_not_found(self, api_client, db):
@@ -339,9 +337,7 @@ class TestAuthProtectedEndpoints:
 
     def test_chat_stream_no_body(self, auth_client):
         """POST chat/stream with no body → 400-level, not 500."""
-        resp = auth_client.post(
-            "/api/v1/auth/chat/stream/", {}, format="json"
-        )
+        resp = auth_client.post("/api/v1/auth/chat/stream/", {}, format="json")
         assert_not_500(resp, "/api/v1/auth/chat/stream/")
 
     def test_chat_stream_invalid_provider(self, auth_client):
