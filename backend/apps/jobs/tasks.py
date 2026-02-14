@@ -314,11 +314,26 @@ def run_sync_recent_votes(self, job_run_id: int):
 
 
 class _StreamingJobWriter:
-    """A file-like writer that updates JobRun.progress_detail on every write."""
+    """A file-like writer that updates JobRun.progress_detail on every write.
+
+    Parses "Processed N …" lines from management command output to update
+    progress_current so the progress bar reflects real work done.
+    """
+
+    _PROCESSED_RE = None  # compiled lazily
 
     def __init__(self, job_run_id: int):
         self._job_run_id = job_run_id
         self._buffer: list[str] = []
+        self._current = 0
+
+    @classmethod
+    def _get_pattern(cls):
+        if cls._PROCESSED_RE is None:
+            import re
+
+            cls._PROCESSED_RE = re.compile(r"Processed\s+(\d+)\s+", re.IGNORECASE)
+        return cls._PROCESSED_RE
 
     def write(self, text: str) -> int:
         if not text or text == "\n":
@@ -326,7 +341,11 @@ class _StreamingJobWriter:
         clean = text.strip()
         if clean:
             self._buffer.append(clean)
-            _update_progress(self._job_run_id, 0, clean)
+            # Try to extract a count from lines like "Processed 150 HR bills..."
+            m = self._get_pattern().search(clean)
+            if m:
+                self._current = max(self._current, int(m.group(1)))
+            _update_progress(self._job_run_id, self._current, clean)
         return len(text)
 
     def flush(self) -> None:
@@ -336,14 +355,16 @@ class _StreamingJobWriter:
         return "\n".join(self._buffer)
 
 
-def _run_management_command(job_run_id, command_name, detail_msg, **kwargs):
+def _run_management_command(
+    job_run_id, command_name, detail_msg, progress_total=0, **kwargs
+):
     """Generic helper to run a Django management command as a job."""
     import io
 
     from django.core.management import call_command
 
     try:
-        _start_job(job_run_id, 1)
+        _start_job(job_run_id, progress_total)
         _update_progress(job_run_id, 0, detail_msg)
 
         stdout = _StreamingJobWriter(job_run_id)
@@ -353,10 +374,12 @@ def _run_management_command(job_run_id, command_name, detail_msg, **kwargs):
         output = stdout.getvalue()
         errors = stderr.getvalue()
 
-        _update_progress(job_run_id, 1, "Complete")
+        # Use the final count parsed from stdout (or at least 1)
+        final_count = stdout._current or 1
+        _update_progress(job_run_id, final_count, "Complete")
         _complete_job(
             job_run_id,
-            1,
+            final_count,
             0,
             {"stdout": output[-2000:], "stderr": errors[-2000:] if errors else ""},
         )
@@ -373,6 +396,7 @@ def run_seed_bills(self, job_run_id: int):
         job_run_id,
         "seed_bills",
         "Seeding bills from Congress.gov...",
+        progress_total=5000,
         congress=119,
         limit=5000,
     )
@@ -385,6 +409,7 @@ def run_seed_votes(self, job_run_id: int):
         job_run_id,
         "seed_votes",
         "Seeding votes from Congress.gov...",
+        progress_total=2000,
         congress=119,
         limit=2000,
         chamber="both",
@@ -398,6 +423,7 @@ def run_seed_senate_votes(self, job_run_id: int):
         job_run_id,
         "seed_senate_votes",
         "Seeding Senate votes from Senate.gov...",
+        progress_total=500,
         congress=119,
         session=1,
         limit=500,
