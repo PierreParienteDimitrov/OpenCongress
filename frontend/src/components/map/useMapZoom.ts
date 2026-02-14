@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useCallback, useState } from "react";
 import { zoom, zoomIdentity } from "d3-zoom";
 import { select } from "d3-selection";
 import "d3-transition";
