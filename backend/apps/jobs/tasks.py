@@ -98,6 +98,9 @@ def run_generate_member_bios(self, job_run_id: int):
         errors = []
 
         for i, (bioguide_id, full_name) in enumerate(members, 1):
+            _update_progress(
+                job_run_id, i - 1, f"[{i}/{len(members)}] Generating bio: {full_name}"
+            )
             try:
                 result = generate_member_bio(bioguide_id)
                 if result.get("success"):
@@ -115,7 +118,7 @@ def run_generate_member_bios(self, job_run_id: int):
                 errors.append({"id": bioguide_id, "error": str(e)})
                 logger.error(f"Job {job_run_id}: error on {bioguide_id}: {e}")
 
-            _update_progress(job_run_id, i, f"Last: {full_name}")
+            _update_progress(job_run_id, i, f"Done: {full_name}")
 
         _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
 
@@ -149,6 +152,11 @@ def run_generate_bill_summaries(self, job_run_id: int):
         errors = []
 
         for i, (bill_id, display_number) in enumerate(bills, 1):
+            _update_progress(
+                job_run_id,
+                i - 1,
+                f"[{i}/{len(bills)}] Summarizing: {display_number}",
+            )
             try:
                 result = generate_bill_summary(bill_id)
                 if result.get("success"):
@@ -166,7 +174,7 @@ def run_generate_bill_summaries(self, job_run_id: int):
                 errors.append({"id": bill_id, "error": str(e)})
                 logger.error(f"Job {job_run_id}: error on {bill_id}: {e}")
 
-            _update_progress(job_run_id, i, f"Last: {display_number}")
+            _update_progress(job_run_id, i, f"Done: {display_number}")
 
         _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
 
@@ -200,6 +208,11 @@ def run_generate_vote_summaries(self, job_run_id: int):
         errors = []
 
         for i, (vote_id, description) in enumerate(votes, 1):
+            _update_progress(
+                job_run_id,
+                i - 1,
+                f"[{i}/{len(votes)}] Summarizing: {description[:60]}",
+            )
             try:
                 result = generate_vote_summary(vote_id)
                 if result.get("success"):
@@ -217,7 +230,7 @@ def run_generate_vote_summaries(self, job_run_id: int):
                 errors.append({"id": vote_id, "error": str(e)})
                 logger.error(f"Job {job_run_id}: error on {vote_id}: {e}")
 
-            _update_progress(job_run_id, i, f"Last: {description[:60]}")
+            _update_progress(job_run_id, i, f"Done: {description[:60]}")
 
         _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
 

@@ -213,7 +213,9 @@ class JobRunAdmin(admin.ModelAdmin):
             f"Job #{job_run.id} ({job_type}) started by {request.user.username}"
         )
         messages.success(request, f"Started: {config['label']} (Job #{job_run.id})")
-        return HttpResponseRedirect(reverse("admin:jobs_jobrun_changelist"))
+        return HttpResponseRedirect(
+            request.META.get("HTTP_REFERER", reverse("admin:jobs_jobrun_changelist"))
+        )
 
     def stop_job_view(self, request, job_run_id):
         """Stop a running job by revoking the Celery task."""
