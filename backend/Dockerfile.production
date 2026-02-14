@@ -20,8 +20,12 @@ RUN pip install --no-cache-dir -r requirements/production.txt
 # Copy project files
 COPY . .
 
-# Collect static files (dummy key needed since SECRET_KEY isn't available at build time)
-RUN SECRET_KEY=build-only-dummy-key python manage.py collectstatic --noinput
+# Collect static files (dummy secrets needed since real values aren't available at build time)
+RUN SECRET_KEY=build-only-dummy-key \
+    AUTH_SYNC_SECRET=build-only-dummy-secret \
+    REVALIDATION_SECRET=build-only-dummy-secret \
+    ENCRYPTION_KEY=build-only-dummy-secret \
+    python manage.py collectstatic --noinput
 
 # Expose port
 EXPOSE 8000
