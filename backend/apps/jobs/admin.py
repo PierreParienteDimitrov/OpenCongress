@@ -14,6 +14,7 @@ from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
 from .models import JobRun
 from .registry import JOB_REGISTRY
@@ -32,6 +33,7 @@ class JobRunAdmin(admin.ModelAdmin):
         "duration_display",
         "triggered_by",
         "created_at",
+        "actions_display",
     ]
     list_filter = ["status", "job_type"]
     readonly_fields = [
@@ -98,6 +100,21 @@ class JobRunAdmin(admin.ModelAdmin):
         if minutes:
             return f"{minutes}m {seconds}s"
         return f"{seconds}s"
+
+    @admin.display(description="")
+    def actions_display(self, obj):
+        if obj.status in ("pending", "running"):
+            stop_url = reverse("admin:jobs_stop", args=[obj.id])
+            return format_html(
+                '<form method="post" action="{}" class="stop-job-form"'
+                ' style="display:inline">'
+                '<button type="submit" style="background:#dc3545;color:#fff;'
+                "border:none;padding:4px 12px;border-radius:4px;cursor:pointer;"
+                'font-size:0.8rem">'
+                "\u23f9 Stop</button></form>",
+                stop_url,
+            )
+        return ""
 
     def get_urls(self):
         urls = super().get_urls()
@@ -238,4 +255,6 @@ class JobRunAdmin(admin.ModelAdmin):
             f"Job #{job_run_id} ({job_run.job_type}) stopped by {request.user.username}"
         )
         messages.success(request, f"Stopped: {label} (Job #{job_run_id})")
-        return HttpResponseRedirect(request.META.get("HTTP_REFERER", reverse("admin:jobs_dashboard")))
+        return HttpResponseRedirect(
+            request.META.get("HTTP_REFERER", reverse("admin:jobs_dashboard"))
+        )

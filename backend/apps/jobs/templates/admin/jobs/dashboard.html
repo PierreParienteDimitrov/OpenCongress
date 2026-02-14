@@ -19,6 +19,8 @@
     .btn-run { background: var(--button-bg, #417690); color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 0.8125rem; }
     .btn-run:hover { background: var(--button-hover-bg, #205067); }
     .btn-disabled { background: #999; cursor: not-allowed; }
+    .btn-stop { background: #dc3545; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 0.8125rem; }
+    .btn-stop:hover { background: #a71d2a; }
     .queue-badge { background: var(--darkened-bg, #eee); padding: 2px 8px; border-radius: 3px; font-size: 0.75rem; font-family: monospace; }
     .description { color: var(--body-quiet-color, #666); font-size: 0.8125rem; }
     .progress-bar-container { background: #eee; border-radius: 4px; height: 20px; width: 200px; position: relative; overflow: hidden; }
@@ -84,7 +86,12 @@
         </td>
         <td>
           {% if job.is_running %}
-            <button class="btn-run btn-disabled" disabled>In progress...</button>
+            <form method="post" action="{% url 'admin:jobs_stop' job.running_job.id %}" style="display: inline;">
+              {% csrf_token %}
+              <button type="submit" class="btn-stop" onclick="return confirm('Stop {{ job.label }}? This will kill the running process.');">
+                &#x23F9; Stop
+              </button>
+            </form>
           {% else %}
             <form method="post" action="{% url 'admin:jobs_run' job.key %}" style="display: inline;">
               {% csrf_token %}
