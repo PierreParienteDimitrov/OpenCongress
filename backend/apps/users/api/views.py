@@ -183,6 +183,67 @@ class MyRepresentativesView(APIView):
         )
 
 
+class MyRepresentativesActivityView(APIView):
+    """Get recent weekly activity for the user's followed members."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        followed_ids = list(
+            UserFollow.objects.filter(user=user).values_list("bioguide_id", flat=True)
+        )
+
+        if not followed_ids:
+            return Response({"members": []})
+
+        # Calculate current week bounds (Sunday–Saturday, matching frontend getWeekStart)
+        today = date.today()
+        # Python weekday(): Monday=0 ... Sunday=6
+        # We want Sunday as start: subtract (weekday + 1) % 7
+        days_since_sunday = (today.weekday() + 1) % 7
+        week_start = today - timedelta(days=days_since_sunday)
+        week_end = week_start + timedelta(days=6)
+
+        members = Member.objects.filter(bioguide_id__in=followed_ids, is_active=True)
+
+        result = []
+        for member in members:
+            member_votes = (
+                MemberVote.objects.filter(
+                    member=member,
+                    vote__date__gte=week_start,
+                    vote__date__lte=week_end,
+                )
+                .select_related("vote", "vote__bill")
+                .order_by("-vote__date", "-vote__time")[:5]
+            )
+            recent_votes = MemberRecentVoteSerializer(member_votes, many=True).data
+
+            sponsored_bills = Bill.objects.filter(
+                sponsor=member,
+                latest_action_date__gte=week_start,
+                latest_action_date__lte=week_end,
+            ).order_by("-latest_action_date")[:3]
+            sponsored = RepSponsoredBillSerializer(sponsored_bills, many=True).data
+
+            result.append(
+                {
+                    "bioguide_id": member.bioguide_id,
+                    "full_name": member.full_name,
+                    "party": member.party,
+                    "chamber": member.chamber,
+                    "state": member.state,
+                    "district": member.district,
+                    "photo_url": member.photo_url,
+                    "recent_votes": recent_votes,
+                    "sponsored_bills": sponsored,
+                }
+            )
+
+        return Response({"members": result})
+
+
 class FollowMemberView(APIView):
     """Follow or unfollow a congress member."""
 
