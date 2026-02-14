@@ -22,6 +22,7 @@ interface Source {
 
 export function createDjangoChatAdapter(
   provider: string,
+  model: string,
   pageContext: PageContext | null,
 ): ChatModelAdapter {
   return {
@@ -51,6 +52,7 @@ export function createDjangoChatAdapter(
         },
         body: JSON.stringify({
           provider,
+          model,
           messages: apiMessages,
           page_context: pageContext || { type: "home", data: {} },
         }),

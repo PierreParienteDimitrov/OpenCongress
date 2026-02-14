@@ -26,7 +26,8 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { fetchAPIKeys, type ConfiguredAPIKey } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { useChatContext } from "@/lib/chat-context";
-import { useChatUI, type AIProvider } from "@/lib/chat-store";
+import { useChatUI } from "@/lib/chat-store";
+import { CHAT_MODELS, getModelById } from "@/lib/chat-models";
 import { createDjangoChatAdapter } from "./ChatModelAdapter";
 import { ModelSelector } from "./ModelSelector";
 
@@ -77,8 +78,8 @@ export function ChatInterface() {
   const pageContext = useChatContext();
   const isOpen = useChatUI((s) => s.isOpen);
   const isExpanded = useChatUI((s) => s.isExpanded);
-  const storedProvider = useChatUI((s) => s.selectedProvider);
-  const setProvider = useChatUI((s) => s.setProvider);
+  const storedModel = useChatUI((s) => s.selectedModel);
+  const setModel = useChatUI((s) => s.setModel);
   const openChat = useChatUI((s) => s.open);
   const closeChat = useChatUI((s) => s.close);
   const toggleExpanded = useChatUI((s) => s.toggleExpanded);
@@ -107,15 +108,17 @@ export function ChatInterface() {
     [apiKeys],
   );
 
-  // Auto-select first configured provider if none selected or current is invalid
+  // Auto-select first available model if none selected or current is invalid
   useEffect(() => {
     if (apiKeys.length === 0) return;
-    if (!storedProvider || !configuredProviders.has(storedProvider)) {
-      setProvider(apiKeys[0].provider as AIProvider);
+    const currentDef = storedModel ? getModelById(storedModel) : null;
+    if (!currentDef || !configuredProviders.has(currentDef.provider)) {
+      const firstAvailable = CHAT_MODELS.find((m) =>
+        configuredProviders.has(m.provider),
+      );
+      if (firstAvailable) setModel(firstAvailable.id);
     }
-  }, [apiKeys, storedProvider, configuredProviders, setProvider]);
-
-  const selectedProvider = storedProvider;
+  }, [apiKeys, storedModel, configuredProviders, setModel]);
 
   // Set default position on first open (client-side only)
   const panelPositionResolved = useMemo(() => {
@@ -220,9 +223,11 @@ export function ChatInterface() {
 
   // assistant-ui adapter + runtime
   const adapter = useMemo(() => {
-    if (!selectedProvider) return null;
-    return createDjangoChatAdapter(selectedProvider, pageContext);
-  }, [selectedProvider, pageContext]);
+    if (!storedModel) return null;
+    const modelDef = getModelById(storedModel);
+    if (!modelDef) return null;
+    return createDjangoChatAdapter(modelDef.provider, storedModel, pageContext);
+  }, [storedModel, pageContext]);
 
   const runtime = useLocalRuntime(adapter!);
 

@@ -118,6 +118,7 @@ export async function unfollowMember(bioguideId: string): Promise<void> {
 
 export interface ChatStreamOptions {
   provider: string;
+  model?: string;
   messages: { role: "user" | "assistant"; content: string }[];
   pageContext: { type: string; data: Record<string, unknown> };
   onChunk: (text: string) => void;
@@ -127,6 +128,7 @@ export interface ChatStreamOptions {
 
 export async function streamChat({
   provider,
+  model,
   messages,
   pageContext,
   onChunk,
@@ -147,6 +149,7 @@ export async function streamChat({
     },
     body: JSON.stringify({
       provider,
+      model,
       messages,
       page_context: pageContext,
     }),

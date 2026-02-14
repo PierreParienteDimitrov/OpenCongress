@@ -24,17 +24,36 @@ ChatEvent = dict[str, Any]
 class ChatService:
     """Unified streaming chat interface for multiple AI providers."""
 
-    MODELS = {
+    DEFAULT_MODELS = {
         "anthropic": "claude-sonnet-4-5-20250929",
         "openai": "gpt-4o",
         "google": "gemini-2.0-flash",
     }
 
-    def __init__(self, provider: str, api_key: str):
-        if provider not in self.MODELS:
+    ALLOWED_MODELS: dict[str, set[str]] = {
+        "anthropic": {
+            "claude-sonnet-4-5-20250929",
+            "claude-3-5-haiku-20241022",
+        },
+        "openai": {
+            "gpt-4o",
+            "gpt-4o-mini",
+        },
+        "google": {
+            "gemini-2.5-pro-preview-05-06",
+            "gemini-2.0-flash",
+        },
+    }
+
+    def __init__(self, provider: str, api_key: str, model: str | None = None):
+        if provider not in self.DEFAULT_MODELS:
             raise ValueError(f"Unknown provider: {provider}")
         self.provider = provider
         self.api_key = api_key
+        if model and model in self.ALLOWED_MODELS.get(provider, set()):
+            self.model = model
+        else:
+            self.model = self.DEFAULT_MODELS[provider]
 
     def stream_chat(
         self,
@@ -90,7 +109,7 @@ class ChatService:
             if is_last_round:
                 # Final round: stream text with web search but no DB tools
                 with client.messages.stream(
-                    model=self.MODELS["anthropic"],
+                    model=self.model,
                     max_tokens=4096,
                     system=system_context,
                     messages=conv_messages,
@@ -102,7 +121,7 @@ class ChatService:
 
             # Non-streaming call with all tools (DB + web search)
             response = client.messages.create(
-                model=self.MODELS["anthropic"],
+                model=self.model,
                 max_tokens=4096,
                 system=system_context,
                 messages=conv_messages,
@@ -281,7 +300,7 @@ class ChatService:
             if is_last_round:
                 # Final round: stream text, no tools
                 stream = client.responses.create(
-                    model=self.MODELS["openai"],
+                    model=self.model,
                     input=input_items,  # type: ignore[arg-type]
                     stream=True,
                 )
@@ -292,7 +311,7 @@ class ChatService:
 
             # Non-streaming call with tools
             response = client.responses.create(
-                model=self.MODELS["openai"],
+                model=self.model,
                 input=input_items,  # type: ignore[arg-type]
                 tools=all_tools,  # type: ignore[arg-type]
             )
@@ -422,7 +441,7 @@ class ChatService:
         def _stream_plain() -> Generator[ChatEvent, None, None]:
             """Stream response with no tools (last resort fallback)."""
             stream_response = client.models.generate_content_stream(
-                model=self.MODELS["google"],
+                model=self.model,
                 contents=contents,
                 config=config_no_tools,
             )
@@ -434,7 +453,7 @@ class ChatService:
             """Stream final response with Google Search grounding."""
             try:
                 stream_response = client.models.generate_content_stream(
-                    model=self.MODELS["google"],
+                    model=self.model,
                     contents=contents,
                     config=config_with_search,
                 )
@@ -459,7 +478,7 @@ class ChatService:
             # Non-streaming call with DB function tools
             try:
                 sync_response = client.models.generate_content(
-                    model=self.MODELS["google"],
+                    model=self.model,
                     contents=contents,
                     config=config_with_db_tools,
                 )

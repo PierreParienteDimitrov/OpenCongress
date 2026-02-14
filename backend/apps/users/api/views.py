@@ -378,6 +378,7 @@ def chat_stream_view(request):
         page_context: {"type": "...", "data": {...}}
     """
     provider = request.data.get("provider")
+    model = request.data.get("model")
     messages = request.data.get("messages", [])
     page_context = request.data.get("page_context", {})
 
@@ -409,7 +410,7 @@ def chat_stream_view(request):
 
     def event_stream():
         try:
-            service = ChatService(provider, api_key)
+            service = ChatService(provider, api_key, model=model)
             for event in service.stream_chat(messages, system_context):
                 event_type = event.get("type")
                 if event_type == "text_delta":
