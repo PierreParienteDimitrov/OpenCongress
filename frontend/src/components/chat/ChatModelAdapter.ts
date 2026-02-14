@@ -15,6 +15,11 @@ interface ToolCallState {
   result: unknown | undefined;
 }
 
+interface Source {
+  url: string;
+  title: string;
+}
+
 export function createDjangoChatAdapter(
   provider: string,
   pageContext: PageContext | null,
@@ -65,6 +70,7 @@ export function createDjangoChatAdapter(
       const decoder = new TextDecoder();
       let fullText = "";
       const toolCalls = new Map<string, ToolCallState>();
+      const sources: Source[] = [];
       // Buffer for incomplete SSE lines split across chunks
       let lineBuffer = "";
 
@@ -112,11 +118,25 @@ export function createDjangoChatAdapter(
               if (existing) {
                 existing.result = tr.result;
               }
+            } else if (data.sources) {
+              // Collect web search citation sources
+              const newSources = data.sources as Source[];
+              for (const s of newSources) {
+                if (!sources.some((x) => x.url === s.url)) {
+                  sources.push(s);
+                }
+              }
             } else if (data.error) {
               throw new Error(data.error as string);
             } else if (data.done) {
-              // Stream complete — no action needed
-              continue;
+              // Stream complete — append sources as markdown links
+              if (sources.length > 0) {
+                fullText +=
+                  "\n\n---\n**Sources:**\n" +
+                  sources
+                    .map((s) => `- [${s.title || s.url}](${s.url})`)
+                    .join("\n");
+              }
             }
 
             // Build content array with text + tool-call parts

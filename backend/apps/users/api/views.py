@@ -301,7 +301,11 @@ def _build_system_context(page_context: dict) -> str:
         "OpenCongress database. Use them to answer questions with accurate, "
         "up-to-date information rather than relying on general knowledge. "
         "When the user asks about something on the current page, use the "
-        "provided IDs to look up details via tools."
+        "provided IDs to look up details via tools.\n\n"
+        "You also have web search capabilities. Use web search when the user "
+        "asks about current events, news, or anything beyond the OpenCongress "
+        "database. You can answer general questions too — you are not limited "
+        "to congressional topics."
     )
 
     ctx_type = page_context.get("type", "")
@@ -430,6 +434,8 @@ def chat_stream_view(request):
                             }
                         }
                     )
+                elif event_type == "sources":
+                    yield _sse_event({"sources": event["sources"]})
             yield _sse_event({"done": True})
         except Exception as e:
             logger.error("Chat streaming error for user %s: %s", request.user.id, e)

@@ -4,7 +4,8 @@ Multi-provider chat service with streaming and tool-use support.
 Routes chat requests to Anthropic, OpenAI, or Google based on
 the user's configured provider and API key. Supports a tool-use
 loop: the LLM can call tools to query the database, then stream
-a final text response.
+a final text response. Each provider also has native web search
+enabled so the LLM can look up real-time information.
 """
 
 import json
@@ -68,7 +69,16 @@ class ChatService:
         from services.chat_tools import execute_tool, tools_for_anthropic
 
         client = Anthropic(api_key=self.api_key)
-        tools: list[ToolParam] = tools_for_anthropic()  # type: ignore[assignment]
+        db_tools: list[ToolParam] = tools_for_anthropic()  # type: ignore[assignment]
+
+        # Native web search — handled server-side by Claude
+        web_search_tool: dict[str, Any] = {
+            "type": "web_search_20250305",
+            "name": "web_search",
+            "max_uses": 3,
+        }
+        all_tools: list[Any] = [web_search_tool] + db_tools
+
         conv_messages: list[MessageParam] = [
             {"role": m["role"], "content": m["content"]}  # type: ignore[misc]
             for m in messages
@@ -81,7 +91,7 @@ class ChatService:
                 # Final round: stream text, no tools
                 with client.messages.stream(
                     model=self.MODELS["anthropic"],
-                    max_tokens=2048,
+                    max_tokens=4096,
                     system=system_context,
                     messages=conv_messages,
                 ) as stream:
@@ -89,13 +99,13 @@ class ChatService:
                         yield {"type": "text_delta", "content": text}
                 break
 
-            # Non-streaming call with tools
+            # Non-streaming call with tools (includes web search)
             response = client.messages.create(
                 model=self.MODELS["anthropic"],
-                max_tokens=2048,
+                max_tokens=4096,
                 system=system_context,
                 messages=conv_messages,
-                tools=tools,
+                tools=all_tools,
             )
 
             has_tool_use = response.stop_reason == "tool_use"
@@ -103,9 +113,11 @@ class ChatService:
             # Process content blocks
             tool_results: list[dict[str, Any]] = []
             for block in response.content:
-                if block.type == "text" and block.text:
-                    yield {"type": "text_delta", "content": block.text}
+                if block.type == "text":
+                    if block.text:
+                        yield {"type": "text_delta", "content": block.text}
                 elif block.type == "tool_use":
+                    # Our custom DB tools — execute locally
                     yield {
                         "type": "tool_call_start",
                         "id": block.id,
@@ -126,6 +138,33 @@ class ChatService:
                             "content": json.dumps(result),
                         }
                     )
+                elif block.type == "server_tool_use":
+                    # Server-side web search — emit as a tool call for the UI
+                    yield {
+                        "type": "tool_call_start",
+                        "id": block.id,
+                        "name": "web_search",
+                        "args": block.input if hasattr(block, "input") else {},
+                    }
+                elif block.type == "web_search_tool_result":
+                    # Web search results from the server — extract source info
+                    sources = []
+                    if hasattr(block, "content") and block.content:
+                        for entry in block.content:
+                            if hasattr(entry, "url"):
+                                sources.append(
+                                    {
+                                        "url": entry.url,  # type: ignore[union-attr]
+                                        "title": getattr(entry, "title", ""),
+                                    }
+                                )
+                    yield {
+                        "type": "tool_call_result",
+                        "id": getattr(block, "tool_use_id", ""),
+                        "name": "web_search",
+                        "result": {"sources": sources},
+                    }
+                # Skip other block types silently
 
             if not has_tool_use:
                 break
@@ -137,9 +176,10 @@ class ChatService:
                     "content": [b.model_dump() for b in response.content],  # type: ignore[misc]
                 }
             )
-            conv_messages.append(
-                {"role": "user", "content": tool_results}  # type: ignore[arg-type, typeddict-item]
-            )
+            if tool_results:
+                conv_messages.append(
+                    {"role": "user", "content": tool_results}  # type: ignore[arg-type, typeddict-item]
+                )
 
     # ------------------------------------------------------------------
     # OpenAI
@@ -149,92 +189,122 @@ class ChatService:
         self, messages: list[dict[str, Any]], system_context: str
     ) -> Generator[ChatEvent, None, None]:
         from openai import OpenAI
-        from openai.types.chat import (
-            ChatCompletionMessageParam,
-            ChatCompletionToolParam,
-        )
 
         from services.chat_tools import execute_tool, tools_for_openai
 
         client = OpenAI(api_key=self.api_key)
-        tools: list[ChatCompletionToolParam] = tools_for_openai()  # type: ignore[assignment]
+        db_tools = tools_for_openai()
 
-        openai_messages: list[ChatCompletionMessageParam] = []
+        # Use Responses API which supports web_search_preview
+        all_tools: list[dict[str, Any]] = [
+            {"type": "web_search_preview"},
+        ] + db_tools
+
+        # Build input: system instructions + conversation
+        input_items: list[dict[str, Any]] = []
         if system_context:
-            openai_messages.append(
-                {"role": "system", "content": system_context}  # type: ignore[arg-type]
-            )
+            input_items.append({"role": "developer", "content": system_context})
         for m in messages:
-            openai_messages.append(
-                {"role": m["role"], "content": m["content"]}  # type: ignore[arg-type]
-            )
+            input_items.append({"role": m["role"], "content": m["content"]})
 
         for _round in range(MAX_TOOL_ROUNDS + 1):
             is_last_round = _round == MAX_TOOL_ROUNDS
 
             if is_last_round:
                 # Final round: stream text, no tools
-                stream = client.chat.completions.create(
+                stream = client.responses.create(
                     model=self.MODELS["openai"],
-                    messages=openai_messages,
-                    max_tokens=2048,
+                    input=input_items,  # type: ignore[arg-type]
                     stream=True,
                 )
-                for chunk in stream:
-                    if not chunk.choices:
-                        continue
-                    delta = chunk.choices[0].delta
-                    if delta.content:
-                        yield {"type": "text_delta", "content": delta.content}
+                for event in stream:
+                    if event.type == "response.output_text.delta":  # type: ignore[union-attr]
+                        yield {"type": "text_delta", "content": event.delta}  # type: ignore[union-attr]
                 break
 
             # Non-streaming call with tools
-            response = client.chat.completions.create(
+            response = client.responses.create(
                 model=self.MODELS["openai"],
-                messages=openai_messages,
-                max_tokens=2048,
-                tools=tools,
+                input=input_items,  # type: ignore[arg-type]
+                tools=all_tools,  # type: ignore[arg-type]
             )
 
-            choice = response.choices[0]  # type: ignore[index]
-            message = choice.message  # type: ignore[union-attr]
+            has_function_calls = False
+            function_results: list[dict[str, Any]] = []
 
-            if message.content:
-                yield {"type": "text_delta", "content": message.content}
+            for item in response.output:
+                if item.type == "web_search_call":
+                    # Native web search — emit events for the UI
+                    yield {
+                        "type": "tool_call_start",
+                        "id": item.id,
+                        "name": "web_search",
+                        "args": {},
+                    }
+                    yield {
+                        "type": "tool_call_result",
+                        "id": item.id,
+                        "name": "web_search",
+                        "result": {"status": getattr(item, "status", "completed")},
+                    }
+                elif item.type == "function_call":
+                    has_function_calls = True
+                    tool_name = item.name
+                    tool_args = json.loads(item.arguments)
 
-            if not message.tool_calls:
+                    yield {
+                        "type": "tool_call_start",
+                        "id": item.call_id,
+                        "name": tool_name,
+                        "args": tool_args,
+                    }
+
+                    result = execute_tool(tool_name, tool_args)
+
+                    yield {
+                        "type": "tool_call_result",
+                        "id": item.call_id,
+                        "name": tool_name,
+                        "result": result,
+                    }
+
+                    function_results.append(
+                        {
+                            "type": "function_call_output",
+                            "call_id": item.call_id,
+                            "output": json.dumps(result),
+                        }
+                    )
+                elif item.type == "message":
+                    for content_part in item.content:
+                        if content_part.type == "output_text":
+                            yield {
+                                "type": "text_delta",
+                                "content": content_part.text,
+                            }
+                            # Emit citations as sources
+                            annotations = getattr(content_part, "annotations", [])
+                            sources = []
+                            for ann in annotations:
+                                if getattr(ann, "type", "") == "url_citation":
+                                    sources.append(
+                                        {
+                                            "url": ann.url,
+                                            "title": getattr(ann, "title", ""),
+                                        }
+                                    )
+                            if sources:
+                                yield {
+                                    "type": "sources",
+                                    "sources": sources,
+                                }
+
+            if not has_function_calls:
                 break
 
-            # Append assistant message with tool calls
-            openai_messages.append(message.model_dump())  # type: ignore[arg-type]
-
-            for tc in message.tool_calls:
-                tool_name = tc.function.name  # type: ignore[union-attr]
-                tool_args = json.loads(tc.function.arguments)  # type: ignore[union-attr]
-
-                yield {
-                    "type": "tool_call_start",
-                    "id": tc.id,
-                    "name": tool_name,
-                    "args": tool_args,
-                }
-
-                result = execute_tool(tool_name, tool_args)
-
-                yield {
-                    "type": "tool_call_result",
-                    "id": tc.id,
-                    "name": tool_name,
-                    "result": result,
-                }
-
-                openai_messages.append(
-                    {  # type: ignore[arg-type]
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": json.dumps(result),
-                    }
-                )
+            # Append response output and function results for next round
+            input_items.append({"role": "assistant", "content": response.output})  # type: ignore[dict-item]
+            input_items.extend(function_results)
 
     # ------------------------------------------------------------------
     # Google GenAI
@@ -249,7 +319,24 @@ class ChatService:
         from services.chat_tools import execute_tool, tools_for_google
 
         client = genai.Client(api_key=self.api_key)
-        tools = tools_for_google()
+        db_tools = tools_for_google()
+
+        # Gemini doesn't allow google_search + function_declarations together,
+        # so we use DB tools for intermediate rounds and Google Search for
+        # the final streaming round.
+        config_with_db_tools = types.GenerateContentConfig(
+            max_output_tokens=4096,
+            temperature=0.7,
+            system_instruction=system_context if system_context else None,
+            tools=db_tools,
+        )
+
+        config_with_search = types.GenerateContentConfig(
+            max_output_tokens=4096,
+            temperature=0.7,
+            system_instruction=system_context if system_context else None,
+            tools=[types.Tool(google_search=types.GoogleSearch())],
+        )
 
         contents: list[types.Content] = []
         for msg in messages:
@@ -258,45 +345,44 @@ class ChatService:
                 types.Content(role=role, parts=[types.Part(text=msg["content"])])
             )
 
-        config = types.GenerateContentConfig(
-            max_output_tokens=2048,
-            temperature=0.7,
-            system_instruction=system_context if system_context else None,
-            tools=tools,
-        )
-
-        config_no_tools = types.GenerateContentConfig(
-            max_output_tokens=2048,
-            temperature=0.7,
-            system_instruction=system_context if system_context else None,
-        )
-
         for _round in range(MAX_TOOL_ROUNDS + 1):
             is_last_round = _round == MAX_TOOL_ROUNDS
 
             if is_last_round:
-                # Final round: stream text, no tools
+                # Final round: stream with Google Search grounding
                 stream_response = client.models.generate_content_stream(
                     model=self.MODELS["google"],
                     contents=contents,
-                    config=config_no_tools,
+                    config=config_with_search,
                 )
                 for chunk in stream_response:
                     if chunk.text:
                         yield {"type": "text_delta", "content": chunk.text}
+                    # Grounding metadata on streaming chunks
+                    candidate = (
+                        chunk.candidates[0]
+                        if chunk.candidates
+                        else None  # type: ignore[index]
+                    )
+                    if candidate:
+                        grounding = getattr(candidate, "grounding_metadata", None)
+                        if grounding:
+                            yield from self._emit_google_grounding(grounding, _round)
                 break
 
-            # Non-streaming call with tools
+            # Non-streaming call with DB function tools
             sync_response = client.models.generate_content(
                 model=self.MODELS["google"],
                 contents=contents,
-                config=config,
+                config=config_with_db_tools,
             )
 
             has_function_calls = False
             function_responses: list[types.Part] = []
 
-            for part in sync_response.candidates[0].content.parts:  # type: ignore[union-attr, index]
+            candidate = sync_response.candidates[0]  # type: ignore[index]
+
+            for part in candidate.content.parts:  # type: ignore[union-attr]
                 if part.text:
                     yield {"type": "text_delta", "content": part.text}
                 elif part.function_call:
@@ -335,5 +421,35 @@ class ChatService:
                 break
 
             # Append model response and tool results for next round
-            contents.append(sync_response.candidates[0].content)  # type: ignore[union-attr, index, arg-type]
+            contents.append(candidate.content)  # type: ignore[union-attr, arg-type]
             contents.append(types.Content(role="user", parts=function_responses))
+
+    @staticmethod
+    def _emit_google_grounding(
+        grounding: Any, round_idx: int
+    ) -> Generator[ChatEvent, None, None]:
+        """Extract grounding metadata from Google Search and yield events."""
+        sources = []
+        chunks = getattr(grounding, "grounding_chunks", None) or []
+        for gc in chunks:
+            web = getattr(gc, "web", None)
+            if web:
+                sources.append(
+                    {
+                        "url": getattr(web, "uri", ""),
+                        "title": getattr(web, "title", ""),
+                    }
+                )
+        if sources:
+            yield {
+                "type": "tool_call_start",
+                "id": f"google_search_{round_idx}",
+                "name": "web_search",
+                "args": {"queries": getattr(grounding, "web_search_queries", [])},
+            }
+            yield {
+                "type": "tool_call_result",
+                "id": f"google_search_{round_idx}",
+                "name": "web_search",
+                "result": {"sources": sources},
+            }
