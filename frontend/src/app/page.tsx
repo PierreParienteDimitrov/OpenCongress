@@ -24,13 +24,6 @@ import {
   getWeekEnd,
   truncate,
 } from "@/lib/utils";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import FindYourRep from "@/components/home/FindYourRep";
@@ -158,20 +151,18 @@ export default async function Home() {
             {/* ============ LEFT COLUMN ============ */}
             <div className="flex flex-col gap-6 lg:col-span-8">
               {/* Lead Story: Week in Review */}
-              <Card className="gap-0 overflow-hidden border-b-4 border-accent py-0">
-                <CardHeader className="py-4">
-                  <CardTitle className="text-2xl font-bold text-foreground sm:text-3xl">
-                    {recap?.summary_type_display || "Week in Review"}
-                  </CardTitle>
-                  {votes.length > 0 && (
-                    <CardDescription className="text-base">
-                      {votes.length} vote{votes.length !== 1 ? "s" : ""},{" "}
-                      {bills.length} bill{bills.length !== 1 ? "s" : ""} this
-                      week
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent className="space-y-4 pb-6">
+              <div className="border-b-4 border-accent pb-6">
+                <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
+                  {recap?.summary_type_display || "Week in Review"}
+                </h2>
+                {votes.length > 0 && (
+                  <p className="mt-1 text-base text-muted-foreground">
+                    {votes.length} vote{votes.length !== 1 ? "s" : ""},{" "}
+                    {bills.length} bill{bills.length !== 1 ? "s" : ""} this
+                    week
+                  </p>
+                )}
+                <div className="mt-4 space-y-4">
                   {/* Mini Hemicycle hero */}
                   {senateSeats.length > 0 && (
                     <MiniHemicycle seats={senateSeats} />
@@ -193,8 +184,8 @@ export default async function Home() {
                   >
                     Read Full Summary →
                   </Link>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               <Separator />
 
@@ -204,7 +195,7 @@ export default async function Home() {
                   Latest Activity
                 </h2>
                 {latestActivity.length > 0 ? (
-                  <div className="divide-y divide-border rounded-lg border border-border bg-card">
+                  <div className="divide-y divide-border border-y border-border">
                     {latestActivity.map((item) => {
                       const key =
                         item.type === "vote"
@@ -261,11 +252,9 @@ export default async function Home() {
                     })}
                   </div>
                 ) : (
-                  <Card className="p-6 py-6 text-center">
-                    <p className="text-muted-foreground">
-                      No activity this week yet.
-                    </p>
-                  </Card>
+                  <p className="py-6 text-center text-muted-foreground">
+                    No activity this week yet.
+                  </p>
                 )}
                 <div className="mt-3 text-right">
                   <Link
@@ -281,13 +270,11 @@ export default async function Home() {
             {/* ============ RIGHT COLUMN (sidebar) ============ */}
             <div className="flex flex-col gap-6 lg:col-span-4">
               {/* Week by the Numbers */}
-              <Card className="gap-0 py-0">
-                <CardHeader className="border-b border-border py-4">
-                  <CardTitle className="text-lg font-bold">
-                    Week by the Numbers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-0 p-0">
+              <div>
+                <h3 className="border-b border-border pb-3 text-lg font-bold text-foreground">
+                  Week by the Numbers
+                </h3>
+                <div>
                   <StatRow label="Total Votes" value={votes.length} />
                   <StatRow label="Bills with Activity" value={bills.length} />
                   <StatRow
@@ -305,7 +292,7 @@ export default async function Home() {
                     value={`${bipartisanPercent}%`}
                   />
                   {closestVote && (
-                    <div className="border-t border-border px-4 py-3">
+                    <div className="border-t border-border px-0 py-3">
                       <p className="text-xs text-muted-foreground">
                         Closest Vote
                       </p>
@@ -328,32 +315,28 @@ export default async function Home() {
                       </p>
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Find Your Rep */}
-              <Card className="gap-0 py-0">
-                <CardHeader className="border-b border-border py-4">
-                  <CardTitle className="text-lg font-bold">
-                    Find Your Representative
-                  </CardTitle>
-                  <CardDescription>
-                    Enter your zip code to find your members of Congress
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="py-4">
+              <div>
+                <h3 className="border-b border-border pb-3 text-lg font-bold text-foreground">
+                  Find Your Representative
+                </h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Enter your zip code to find your members of Congress
+                </p>
+                <div className="mt-3">
                   <FindYourRep />
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Week Ahead */}
-              <Card className="gap-0 border-l-4 border-green-500 py-0">
-                <CardHeader className="py-4">
-                  <CardTitle className="text-lg font-bold">
-                    {preview?.summary_type_display || "Week Ahead"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pb-4">
+              <div className="border-l-4 border-green-500 pl-4">
+                <h3 className="text-lg font-bold text-foreground">
+                  {preview?.summary_type_display || "Week Ahead"}
+                </h3>
+                <div className="mt-3">
                   {preview ? (
                     <>
                       <p className="mb-4 text-sm leading-relaxed text-foreground/80">
@@ -371,8 +354,8 @@ export default async function Home() {
                       Week ahead preview will be available Sunday evening.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -436,7 +419,7 @@ function StatRow({
   color?: string;
 }) {
   return (
-    <div className="flex items-baseline justify-between border-b border-border px-4 py-3 last:border-b-0">
+    <div className="flex items-baseline justify-between border-b border-border py-3 last:border-b-0">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className={cn("text-xl font-bold", color || "text-foreground")}>
         {value}
