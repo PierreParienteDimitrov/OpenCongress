@@ -3,10 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Loader2, Unlink } from "lucide-react";
+import { MapPin, Loader2, Unlink, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import ZipCodeSearch from "@/components/map/ZipCodeSearch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +31,7 @@ import type {
   MyRepresentativesResponse,
   MultipleDistrictsResponse,
 } from "@/lib/api-client";
+import { lookupZipCode } from "@/lib/api";
 import { cn, getPartyBgColor, getPartyName } from "@/lib/utils";
 import { getMemberRoute } from "@/lib/routes";
 import type { ZipLookupResult, MemberListItem } from "@/types";
@@ -88,8 +88,10 @@ export function MyRepresentatives() {
       zipCode: string;
       district?: number;
     }) => saveMyRepresentatives(zipCode, district),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-representatives"] });
+    onSuccess: (resp) => {
+      if (!isMultipleDistricts(resp)) {
+        queryClient.invalidateQueries({ queryKey: ["my-representatives"] });
+      }
     },
   });
 
@@ -100,11 +102,14 @@ export function MyRepresentatives() {
       setSearchResult(null);
       setMultiDistricts(null);
       setSelectedDistrict(undefined);
-      setPendingZip(null);
+      setZip("");
     },
   });
 
-  // Local search state
+  // Search state
+  const [zip, setZip] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [searchResult, setSearchResult] = useState<ZipLookupResult | null>(
     null,
   );
@@ -116,15 +121,48 @@ export function MyRepresentatives() {
   const [selectedDistrict, setSelectedDistrict] = useState<
     number | undefined
   >();
-  const [pendingZip, setPendingZip] = useState<string | null>(null);
+
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = zip.trim();
+    if (!trimmed) return;
+
+    if (!/^\d{5}$/.test(trimmed)) {
+      setSearchError("Please enter a valid 5-digit zip code");
+      return;
+    }
+
+    setSearching(true);
+    setSearchError(null);
+    setMultiDistricts(null);
+    setSelectedDistrict(undefined);
+
+    try {
+      const result = await lookupZipCode(trimmed);
+      setSearchResult(result);
+    } catch {
+      setSearchError(
+        "Could not find a congressional district for this zip code",
+      );
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function handleClear() {
+    setZip("");
+    setSearchError(null);
+    setSearchResult(null);
+    setMultiDistricts(null);
+    setSelectedDistrict(undefined);
+  }
 
   async function handleSave() {
-    if (!searchResult && !multiDistricts) return;
-    const zip = pendingZip;
-    if (!zip) return;
+    const trimmed = zip.trim();
+    if (!trimmed) return;
 
     const resp = await saveMutation.mutateAsync({
-      zipCode: zip,
+      zipCode: trimmed,
       district: selectedDistrict,
     });
 
@@ -136,24 +174,6 @@ export function MyRepresentatives() {
       });
       setSearchResult(null);
     }
-  }
-
-  async function handleSearchResult(result: ZipLookupResult) {
-    setSearchResult(result);
-    setMultiDistricts(null);
-    setSelectedDistrict(undefined);
-
-    // Extract zip from somewhere — we'll need it for saving
-    // The ZipCodeSearch doesn't pass the zip, but the result has state/district info
-    // We need to get the zip from the search. Let's try a different approach:
-    // Save the zip before calling the backend save
-  }
-
-  function handleClear() {
-    setSearchResult(null);
-    setMultiDistricts(null);
-    setSelectedDistrict(undefined);
-    setPendingZip(null);
   }
 
   if (isLoading) {
@@ -229,13 +249,43 @@ export function MyRepresentatives() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ZipCodeSearchWithZip
-          onResult={(result, zip) => {
-            handleSearchResult(result);
-            setPendingZip(zip);
-          }}
-          onClear={handleClear}
-        />
+        {/* Zip code search */}
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={zip}
+              onChange={(e) => setZip(e.target.value)}
+              placeholder="Search by zip code..."
+              maxLength={5}
+              className="h-10 w-full rounded-md border border-input bg-card pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={searching}
+            className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {searching ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              "Search"
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleClear}
+            className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-input bg-card px-4 text-sm font-medium text-foreground hover:bg-accent"
+          >
+            Clear
+          </button>
+        </form>
+        {searchError && (
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {searchError}
+          </p>
+        )}
 
         {/* Multi-district picker */}
         {multiDistricts && (
@@ -300,116 +350,5 @@ export function MyRepresentatives() {
         )}
       </CardContent>
     </Card>
-  );
-}
-
-/**
- * Wrapper around ZipCodeSearch that also passes the zip code string
- * to the parent callback (the original component only passes the result).
- */
-function ZipCodeSearchWithZip({
-  onResult,
-  onClear,
-}: {
-  onResult: (result: ZipLookupResult, zip: string) => void;
-  onClear: () => void;
-}) {
-  const [lastZip, setLastZip] = useState("");
-
-  return (
-    <div>
-      <ZipCodeSearchInner
-        onZipChange={setLastZip}
-        onResult={(result) => onResult(result, lastZip)}
-        onClear={onClear}
-      />
-    </div>
-  );
-}
-
-/**
- * Inline zip code search that captures the zip value.
- * We can't easily modify ZipCodeSearch without changing its interface,
- * so we replicate the minimal search UI here.
- */
-import { Search } from "lucide-react";
-import { lookupZipCode } from "@/lib/api";
-
-function ZipCodeSearchInner({
-  onResult,
-  onClear,
-  onZipChange,
-}: {
-  onResult: (result: ZipLookupResult) => void;
-  onClear: () => void;
-  onZipChange: (zip: string) => void;
-}) {
-  const [zip, setZip] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = zip.trim();
-    if (!trimmed) return;
-
-    if (!/^\d{5}$/.test(trimmed)) {
-      setError("Please enter a valid 5-digit zip code");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await lookupZipCode(trimmed);
-      onZipChange(trimmed);
-      onResult(result);
-    } catch {
-      setError("Could not find a congressional district for this zip code");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handleClear() {
-    setZip("");
-    setError(null);
-    onClear();
-  }
-
-  return (
-    <div>
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={zip}
-            onChange={(e) => setZip(e.target.value)}
-            placeholder="Search by zip code..."
-            maxLength={5}
-            className="h-10 w-full rounded-md border border-input bg-card pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="size-4 animate-spin" /> : "Search"}
-        </button>
-        <button
-          type="button"
-          onClick={handleClear}
-          className="inline-flex h-10 cursor-pointer items-center justify-center rounded-md border border-input bg-card px-4 text-sm font-medium text-foreground hover:bg-accent"
-        >
-          Clear
-        </button>
-      </form>
-      {error && (
-        <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
-    </div>
   );
 }

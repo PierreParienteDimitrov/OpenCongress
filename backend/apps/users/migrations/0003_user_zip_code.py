@@ -6,17 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0002_userapikey'),
+        ("users", "0002_userapikey"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='userapikey',
-            options={'ordering': ['-created_at']},
+            name="userapikey",
+            options={"ordering": ["-created_at"]},
         ),
         migrations.AddField(
-            model_name='user',
-            name='zip_code',
+            model_name="user",
+            name="zip_code",
             field=models.CharField(blank=True, max_length=5),
         ),
     ]
