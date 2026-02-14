@@ -30,17 +30,31 @@ def _start_job(job_run_id, total):
         started_at=timezone.now(),
         progress_total=total,
         progress_current=0,
+        log="",
     )
 
 
+def _append_log(job_run_id, line):
+    """Append a line to the accumulated log field (atomic SQL concat)."""
+    from apps.jobs.models import JobRun
+    from django.db.models import Value
+    from django.db.models.functions import Concat
+
+    if not line:
+        return
+    JobRun.objects.filter(id=job_run_id).update(log=Concat("log", Value(line + "\n")))
+
+
 def _update_progress(job_run_id, current, detail=""):
-    """Update progress fields directly in DB."""
+    """Update progress fields and append detail to accumulated log."""
     from apps.jobs.models import JobRun
 
     JobRun.objects.filter(id=job_run_id).update(
         progress_current=current,
         progress_detail=detail,
     )
+    if detail:
+        _append_log(job_run_id, detail)
 
 
 def _complete_job(job_run_id, succeeded, failed, result=None):
