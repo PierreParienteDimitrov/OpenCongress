@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import {
   Geist,
   Geist_Mono,
@@ -9,7 +8,7 @@ import {
 import "./globals.css";
 import QueryProvider from "@/components/providers/QueryProvider";
 import { Navbar } from "@/components/nav/Navbar";
-import { ChatInterface } from "@/components/chat/ChatInterface";
+import { ContentWithSidebar } from "@/components/layout/ContentWithSidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,10 +47,7 @@ export default function RootLayout({
       >
         <QueryProvider>
           <Navbar />
-          <div className="flex-1">{children}</div>
-          <Suspense>
-            <ChatInterface />
-          </Suspense>
+          <ContentWithSidebar>{children}</ContentWithSidebar>
         </QueryProvider>
       </body>
     </html>

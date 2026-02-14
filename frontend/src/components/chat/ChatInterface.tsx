@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useCallback, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Settings, LogIn, X, Maximize2, RotateCcw } from "lucide-react";
+import {
+  Settings,
+  LogIn,
+  X,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import {
@@ -68,13 +76,15 @@ export function ChatInterface() {
   const pathname = usePathname();
   const pageContext = useChatContext();
   const isOpen = useChatUI((s) => s.isOpen);
+  const isExpanded = useChatUI((s) => s.isExpanded);
   const openChat = useChatUI((s) => s.open);
   const closeChat = useChatUI((s) => s.close);
+  const toggleExpanded = useChatUI((s) => s.toggleExpanded);
   const [selectedProviderOverride, setSelectedProvider] = useState<
     string | null
   >(null);
 
-  // Panel state
+  // Panel state (floating mode only)
   const [panelSize, setPanelSize] = useState({
     width: DEFAULT_WIDTH,
     height: DEFAULT_HEIGHT,
@@ -86,6 +96,12 @@ export function ChatInterface() {
   const [panelKey, setPanelKey] = useState(0);
   const dragControls = useDragControls();
   const isResizing = useRef(false);
+
+  // Portal target for sidebar mode
+  const [sidebarSlot, setSidebarSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setSidebarSlot(document.getElementById("chat-sidebar-slot"));
+  }, []);
 
   const { data: apiKeys = [] } = useQuery<ConfiguredAPIKey[]>({
     queryKey: ["api-keys"],
@@ -148,15 +164,7 @@ export function ChatInterface() {
     return `/login?callbackUrl=${encodeURIComponent(returnUrl)}`;
   }, [pathname, searchParams]);
 
-  // Reset panel position/size
-  const resetPanel = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPanelSize({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT });
-    setPanelPosition(getDefaultPosition());
-    setPanelKey((k) => k + 1);
-  }, []);
-
-  // Resize handler
+  // Resize handler (floating mode only)
   const startResize = useCallback(
     (e: React.MouseEvent, direction: "se" | "e" | "s") => {
       e.preventDefault();
@@ -225,176 +233,184 @@ export function ChatInterface() {
   const showChat = session && hasKeys && adapter;
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
 
-  return (
+  // ── Shared chat content (used in both modes) ──
+  const chatContent = showChat ? (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ChatPanelHeader
+        session={!!session}
+        hasKeys={hasKeys}
+        showClearButton
+        apiKeys={apiKeys}
+        selectedProvider={selectedProvider}
+        onSelectProvider={(p) => setSelectedProvider(p)}
+        isMobile={isMobile}
+        isExpanded={isExpanded}
+        onToggleExpand={() => toggleExpanded()}
+        onClose={closeChat}
+        onPointerDown={(e) => {
+          if (!isMobile && !isExpanded) dragControls.start(e);
+        }}
+      />
+      <Thread contextLabel={contextLabel} />
+    </AssistantRuntimeProvider>
+  ) : (
     <>
-      {/* Floating panel */}
-      <AnimatePresence>
-        {isOpen && panelPositionResolved && (
-          <motion.div
-            key={panelKey}
-            drag={!isMobile}
-            dragControls={dragControls}
-            dragListener={false}
-            dragMomentum={false}
-            dragConstraints={{
-              left: 0,
-              top: 0,
-              right: Math.max(0, window.innerWidth - panelSize.width),
-              bottom: Math.max(0, window.innerHeight - panelSize.height),
-            }}
-            onDragEnd={(_e, info) => {
-              setPanelPosition((prev) => {
-                if (!prev) return prev;
-                return {
-                  x: prev.x + info.offset.x,
-                  y: prev.y + info.offset.y,
-                };
-              });
-            }}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15, ease: "easeOut" }}
-            style={
-              isMobile
-                ? { position: "fixed" as const, inset: 0, zIndex: 50 }
-                : {
-                    position: "fixed" as const,
-                    left: panelPositionResolved.x,
-                    top: panelPositionResolved.y,
-                    width: panelSize.width,
-                    height: panelSize.height,
-                    zIndex: 50,
-                  }
-            }
-            className={cn(
-              "flex flex-col rounded-lg border bg-background shadow-xl overflow-hidden",
-              isMobile && "rounded-none",
-            )}
-          >
-            {showChat ? (
-              // Wrap both header and thread in one provider so clear button works
-              <AssistantRuntimeProvider runtime={runtime}>
-                <ChatPanelHeader
-                  session={!!session}
-                  hasKeys={hasKeys}
-                  showClearButton
-                  apiKeys={apiKeys}
-                  selectedProvider={selectedProvider}
-                  onSelectProvider={(p) => setSelectedProvider(p)}
-                  isMobile={isMobile}
-                  onReset={resetPanel}
-                  onClose={closeChat}
-                  onPointerDown={(e) => {
-                    if (!isMobile) dragControls.start(e);
-                  }}
-                />
-                <Thread contextLabel={contextLabel} />
-              </AssistantRuntimeProvider>
-            ) : (
-              <>
-                <ChatPanelHeader
-                  session={!!session}
-                  hasKeys={hasKeys}
-                  showClearButton={false}
-                  apiKeys={apiKeys}
-                  selectedProvider={selectedProvider}
-                  onSelectProvider={(p) => setSelectedProvider(p)}
-                  isMobile={isMobile}
-                  onReset={resetPanel}
-                  onClose={closeChat}
-                  onPointerDown={(e) => {
-                    if (!isMobile) dragControls.start(e);
-                  }}
-                />
-                {/* Not logged in */}
-                {!session ? (
-                  <div className="flex flex-1 items-center justify-center p-6">
-                    <div className="text-center space-y-3">
-                      <LogIn className="mx-auto size-10 text-muted-foreground/40" />
-                      <div>
-                        <p className="font-medium text-sm">
-                          Sign in to get started
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Log in with your account to use the AI assistant.
-                        </p>
-                      </div>
-                      <Button asChild size="sm" variant="outline">
-                        <Link
-                          href={buildLoginUrl()}
-                          onClick={closeChat}
-                          className="cursor-pointer"
-                        >
-                          Sign in
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  /* No API keys */
-                  <div className="flex flex-1 items-center justify-center p-6">
-                    <div className="text-center space-y-3">
-                      <Settings className="mx-auto size-10 text-muted-foreground/40" />
-                      <div>
-                        <p className="font-medium text-sm">
-                          No API keys configured
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Add at least one AI provider API key in settings to
-                          use the chat.
-                        </p>
-                      </div>
-                      <Button asChild size="sm" variant="outline">
-                        <Link
-                          href="/settings"
-                          onClick={closeChat}
-                          className="cursor-pointer"
-                        >
-                          Go to Settings
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Resize handles (desktop only) */}
-            {!isMobile && (
-              <>
-                {/* SE corner — diagonal resize with grip dots */}
-                <div
-                  onMouseDown={(e) => startResize(e, "se")}
-                  className="absolute bottom-0 right-0 size-4 cursor-se-resize"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    className="text-muted-foreground/40"
-                  >
-                    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-                    <circle cx="8" cy="12" r="1.5" fill="currentColor" />
-                    <circle cx="12" cy="8" r="1.5" fill="currentColor" />
-                  </svg>
-                </div>
-                {/* E edge — width only */}
-                <div
-                  onMouseDown={(e) => startResize(e, "e")}
-                  className="absolute top-0 right-0 w-1.5 h-full cursor-e-resize"
-                />
-                {/* S edge — height only */}
-                <div
-                  onMouseDown={(e) => startResize(e, "s")}
-                  className="absolute bottom-0 left-0 w-full h-1.5 cursor-s-resize"
-                />
-              </>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ChatPanelHeader
+        session={!!session}
+        hasKeys={hasKeys}
+        showClearButton={false}
+        apiKeys={apiKeys}
+        selectedProvider={selectedProvider}
+        onSelectProvider={(p) => setSelectedProvider(p)}
+        isMobile={isMobile}
+        isExpanded={isExpanded}
+        onToggleExpand={() => toggleExpanded()}
+        onClose={closeChat}
+        onPointerDown={(e) => {
+          if (!isMobile && !isExpanded) dragControls.start(e);
+        }}
+      />
+      {/* Not logged in */}
+      {!session ? (
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="text-center space-y-3">
+            <LogIn className="mx-auto size-10 text-muted-foreground/40" />
+            <div>
+              <p className="font-medium text-sm">Sign in to get started</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Log in with your account to use the AI assistant.
+              </p>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href={buildLoginUrl()}
+                onClick={closeChat}
+                className="cursor-pointer"
+              >
+                Sign in
+              </Link>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        /* No API keys */
+        <div className="flex flex-1 items-center justify-center p-6">
+          <div className="text-center space-y-3">
+            <Settings className="mx-auto size-10 text-muted-foreground/40" />
+            <div>
+              <p className="font-medium text-sm">No API keys configured</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Add at least one AI provider API key in settings to use the
+                chat.
+              </p>
+            </div>
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href="/settings"
+                onClick={closeChat}
+                className="cursor-pointer"
+              >
+                Go to Settings
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
     </>
+  );
+
+  // ── Sidebar mode: portal into the sidebar slot ──
+  if (isOpen && isExpanded && sidebarSlot) {
+    return createPortal(
+      <div className="flex h-full flex-col overflow-hidden">
+        {chatContent}
+      </div>,
+      sidebarSlot,
+    );
+  }
+
+  // ── Floating mode ──
+  return (
+    <AnimatePresence>
+      {isOpen && panelPositionResolved && (
+        <motion.div
+          key={panelKey}
+          drag={!isMobile}
+          dragControls={dragControls}
+          dragListener={false}
+          dragMomentum={false}
+          dragConstraints={{
+            left: 0,
+            top: 0,
+            right: Math.max(0, window.innerWidth - panelSize.width),
+            bottom: Math.max(0, window.innerHeight - panelSize.height),
+          }}
+          onDragEnd={(_e, info) => {
+            setPanelPosition((prev) => {
+              if (!prev) return prev;
+              return {
+                x: prev.x + info.offset.x,
+                y: prev.y + info.offset.y,
+              };
+            });
+          }}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.15, ease: "easeOut" }}
+          style={
+            isMobile
+              ? { position: "fixed" as const, inset: 0, zIndex: 50 }
+              : {
+                  position: "fixed" as const,
+                  left: panelPositionResolved.x,
+                  top: panelPositionResolved.y,
+                  width: panelSize.width,
+                  height: panelSize.height,
+                  zIndex: 50,
+                }
+          }
+          className={cn(
+            "flex flex-col rounded-lg border bg-background shadow-xl overflow-hidden",
+            isMobile && "rounded-none",
+          )}
+        >
+          {chatContent}
+
+          {/* Resize handles (desktop only) */}
+          {!isMobile && (
+            <>
+              {/* SE corner — diagonal resize with grip dots */}
+              <div
+                onMouseDown={(e) => startResize(e, "se")}
+                className="absolute bottom-0 right-0 size-4 cursor-se-resize"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  className="text-muted-foreground/40"
+                >
+                  <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                  <circle cx="8" cy="12" r="1.5" fill="currentColor" />
+                  <circle cx="12" cy="8" r="1.5" fill="currentColor" />
+                </svg>
+              </div>
+              {/* E edge — width only */}
+              <div
+                onMouseDown={(e) => startResize(e, "e")}
+                className="absolute top-0 right-0 w-1.5 h-full cursor-e-resize"
+              />
+              {/* S edge — height only */}
+              <div
+                onMouseDown={(e) => startResize(e, "s")}
+                className="absolute bottom-0 left-0 w-full h-1.5 cursor-s-resize"
+              />
+            </>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -407,7 +423,8 @@ function ChatPanelHeader({
   selectedProvider,
   onSelectProvider,
   isMobile,
-  onReset,
+  isExpanded,
+  onToggleExpand,
   onClose,
   onPointerDown,
 }: {
@@ -418,7 +435,8 @@ function ChatPanelHeader({
   selectedProvider: string | null;
   onSelectProvider: (provider: string) => void;
   isMobile: boolean;
-  onReset: (e: React.MouseEvent) => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
   onClose: () => void;
   onPointerDown: (e: React.PointerEvent) => void;
 }) {
@@ -427,7 +445,7 @@ function ChatPanelHeader({
       onPointerDown={onPointerDown}
       className={cn(
         "flex flex-col border-b px-3 py-2 shrink-0",
-        !isMobile && "cursor-grab active:cursor-grabbing",
+        !isMobile && !isExpanded && "cursor-grab active:cursor-grabbing",
       )}
     >
       <div className="flex items-center justify-between">
@@ -439,10 +457,17 @@ function ChatPanelHeader({
               variant="ghost"
               size="icon"
               className="size-7 cursor-pointer text-muted-foreground"
-              onClick={onReset}
-              title="Reset position & size"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpand();
+              }}
+              title={isExpanded ? "Collapse to panel" : "Expand to sidebar"}
             >
-              <Maximize2 className="size-3.5" />
+              {isExpanded ? (
+                <Minimize2 className="size-3.5" />
+              ) : (
+                <Maximize2 className="size-3.5" />
+              )}
             </Button>
           )}
           <Button
