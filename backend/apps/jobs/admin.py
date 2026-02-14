@@ -61,12 +61,12 @@ class JobRunAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+    @admin.display(description="Job")
     def job_type_label(self, obj):
         entry = JOB_REGISTRY.get(obj.job_type, {})
         return entry.get("label", obj.job_type)
 
-    job_type_label.short_description = "Job"
-
+    @admin.display(description="Status")
     def status_display(self, obj):
         icons = {
             "pending": "\u23f3",
@@ -78,15 +78,13 @@ class JobRunAdmin(admin.ModelAdmin):
         icon = icons.get(obj.status, "")
         return f"{icon} {obj.get_status_display()}"
 
-    status_display.short_description = "Status"
-
+    @admin.display(description="Progress")
     def progress_display(self, obj):
         if obj.progress_total == 0:
             return "-"
         return f"{obj.progress_current}/{obj.progress_total} ({obj.progress_percent}%)"
 
-    progress_display.short_description = "Progress"
-
+    @admin.display(description="Duration")
     def duration_display(self, obj):
         if not obj.started_at:
             return "-"
@@ -100,8 +98,6 @@ class JobRunAdmin(admin.ModelAdmin):
         if minutes:
             return f"{minutes}m {seconds}s"
         return f"{seconds}s"
-
-    duration_display.short_description = "Duration"
 
     def get_urls(self):
         urls = super().get_urls()
