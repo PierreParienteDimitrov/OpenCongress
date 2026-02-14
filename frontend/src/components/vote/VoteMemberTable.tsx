@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import Link from "next/link";
 
-import type { SeatWithVote, VotePosition } from "@/types";
+import type { SeatWithVote } from "@/types";
 import {
   cn,
   getPartyBgColor,
@@ -27,13 +27,6 @@ interface VoteMemberTableProps {
   seats: SeatWithVote[];
   chamber: "house" | "senate";
 }
-
-const POSITION_ORDER: Record<string, number> = {
-  yea: 0,
-  nay: 1,
-  present: 2,
-  not_voting: 3,
-};
 
 export default function VoteMemberTable({
   seats,

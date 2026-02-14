@@ -1,6 +1,6 @@
 "use client";
 
-import { PropsWithChildren, useEffect, useState, type FC } from "react";
+import { PropsWithChildren, useEffect, useMemo, useState, type FC } from "react";
 import { XIcon, PlusIcon, FileText } from "lucide-react";
 import {
   AttachmentPrimitive,
@@ -26,21 +26,21 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { cn } from "@/lib/utils";
 
 const useFileSrc = (file: File | undefined) => {
-  const [src, setSrc] = useState<string | undefined>(undefined);
+  // Derive the object URL synchronously during render — this avoids
+  // the react-hooks/set-state-in-effect violation from calling setState
+  // inside useEffect. useMemo is safe here because createObjectURL is
+  // a cheap, synchronous browser API.
+  const src = useMemo(
+    () => (file ? URL.createObjectURL(file) : undefined),
+    [file],
+  );
 
+  // Revoke the previous object URL when it changes or on unmount
   useEffect(() => {
-    if (!file) {
-      setSrc(undefined);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    setSrc(objectUrl);
-
     return () => {
-      URL.revokeObjectURL(objectUrl);
+      if (src) URL.revokeObjectURL(src);
     };
-  }, [file]);
+  }, [src]);
 
   return src;
 };

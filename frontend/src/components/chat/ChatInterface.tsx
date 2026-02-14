@@ -73,7 +73,9 @@ export function ChatInterface() {
   const router = useRouter();
   const pathname = usePathname();
   const pageContext = useChatContext();
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(
+    () => searchParams.get("chatOpen") === "true",
+  );
   const [selectedProviderOverride, setSelectedProvider] = useState<
     string | null
   >(null);
@@ -109,16 +111,16 @@ export function ChatInterface() {
   }, [apiKeys, selectedProviderOverride]);
 
   // Set default position on first open (client-side only)
-  useEffect(() => {
+  const panelPositionResolved = useMemo(() => {
     if (isOpen && !panelPosition) {
-      setPanelPosition(getDefaultPosition(panelSize.width, panelSize.height));
+      return getDefaultPosition(panelSize.width, panelSize.height);
     }
+    return panelPosition;
   }, [isOpen, panelPosition, panelSize.width, panelSize.height]);
 
-  // Auto-open chat when returning from login with chatOpen=true
+  // Clean up the chatOpen URL param after opening from login redirect
   useEffect(() => {
     if (searchParams.get("chatOpen") === "true") {
-      setIsOpen(true);
       const params = new URLSearchParams(searchParams.toString());
       params.delete("chatOpen");
       const newQuery = params.toString();
@@ -245,7 +247,7 @@ export function ChatInterface() {
 
       {/* Floating panel */}
       <AnimatePresence>
-        {isOpen && panelPosition && (
+        {isOpen && panelPositionResolved && (
           <motion.div
             key={panelKey}
             drag={!isMobile}
@@ -276,8 +278,8 @@ export function ChatInterface() {
                 ? { position: "fixed" as const, inset: 0, zIndex: 50 }
                 : {
                     position: "fixed" as const,
-                    left: panelPosition.x,
-                    top: panelPosition.y,
+                    left: panelPositionResolved.x,
+                    top: panelPositionResolved.y,
                     width: panelSize.width,
                     height: panelSize.height,
                     zIndex: 50,

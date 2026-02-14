@@ -162,28 +162,32 @@ export default async function Home() {
                     week
                   </p>
                 )}
-                <div className="mt-4 space-y-4">
-                  {/* Mini Hemicycle hero */}
+                <div className="mt-4 flex flex-col gap-6 md:flex-row md:items-start">
+                  {/* Left: text */}
+                  <div className="flex-1 space-y-4">
+                    {recap ? (
+                      <p className="leading-relaxed text-foreground/80">
+                        {extractExcerpt(recap.content, 3)}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        Weekly summaries are generated automatically. Check back
+                        on Saturday for the weekly recap.
+                      </p>
+                    )}
+                    <Link
+                      href={routes.thisWeek.index}
+                      className="inline-flex cursor-pointer items-center gap-1 font-semibold text-accent hover:underline"
+                    >
+                      Read Full Summary →
+                    </Link>
+                  </div>
+                  {/* Right: hemicycle */}
                   {senateSeats.length > 0 && (
-                    <MiniHemicycle seats={senateSeats} />
+                    <div className="w-full shrink-0 md:w-[340px]">
+                      <MiniHemicycle seats={senateSeats} />
+                    </div>
                   )}
-                  {/* Excerpt */}
-                  {recap ? (
-                    <p className="leading-relaxed text-foreground/80">
-                      {extractExcerpt(recap.content, 3)}
-                    </p>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      Weekly summaries are generated automatically. Check back
-                      on Saturday for the weekly recap.
-                    </p>
-                  )}
-                  <Link
-                    href={routes.thisWeek.index}
-                    className="inline-flex cursor-pointer items-center gap-1 font-semibold text-accent hover:underline"
-                  >
-                    Read Full Summary →
-                  </Link>
                 </div>
               </div>
 
