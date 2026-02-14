@@ -128,9 +128,24 @@ class Command(BaseCommand):
 
         while created + updated + skipped < limit:
             params["offset"] = offset
-            response = requests.get(url, params=params, timeout=30)  # type: ignore[arg-type]
-            response.raise_for_status()
-            data = response.json()
+
+            # Retry up to 3 times for transient failures
+            data = None
+            for attempt in range(3):
+                try:
+                    time.sleep(0.3 if attempt == 0 else 2.0)
+                    response = requests.get(url, params=params, timeout=(10, 30))  # type: ignore[arg-type]
+                    response.raise_for_status()
+                    data = response.json()
+                    break
+                except Exception as e:
+                    if attempt == 2:
+                        self.stderr.write(
+                            f"  Failed to fetch page at offset {offset} after 3 attempts: {e}"
+                        )
+
+            if data is None:
+                break
 
             bills = data.get("bills", [])
             if not bills:
@@ -170,7 +185,6 @@ class Command(BaseCommand):
                 break
 
             offset += len(bills)
-            time.sleep(0.3)
 
         return created, updated, skipped
 
@@ -184,17 +198,25 @@ class Command(BaseCommand):
 
         bill_id = f"{bill_type}{number}-{congress}"
 
-        # Fetch bill details
-        time.sleep(0.3)
+        # Fetch bill details with retry
         detail_url = f"{self.CONGRESS_API_BASE}/bill/{congress}/{bill_type}/{number}"
         params = {"api_key": api_key, "format": "json"}
 
-        try:
-            response = requests.get(detail_url, params=params, timeout=30)  # type: ignore[arg-type]
-            response.raise_for_status()
-            detail = response.json().get("bill", {})
-        except Exception as e:
-            self.stderr.write(f"  Failed to fetch bill {bill_id}: {e}")
+        detail = None
+        for attempt in range(3):
+            try:
+                time.sleep(0.3 if attempt == 0 else 2.0)
+                response = requests.get(detail_url, params=params, timeout=(10, 30))  # type: ignore[arg-type]
+                response.raise_for_status()
+                detail = response.json().get("bill", {})
+                break
+            except Exception as e:
+                if attempt == 2:
+                    self.stderr.write(
+                        f"  Failed to fetch bill {bill_id} after 3 attempts: {e}"
+                    )
+
+        if detail is None:
             return False
 
         # Parse dates
@@ -269,19 +291,22 @@ class Command(BaseCommand):
         url = f"{self.CONGRESS_API_BASE}/bill/{congress}/{bill_type}/{number}/summaries"
         params = {"api_key": api_key, "format": "json"}
 
-        try:
-            time.sleep(0.3)
-            response = requests.get(url, params=params, timeout=30)  # type: ignore[arg-type]
-            response.raise_for_status()
-            data = response.json()
+        for attempt in range(3):
+            try:
+                time.sleep(0.3 if attempt == 0 else 2.0)
+                response = requests.get(url, params=params, timeout=(10, 30))  # type: ignore[arg-type]
+                response.raise_for_status()
+                data = response.json()
 
-            summaries = data.get("summaries", [])
-            if summaries:
-                # Get the most recent summary
-                latest = summaries[-1]
-                Bill.objects.filter(bill_id=bill_id).update(
-                    summary_text=latest.get("text", ""),
-                    summary_html=latest.get("text", ""),
-                )
-        except Exception:
-            pass  # Summary is optional
+                summaries = data.get("summaries", [])
+                if summaries:
+                    # Get the most recent summary
+                    latest = summaries[-1]
+                    Bill.objects.filter(bill_id=bill_id).update(
+                        summary_text=latest.get("text", ""),
+                        summary_html=latest.get("text", ""),
+                    )
+                break
+            except Exception:
+                if attempt == 2:
+                    pass  # Summary is optional
