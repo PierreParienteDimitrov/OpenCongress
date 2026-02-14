@@ -198,9 +198,11 @@ export default async function LegislationPage({ params }: PageProps) {
           <h1 className="text-3xl font-bold text-foreground mb-1">
             {bill.display_number}
           </h1>
-          <h2 className="text-lg text-foreground/80">
-            {bill.short_title || bill.title}
-          </h2>
+          {bill.short_title && (
+            <h2 className="text-lg text-foreground/80">
+              {bill.short_title}
+            </h2>
+          )}
         </div>
 
         <Separator className="mb-6" />
@@ -313,6 +315,13 @@ export default async function LegislationPage({ params }: PageProps) {
 
           {/* Center column — Summary */}
           <div className="lg:border-l lg:border-r lg:border-border lg:px-8">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
+              Title
+            </h3>
+            <p className="font-domine text-base text-foreground/80 leading-relaxed">
+              {bill.title}
+            </p>
+            <Separator className="my-5" />
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
               Summary
             </h3>
