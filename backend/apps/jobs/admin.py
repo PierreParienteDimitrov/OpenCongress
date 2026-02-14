@@ -10,7 +10,7 @@ Provides:
 import logging
 
 from django.contrib import admin, messages
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, JsonResponse
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
@@ -43,6 +43,7 @@ class JobRunAdmin(admin.ModelAdmin):
         "progress_current",
         "progress_total",
         "progress_detail",
+        "log",
         "result",
         "error_message",
         "items_succeeded",
@@ -122,6 +123,16 @@ class JobRunAdmin(admin.ModelAdmin):
                 "stop/<int:job_run_id>/",
                 self.admin_site.admin_view(self.stop_job_view),
                 name="jobs_stop",
+            ),
+            path(
+                "type/<str:job_type>/",
+                self.admin_site.admin_view(self.job_type_detail_view),
+                name="jobs_type_detail",
+            ),
+            path(
+                "<int:job_run_id>/progress/",
+                self.admin_site.admin_view(self.progress_view),
+                name="jobs_progress",
             ),
         ]
         return custom_urls + urls
@@ -248,4 +259,60 @@ class JobRunAdmin(admin.ModelAdmin):
         messages.success(request, f"Stopped: {label} (Job #{job_run_id})")
         return HttpResponseRedirect(
             request.META.get("HTTP_REFERER", reverse("admin:jobs_dashboard"))
+        )
+
+    def job_type_detail_view(self, request, job_type):
+        """Detail page for a specific job type with terminal log viewer."""
+        config = JOB_REGISTRY.get(job_type)
+        if not config:
+            messages.error(request, f"Unknown job type: {job_type}")
+            return HttpResponseRedirect(reverse("admin:jobs_dashboard"))
+
+        active_run = JobRun.objects.filter(
+            job_type=job_type, status__in=["pending", "running"]
+        ).first()
+
+        display_run = active_run
+        if not display_run:
+            display_run = (
+                JobRun.objects.filter(job_type=job_type).order_by("-created_at").first()
+            )
+
+        recent_runs = JobRun.objects.filter(job_type=job_type).order_by("-created_at")[
+            :10
+        ]
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": config["label"],
+            "job_type": job_type,
+            "config": config,
+            "active_run": active_run,
+            "display_run": display_run,
+            "recent_runs": recent_runs,
+            "opts": self.model._meta,
+        }
+        return TemplateResponse(request, "admin/jobs/job_type_detail.html", context)
+
+    def progress_view(self, request, job_run_id):
+        """Return current job run state as JSON for AJAX polling."""
+        try:
+            job_run = JobRun.objects.get(id=job_run_id)
+        except JobRun.DoesNotExist:
+            return JsonResponse({"error": "Not found"}, status=404)
+
+        return JsonResponse(
+            {
+                "id": job_run.id,
+                "status": job_run.status,
+                "progress_current": job_run.progress_current,
+                "progress_total": job_run.progress_total,
+                "progress_percent": job_run.progress_percent,
+                "progress_detail": job_run.progress_detail,
+                "log": job_run.log,
+                "duration": job_run.duration_display,
+                "items_succeeded": job_run.items_succeeded,
+                "items_failed": job_run.items_failed,
+                "error_message": job_run.error_message,
+            }
         )
