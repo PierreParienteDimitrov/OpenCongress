@@ -30,7 +30,7 @@ urlpatterns = [
 
 if settings.DEBUG:
     import debug_toolbar
-    from schema_graph.views import Schema
+    from schema_graph.views import Schema  # type: ignore[import-untyped]
 
     urlpatterns = [
         path("__debug__/", include(debug_toolbar.urls)),
