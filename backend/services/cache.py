@@ -115,6 +115,22 @@ class CacheService:
         CacheService._trigger_isr_revalidation("/this-week")
 
     @staticmethod
+    def invalidate_daily_summary(target_date) -> None:
+        """Invalidate cache for a daily summary and trigger ISR."""
+        date_str = str(target_date)
+        cache_keys = [
+            f"daily_summary_{date_str}",
+            "daily_summaries_current",
+        ]
+        for key in cache_keys:
+            cache.delete(key)
+
+        logger.info(f"Invalidated cache for daily summary {date_str}")
+
+        # Trigger ISR revalidation for this-week page
+        CacheService._trigger_isr_revalidation("/this-week")
+
+    @staticmethod
     def _trigger_isr_revalidation(path: str) -> bool:
         """
         Trigger Next.js ISR revalidation for a specific path.

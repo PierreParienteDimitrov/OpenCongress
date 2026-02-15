@@ -53,6 +53,17 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute=0, hour=3, day_of_week=6),
         "options": {"queue": "ai"},
     },
+    # Daily Summaries (preview evening before, recap end of day)
+    "generate-daily-preview": {
+        "task": "tasks.ai.generate_daily_preview",
+        "schedule": crontab(minute=0, hour=21, day_of_week="0-4"),  # Sun-Thu 9 PM
+        "options": {"queue": "ai"},
+    },
+    "generate-daily-recap": {
+        "task": "tasks.ai.generate_daily_recap",
+        "schedule": crontab(minute=0, hour=22, day_of_week="1-5"),  # Mon-Fri 10 PM
+        "options": {"queue": "ai"},
+    },
     # Notifications
     "send-weekly-forecast": {
         "task": "tasks.notifications.send_weekly_forecast",

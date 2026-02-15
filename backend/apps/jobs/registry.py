@@ -119,6 +119,15 @@ JOB_REGISTRY = {
             "House: batch from Congress.gov list API. Senate: from Senate.gov XML."
         ),
     },
+    "generate_daily_summaries": {
+        "label": "Generate All Missing Daily Summaries",
+        "task": "apps.jobs.tasks.run_generate_daily_summaries",
+        "queue": "ai",
+        "description": (
+            "Generate daily recap and preview summaries for all weekdays "
+            "from Jan 2026 to today that are missing or outdated."
+        ),
+    },
     "generate_committee_summaries": {
         "label": "Generate Committee Summaries",
         "task": "tasks.ai.generate_committee_summaries",

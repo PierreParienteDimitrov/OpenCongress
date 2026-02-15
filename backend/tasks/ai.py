@@ -6,6 +6,7 @@ import logging
 from datetime import date, timedelta
 
 from celery import shared_task
+from celery.exceptions import Retry as CeleryRetry
 from django.db.models import Q
 from django.utils import timezone
 
@@ -579,6 +580,224 @@ def generate_weekly_preview(self) -> dict:
 
     except Exception as e:
         logger.error(f"Error generating weekly preview: {e}")
+        raise self.retry(exc=e)
+
+
+# ── Daily summary tasks ──────────────────────────────────────────────
+
+
+def _generate_daily_recap_core(target_date: date) -> dict:
+    """Core logic for generating a daily recap summary for a given date."""
+    from apps.congress.models import Bill, Vote
+    from apps.content.models import DailySummary
+    from prompts import DAILY_RECAP_VERSION
+    from services import AIService, CacheService
+
+    # Check if we already have a recap for this date
+    if DailySummary.objects.filter(date=target_date, summary_type="recap").exists():
+        logger.info(f"Daily recap already exists for {target_date}")
+        return {"success": True, "skipped": True, "reason": "Already exists"}
+
+    ai_service = AIService()
+
+    # Get votes for this date
+    votes = (
+        Vote.objects.filter(date=target_date)
+        .select_related("bill")
+        .order_by("-time")[:20]
+    )
+
+    vote_lines = []
+    for v in votes:
+        line = (
+            f"- {v.description} - {v.result.upper()} "
+            f"(Yea: {v.total_yea}, Nay: {v.total_nay})"
+            f"{' [Bipartisan]' if v.is_bipartisan else ''}"
+        )
+        if v.ai_summary:
+            line += f"\n  Summary: {v.ai_summary}"
+        vote_lines.append(line)
+    votes_summary = "\n".join(vote_lines) if vote_lines else "No votes recorded today."
+    vote_ids = [v.vote_id for v in votes]
+
+    # Get bills with action on this date
+    bills = Bill.objects.filter(latest_action_date=target_date).order_by(
+        "-latest_action_date"
+    )[:15]
+
+    bill_lines = []
+    for b in bills:
+        line = f"- {b.display_number}: {b.short_title or b.title[:100]} - {b.latest_action_text}"
+        if b.ai_summary:
+            line += f"\n  Summary: {b.ai_summary}"
+        bill_lines.append(line)
+    bills_summary = (
+        "\n".join(bill_lines) if bill_lines else "No significant bill activity today."
+    )
+    bill_ids = [b.bill_id for b in bills]
+
+    # Generate the recap
+    content, tokens = ai_service.generate_daily_recap(
+        date=str(target_date),
+        votes_summary=votes_summary,
+        bills_summary=bills_summary,
+    )
+
+    # Save the summary
+    DailySummary.objects.create(
+        date=target_date,
+        summary_type="recap",
+        content=content,
+        model_used=ai_service.MODEL,
+        prompt_version=DAILY_RECAP_VERSION,
+        tokens_used=tokens,
+        votes_included=vote_ids,
+        bills_included=bill_ids,
+    )
+
+    # Invalidate caches
+    CacheService.invalidate_daily_summary(target_date)
+
+    logger.info(f"Generated daily recap for {target_date} ({tokens} tokens)")
+
+    return {
+        "success": True,
+        "date": str(target_date),
+        "tokens": tokens,
+        "votes_count": len(vote_ids),
+        "bills_count": len(bill_ids),
+    }
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_daily_recap(self, target_date_str: str = None) -> dict:
+    """
+    Generate a daily recap summary.
+    Runs Mon-Fri at 10 PM ET.
+
+    Args:
+        target_date_str: ISO date string (YYYY-MM-DD). Defaults to today.
+    """
+    try:
+        target = (
+            date.fromisoformat(target_date_str) if target_date_str else date.today()
+        )
+        return _generate_daily_recap_core(target)
+    except CeleryRetry:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating daily recap: {e}")
+        raise self.retry(exc=e)
+
+
+def _generate_daily_preview_core(target_date: date) -> dict:
+    """Core logic for generating a daily preview summary for a given date."""
+    from apps.congress.models import Bill, Vote
+    from apps.content.models import DailySummary
+    from prompts import DAILY_PREVIEW_VERSION
+    from services import AIService, CacheService
+
+    # Check if we already have a preview for this date
+    if DailySummary.objects.filter(date=target_date, summary_type="preview").exists():
+        logger.info(f"Daily preview already exists for {target_date}")
+        return {"success": True, "skipped": True, "reason": "Already exists"}
+
+    ai_service = AIService()
+
+    # Get recently active bills (past 3 days) that may see action
+    pending_bills = Bill.objects.filter(
+        latest_action_date__gte=target_date - timedelta(days=3)
+    ).order_by("-latest_action_date")[:10]
+
+    pending_lines = []
+    for b in pending_bills:
+        line = f"- {b.display_number}: {b.short_title or b.title[:100]}"
+        if b.ai_summary:
+            line += f"\n  Summary: {b.ai_summary}"
+        pending_lines.append(line)
+    pending_bills_summary = (
+        "\n".join(pending_lines)
+        if pending_lines
+        else "No bills currently pending action."
+    )
+    bill_ids = [b.bill_id for b in pending_bills]
+
+    # Get recent votes (past 2 days) for context
+    recent_votes = (
+        Vote.objects.filter(date__gte=target_date - timedelta(days=2))
+        .select_related("bill")
+        .order_by("-date", "-time")[:10]
+    )
+
+    vote_lines = []
+    for v in recent_votes:
+        line = (
+            f"- {v.date}: {v.description} - {v.result.upper()} "
+            f"(Yea: {v.total_yea}, Nay: {v.total_nay})"
+        )
+        vote_lines.append(line)
+    recent_votes_summary = "\n".join(vote_lines) if vote_lines else "No recent votes."
+
+    # Generate the preview
+    content, tokens = ai_service.generate_daily_preview(
+        date=str(target_date),
+        pending_bills=pending_bills_summary,
+        recent_votes=recent_votes_summary,
+    )
+
+    # Save the summary
+    DailySummary.objects.create(
+        date=target_date,
+        summary_type="preview",
+        content=content,
+        model_used=ai_service.MODEL,
+        prompt_version=DAILY_PREVIEW_VERSION,
+        tokens_used=tokens,
+        votes_included=[],
+        bills_included=bill_ids,
+    )
+
+    # Invalidate caches
+    CacheService.invalidate_daily_summary(target_date)
+
+    logger.info(f"Generated daily preview for {target_date} ({tokens} tokens)")
+
+    return {
+        "success": True,
+        "date": str(target_date),
+        "tokens": tokens,
+        "bills_count": len(bill_ids),
+    }
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_daily_preview(self, target_date_str: str = None) -> dict:
+    """
+    Generate a daily preview summary.
+    Runs Sun-Thu at 9 PM ET (preview for next weekday).
+
+    Args:
+        target_date_str: ISO date string (YYYY-MM-DD) for the day to preview.
+            Defaults to the next weekday.
+    """
+    try:
+        if target_date_str:
+            target = date.fromisoformat(target_date_str)
+        else:
+            # Compute next weekday
+            today = date.today()
+            tomorrow = today + timedelta(days=1)
+            # If tomorrow is Saturday, skip to Monday
+            if tomorrow.weekday() == 5:  # Saturday
+                tomorrow += timedelta(days=2)
+            elif tomorrow.weekday() == 6:  # Sunday
+                tomorrow += timedelta(days=1)
+            target = tomorrow
+        return _generate_daily_preview_core(target)
+    except CeleryRetry:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating daily preview: {e}")
         raise self.retry(exc=e)
 
 

@@ -265,6 +265,40 @@ class AIService:
 
         return self.generate_completion(prompt, max_tokens=400)
 
+    def generate_daily_recap(
+        self,
+        date: str,
+        votes_summary: str,
+        bills_summary: str,
+    ) -> tuple[str, int]:
+        """Generate a daily recap summary."""
+        from prompts import DAILY_RECAP_PROMPT
+
+        prompt = DAILY_RECAP_PROMPT.format(
+            date=date,
+            votes_summary=votes_summary or "No votes recorded today.",
+            bills_summary=bills_summary or "No significant bill activity today.",
+        )
+
+        return self.generate_completion(prompt, max_tokens=300)
+
+    def generate_daily_preview(
+        self,
+        date: str,
+        pending_bills: str,
+        recent_votes: str,
+    ) -> tuple[str, int]:
+        """Generate a daily preview summary."""
+        from prompts import DAILY_PREVIEW_PROMPT
+
+        prompt = DAILY_PREVIEW_PROMPT.format(
+            date=date,
+            pending_bills=pending_bills or "No bills currently pending action.",
+            recent_votes=recent_votes or "No recent votes.",
+        )
+
+        return self.generate_completion(prompt, max_tokens=250)
+
     def generate_committee_summary(
         self,
         name: str,

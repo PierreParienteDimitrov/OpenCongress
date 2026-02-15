@@ -89,6 +89,35 @@ class WeeklySummary(models.Model):
         )
 
 
+class DailySummary(models.Model):
+    """Daily recap and preview summaries."""
+
+    class SummaryType(models.TextChoices):
+        RECAP = "recap", "Daily Recap"
+        PREVIEW = "preview", "Day Ahead"
+
+    id = models.BigAutoField(primary_key=True)
+    date = models.DateField()
+    summary_type = models.CharField(max_length=10, choices=SummaryType.choices)
+    content = models.TextField()
+    model_used = models.CharField(max_length=50)
+    prompt_version = models.CharField(max_length=20)
+    tokens_used = models.IntegerField(default=0)
+    votes_included = models.JSONField(default=list)
+    bills_included = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "daily_summaries"
+        unique_together = ["date", "summary_type"]
+        indexes = [
+            models.Index(fields=["date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_summary_type_display()} - {self.date}"
+
+
 class NewsLink(models.Model):
     """News articles related to bills or votes."""
 

@@ -705,3 +705,96 @@ def run_generate_weekly_summaries(self, job_run_id: int):
     except Exception as e:
         logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
         _fail_job(job_run_id, str(e))
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_generate_daily_summaries(self, job_run_id: int):
+    """Generate daily recap and preview summaries for all weekdays from Jan 2026 to today."""
+    from datetime import date, timedelta
+
+    from apps.content.models import DailySummary
+    from prompts import DAILY_PREVIEW_VERSION, DAILY_RECAP_VERSION
+    from tasks.ai import _generate_daily_preview_core, _generate_daily_recap_core
+
+    try:
+        start_date = date(2026, 1, 5)  # First Monday of Jan 2026
+        today = date.today()
+
+        # Build list of all weekdays from start to today
+        all_weekdays = []
+        current = start_date
+        while current <= today:
+            if current.weekday() < 5:  # Mon-Fri
+                all_weekdays.append(current)
+            current += timedelta(days=1)
+
+        # Pre-load existing summaries for fast lookup
+        existing_recaps = set(
+            DailySummary.objects.filter(
+                summary_type="recap", prompt_version=DAILY_RECAP_VERSION
+            ).values_list("date", flat=True)
+        )
+        existing_previews = set(
+            DailySummary.objects.filter(
+                summary_type="preview", prompt_version=DAILY_PREVIEW_VERSION
+            ).values_list("date", flat=True)
+        )
+
+        # Build work items: (date, summary_type)
+        work_items = []
+        for d in all_weekdays:
+            if d not in existing_recaps:
+                work_items.append((d, "recap"))
+            if d not in existing_previews:
+                work_items.append((d, "preview"))
+
+        _start_job(job_run_id, len(work_items))
+
+        if not work_items:
+            _complete_job(
+                job_run_id, 0, 0, {"message": "All daily summaries already exist"}
+            )
+            return
+
+        succeeded = 0
+        failed = 0
+        errors = []
+
+        for i, (target_date, summary_type) in enumerate(work_items, 1):
+            if i % 10 == 1 and _is_cancelled(job_run_id):
+                _append_log(job_run_id, f"Cancelled at item {i}/{len(work_items)}")
+                return
+
+            label = f"{target_date} {summary_type}"
+            _update_progress(
+                job_run_id,
+                i - 1,
+                f"[{i}/{len(work_items)}] Generating: {label}",
+            )
+
+            try:
+                if summary_type == "recap":
+                    result = _generate_daily_recap_core(target_date)
+                else:
+                    result = _generate_daily_preview_core(target_date)
+
+                if result.get("success"):
+                    succeeded += 1
+                else:
+                    failed += 1
+                    errors.append(
+                        {"date": label, "error": result.get("error", "Unknown")}
+                    )
+
+            except Exception as e:
+                failed += 1
+                errors.append({"date": label, "error": str(e)})
+                logger.error(f"Job {job_run_id}: error on {label}: {e}")
+
+            _update_progress(job_run_id, i, f"Done: {label}")
+
+        _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
+
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))

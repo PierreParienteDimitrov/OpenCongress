@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AISummary, NewsLink, TrendReport, WeeklySummary
+from .models import AISummary, DailySummary, NewsLink, TrendReport, WeeklySummary
 
 
 @admin.register(AISummary)
@@ -31,3 +31,13 @@ class WeeklySummaryAdmin(admin.ModelAdmin):
     search_fields = ["content"]
     ordering = ["-year", "-week_number", "summary_type"]
     readonly_fields = ["created_at", "tokens_used", "votes_included", "bills_included"]
+
+
+@admin.register(DailySummary)
+class DailySummaryAdmin(admin.ModelAdmin):
+    list_display = ["date", "summary_type", "model_used", "created_at"]
+    list_filter = ["summary_type", "model_used"]
+    search_fields = ["content"]
+    ordering = ["-date", "summary_type"]
+    readonly_fields = ["created_at", "tokens_used", "votes_included", "bills_included"]
+    date_hierarchy = "date"
