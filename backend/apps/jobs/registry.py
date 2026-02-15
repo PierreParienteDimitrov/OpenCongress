@@ -36,6 +36,15 @@ JOB_REGISTRY = {
             "or with outdated prompt version."
         ),
     },
+    "generate_weekly_summaries": {
+        "label": "Generate All Missing Weekly Summaries",
+        "task": "apps.jobs.tasks.run_generate_weekly_summaries",
+        "queue": "ai",
+        "description": (
+            "Generate weekly recap and preview summaries for all weeks "
+            "with congressional activity that are missing or outdated."
+        ),
+    },
     "sync_members": {
         "label": "Sync Members from Congress.gov",
         "task": "apps.jobs.tasks.run_sync_members",
@@ -106,7 +115,8 @@ JOB_REGISTRY = {
         "task": "apps.jobs.tasks.run_link_votes_to_bills",
         "queue": "sync",
         "description": (
-            "Link Vote records to their related Bill records using Congress.gov API."
+            "Link Vote records to their related Bill records. "
+            "House: batch from Congress.gov list API. Senate: from Senate.gov XML."
         ),
     },
 }
