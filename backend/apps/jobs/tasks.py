@@ -82,6 +82,16 @@ def _fail_job(job_run_id, error_message):
     )
 
 
+def _is_cancelled(job_run_id):
+    """Check if the job has been cancelled (poll DB status)."""
+    from apps.jobs.models import JobRun
+
+    status = (
+        JobRun.objects.filter(id=job_run_id).values_list("status", flat=True).first()
+    )
+    return status == JobRun.Status.CANCELLED
+
+
 # ---------------------------------------------------------------------------
 # AI batch wrapper tasks
 # ---------------------------------------------------------------------------
@@ -92,7 +102,7 @@ def run_generate_member_bios(self, job_run_id: int):
     """Generate bios for ALL members needing them (no 50-item cap)."""
     from apps.congress.models import Member
     from prompts import MEMBER_BIO_VERSION
-    from tasks.ai import generate_member_bio
+    from tasks.ai import _generate_member_bio_core as generate_member_bio
 
     try:
         members = list(
@@ -112,6 +122,10 @@ def run_generate_member_bios(self, job_run_id: int):
         errors = []
 
         for i, (bioguide_id, full_name) in enumerate(members, 1):
+            if i % 10 == 1 and _is_cancelled(job_run_id):
+                _append_log(job_run_id, f"Cancelled at item {i}/{len(members)}")
+                return
+
             _update_progress(
                 job_run_id, i - 1, f"[{i}/{len(members)}] Generating bio: {full_name}"
             )
@@ -124,9 +138,6 @@ def run_generate_member_bios(self, job_run_id: int):
                     errors.append(
                         {"id": bioguide_id, "error": result.get("error", "Unknown")}
                     )
-            except CeleryRetry:
-                failed += 1
-                errors.append({"id": bioguide_id, "error": "Task failed after retries"})
             except Exception as e:
                 failed += 1
                 errors.append({"id": bioguide_id, "error": str(e)})
@@ -146,7 +157,7 @@ def run_generate_bill_summaries(self, job_run_id: int):
     """Generate summaries for ALL bills needing them."""
     from apps.congress.models import Bill
     from prompts import BILL_SUMMARY_VERSION
-    from tasks.ai import generate_bill_summary
+    from tasks.ai import _generate_bill_summary_core as generate_bill_summary
 
     try:
         bills = list(
@@ -166,6 +177,11 @@ def run_generate_bill_summaries(self, job_run_id: int):
         errors = []
 
         for i, (bill_id, display_number) in enumerate(bills, 1):
+            # Check for cancellation every 10 items
+            if i % 10 == 1 and _is_cancelled(job_run_id):
+                _append_log(job_run_id, f"Cancelled at item {i}/{len(bills)}")
+                return
+
             _update_progress(
                 job_run_id,
                 i - 1,
@@ -180,9 +196,6 @@ def run_generate_bill_summaries(self, job_run_id: int):
                     errors.append(
                         {"id": bill_id, "error": result.get("error", "Unknown")}
                     )
-            except CeleryRetry:
-                failed += 1
-                errors.append({"id": bill_id, "error": "Task failed after retries"})
             except Exception as e:
                 failed += 1
                 errors.append({"id": bill_id, "error": str(e)})
@@ -202,7 +215,7 @@ def run_generate_vote_summaries(self, job_run_id: int):
     """Generate summaries for ALL votes needing them."""
     from apps.congress.models import Vote
     from prompts import VOTE_SUMMARY_VERSION
-    from tasks.ai import generate_vote_summary
+    from tasks.ai import _generate_vote_summary_core as generate_vote_summary
 
     try:
         votes = list(
@@ -222,6 +235,10 @@ def run_generate_vote_summaries(self, job_run_id: int):
         errors = []
 
         for i, (vote_id, description) in enumerate(votes, 1):
+            if i % 10 == 1 and _is_cancelled(job_run_id):
+                _append_log(job_run_id, f"Cancelled at item {i}/{len(votes)}")
+                return
+
             _update_progress(
                 job_run_id,
                 i - 1,
@@ -236,9 +253,6 @@ def run_generate_vote_summaries(self, job_run_id: int):
                     errors.append(
                         {"id": vote_id, "error": result.get("error", "Unknown")}
                     )
-            except CeleryRetry:
-                failed += 1
-                errors.append({"id": vote_id, "error": "Task failed after retries"})
             except Exception as e:
                 failed += 1
                 errors.append({"id": vote_id, "error": str(e)})
@@ -551,6 +565,10 @@ def run_generate_weekly_summaries(self, job_run_id: int):
         for i, (year, wk, summary_type, week_start, week_end) in enumerate(
             work_items, 1
         ):
+            if i % 10 == 1 and _is_cancelled(job_run_id):
+                _append_log(job_run_id, f"Cancelled at item {i}/{len(work_items)}")
+                return
+
             label = f"{year}-W{wk:02d} {summary_type}"
             _update_progress(
                 job_run_id,

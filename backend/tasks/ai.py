@@ -12,16 +12,12 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def generate_bill_summary(self, bill_id: str) -> dict:
+def _generate_bill_summary_core(bill_id: str) -> dict:
     """
-    Generate an AI summary for a single bill.
+    Core logic for generating an AI summary for a single bill.
 
-    Args:
-        bill_id: The bill ID to generate a summary for
-
-    Returns:
-        Dict with success status and summary info
+    Called directly by the job runner (no Celery retry overhead) and
+    wrapped by the Celery task for async/scheduled use.
     """
     from apps.congress.models import Bill
     from prompts import BILL_SUMMARY_VERSION
@@ -33,54 +29,59 @@ def generate_bill_summary(self, bill_id: str) -> dict:
         logger.error(f"Bill not found: {bill_id}")
         return {"success": False, "error": "Bill not found"}
 
+    ai_service = AIService()
+
+    sponsor_name = bill.sponsor.full_name if bill.sponsor else None
+    sponsor_party = bill.sponsor.party if bill.sponsor else None
+    sponsor_state = bill.sponsor.state if bill.sponsor else None
+
+    summary, tokens = ai_service.generate_bill_summary(
+        display_number=bill.display_number,
+        title=bill.title,
+        short_title=bill.short_title,
+        sponsor_name=sponsor_name,
+        sponsor_party=sponsor_party,
+        sponsor_state=sponsor_state,
+        introduced_date=str(bill.introduced_date) if bill.introduced_date else None,
+        latest_action_text=bill.latest_action_text,
+        latest_action_date=(
+            str(bill.latest_action_date) if bill.latest_action_date else None
+        ),
+        summary_text=bill.summary_text,
+    )
+
+    # Update the bill
+    bill.ai_summary = summary
+    bill.ai_summary_model = ai_service.MODEL
+    bill.ai_summary_created_at = timezone.now()
+    bill.ai_summary_prompt_version = BILL_SUMMARY_VERSION
+    bill.save(
+        update_fields=[
+            "ai_summary",
+            "ai_summary_model",
+            "ai_summary_created_at",
+            "ai_summary_prompt_version",
+        ]
+    )
+
+    # Invalidate caches
+    CacheService.invalidate_bill(bill_id)
+
+    logger.info(f"Generated summary for bill {bill_id} ({tokens} tokens)")
+
+    return {
+        "success": True,
+        "bill_id": bill_id,
+        "tokens": tokens,
+        "model": ai_service.MODEL,
+    }
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_bill_summary(self, bill_id: str) -> dict:
+    """Celery task wrapper — adds retry behaviour for async/scheduled use."""
     try:
-        ai_service = AIService()
-
-        sponsor_name = bill.sponsor.full_name if bill.sponsor else None
-        sponsor_party = bill.sponsor.party if bill.sponsor else None
-        sponsor_state = bill.sponsor.state if bill.sponsor else None
-
-        summary, tokens = ai_service.generate_bill_summary(
-            display_number=bill.display_number,
-            title=bill.title,
-            short_title=bill.short_title,
-            sponsor_name=sponsor_name,
-            sponsor_party=sponsor_party,
-            sponsor_state=sponsor_state,
-            introduced_date=str(bill.introduced_date) if bill.introduced_date else None,
-            latest_action_text=bill.latest_action_text,
-            latest_action_date=(
-                str(bill.latest_action_date) if bill.latest_action_date else None
-            ),
-            summary_text=bill.summary_text,
-        )
-
-        # Update the bill
-        bill.ai_summary = summary
-        bill.ai_summary_model = ai_service.MODEL
-        bill.ai_summary_created_at = timezone.now()
-        bill.ai_summary_prompt_version = BILL_SUMMARY_VERSION
-        bill.save(
-            update_fields=[
-                "ai_summary",
-                "ai_summary_model",
-                "ai_summary_created_at",
-                "ai_summary_prompt_version",
-            ]
-        )
-
-        # Invalidate caches
-        CacheService.invalidate_bill(bill_id)
-
-        logger.info(f"Generated summary for bill {bill_id} ({tokens} tokens)")
-
-        return {
-            "success": True,
-            "bill_id": bill_id,
-            "tokens": tokens,
-            "model": ai_service.MODEL,
-        }
-
+        return _generate_bill_summary_core(bill_id)
     except Exception as e:
         logger.error(f"Error generating summary for bill {bill_id}: {e}")
         raise self.retry(exc=e)
@@ -126,17 +127,8 @@ def generate_bill_summaries() -> dict:
     }
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def generate_member_bio(self, bioguide_id: str) -> dict:
-    """
-    Generate an AI biography for a single member.
-
-    Args:
-        bioguide_id: The member's bioguide ID
-
-    Returns:
-        Dict with success status and bio info
-    """
+def _generate_member_bio_core(bioguide_id: str) -> dict:
+    """Core logic for generating an AI biography for a single member."""
     from apps.congress.models import Member
     from prompts import MEMBER_BIO_VERSION
     from services import AIService, CacheService
@@ -149,76 +141,79 @@ def generate_member_bio(self, bioguide_id: str) -> dict:
         logger.error(f"Member not found: {bioguide_id}")
         return {"success": False, "error": "Member not found"}
 
-    try:
-        ai_service = AIService()
+    ai_service = AIService()
 
-        # Get committee names WITH roles (Chair, Ranking Member, Member)
-        committee_roles = [
-            (ca.committee.name, ca.get_role_display())
-            for ca in member.committee_assignments.all()
+    # Get committee names WITH roles (Chair, Ranking Member, Member)
+    committee_roles = [
+        (ca.committee.name, ca.get_role_display())
+        for ca in member.committee_assignments.all()
+    ]
+
+    # Get top 5 sponsored bill titles (most recently active)
+    top_bills = list(
+        member.sponsored_bills.exclude(short_title="")
+        .order_by("-latest_action_date")
+        .values_list("short_title", flat=True)[:5]
+    )
+    # Fallback: if no short_titles, use truncated full titles
+    if not top_bills:
+        top_bills = [
+            title[:80]
+            for title in member.sponsored_bills.order_by(
+                "-latest_action_date"
+            ).values_list("title", flat=True)[:5]
         ]
 
-        # Get top 5 sponsored bill titles (most recently active)
-        top_bills = list(
-            member.sponsored_bills.exclude(short_title="")
-            .order_by("-latest_action_date")
-            .values_list("short_title", flat=True)[:5]
-        )
-        # Fallback: if no short_titles, use truncated full titles
-        if not top_bills:
-            top_bills = [
-                title[:80]
-                for title in member.sponsored_bills.order_by(
-                    "-latest_action_date"
-                ).values_list("title", flat=True)[:5]
-            ]
+    # Total bills count
+    total_bills_count = member.sponsored_bills.count()
 
-        # Total bills count
-        total_bills_count = member.sponsored_bills.count()
+    bio, tokens = ai_service.generate_member_bio(
+        full_name=member.full_name,
+        party=member.party,
+        chamber=member.chamber,
+        state=member.state,
+        district=member.district,
+        term_start=(str(member.term_start) if member.term_start else None),
+        seniority_date=(str(member.seniority_date) if member.seniority_date else None),
+        birth_date=(str(member.birth_date) if member.birth_date else None),
+        gender=member.gender,
+        committee_roles=committee_roles,
+        top_bills=top_bills,
+        total_bills_count=total_bills_count,
+    )
 
-        bio, tokens = ai_service.generate_member_bio(
-            full_name=member.full_name,
-            party=member.party,
-            chamber=member.chamber,
-            state=member.state,
-            district=member.district,
-            term_start=(str(member.term_start) if member.term_start else None),
-            seniority_date=(
-                str(member.seniority_date) if member.seniority_date else None
-            ),
-            birth_date=(str(member.birth_date) if member.birth_date else None),
-            gender=member.gender,
-            committee_roles=committee_roles,
-            top_bills=top_bills,
-            total_bills_count=total_bills_count,
-        )
+    # Update the member
+    member.ai_bio = bio
+    member.ai_bio_model = ai_service.MODEL
+    member.ai_bio_created_at = timezone.now()
+    member.ai_bio_prompt_version = MEMBER_BIO_VERSION
+    member.save(
+        update_fields=[
+            "ai_bio",
+            "ai_bio_model",
+            "ai_bio_created_at",
+            "ai_bio_prompt_version",
+        ]
+    )
 
-        # Update the member
-        member.ai_bio = bio
-        member.ai_bio_model = ai_service.MODEL
-        member.ai_bio_created_at = timezone.now()
-        member.ai_bio_prompt_version = MEMBER_BIO_VERSION
-        member.save(
-            update_fields=[
-                "ai_bio",
-                "ai_bio_model",
-                "ai_bio_created_at",
-                "ai_bio_prompt_version",
-            ]
-        )
+    # Invalidate caches
+    CacheService.invalidate_member(bioguide_id, member.chamber, member.full_name)
 
-        # Invalidate caches
-        CacheService.invalidate_member(bioguide_id, member.chamber, member.full_name)
+    logger.info(f"Generated bio for member {bioguide_id} ({tokens} tokens)")
 
-        logger.info(f"Generated bio for member {bioguide_id} ({tokens} tokens)")
+    return {
+        "success": True,
+        "bioguide_id": bioguide_id,
+        "tokens": tokens,
+        "model": ai_service.MODEL,
+    }
 
-        return {
-            "success": True,
-            "bioguide_id": bioguide_id,
-            "tokens": tokens,
-            "model": ai_service.MODEL,
-        }
 
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_member_bio(self, bioguide_id: str) -> dict:
+    """Celery task wrapper — adds retry behaviour for async/scheduled use."""
+    try:
+        return _generate_member_bio_core(bioguide_id)
     except Exception as e:
         logger.error(f"Error generating bio for member {bioguide_id}: {e}")
         raise self.retry(exc=e)
@@ -264,17 +259,8 @@ def generate_member_bios() -> dict:
     }
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def generate_vote_summary(self, vote_id: str) -> dict:
-    """
-    Generate an AI summary for a single vote.
-
-    Args:
-        vote_id: The vote ID to generate a summary for
-
-    Returns:
-        Dict with success status and summary info
-    """
+def _generate_vote_summary_core(vote_id: str) -> dict:
+    """Core logic for generating an AI summary for a single vote."""
     from apps.congress.models import Vote
     from prompts import VOTE_SUMMARY_VERSION
     from services import AIService, CacheService
@@ -285,55 +271,60 @@ def generate_vote_summary(self, vote_id: str) -> dict:
         logger.error(f"Vote not found: {vote_id}")
         return {"success": False, "error": "Vote not found"}
 
+    ai_service = AIService()
+
+    bill_display_number = vote.bill.display_number if vote.bill else None
+    bill_title = vote.bill.short_title or vote.bill.title if vote.bill else None
+
+    summary, tokens = ai_service.generate_vote_summary(
+        chamber=vote.chamber,
+        date=str(vote.date),
+        question=vote.question,
+        vote_type=vote.vote_type,
+        result=vote.result,
+        bill_display_number=bill_display_number,
+        bill_title=bill_title,
+        total_yea=vote.total_yea,
+        total_nay=vote.total_nay,
+        dem_yea=vote.dem_yea,
+        dem_nay=vote.dem_nay,
+        rep_yea=vote.rep_yea,
+        rep_nay=vote.rep_nay,
+        is_bipartisan=vote.is_bipartisan,
+    )
+
+    # Update the vote
+    vote.ai_summary = summary
+    vote.ai_summary_model = ai_service.MODEL
+    vote.ai_summary_created_at = timezone.now()
+    vote.ai_summary_prompt_version = VOTE_SUMMARY_VERSION
+    vote.save(
+        update_fields=[
+            "ai_summary",
+            "ai_summary_model",
+            "ai_summary_created_at",
+            "ai_summary_prompt_version",
+        ]
+    )
+
+    # Invalidate caches
+    CacheService.invalidate_vote(vote_id)
+
+    logger.info(f"Generated summary for vote {vote_id} ({tokens} tokens)")
+
+    return {
+        "success": True,
+        "vote_id": vote_id,
+        "tokens": tokens,
+        "model": ai_service.MODEL,
+    }
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_vote_summary(self, vote_id: str) -> dict:
+    """Celery task wrapper — adds retry behaviour for async/scheduled use."""
     try:
-        ai_service = AIService()
-
-        bill_display_number = vote.bill.display_number if vote.bill else None
-        bill_title = vote.bill.short_title or vote.bill.title if vote.bill else None
-
-        summary, tokens = ai_service.generate_vote_summary(
-            chamber=vote.chamber,
-            date=str(vote.date),
-            question=vote.question,
-            vote_type=vote.vote_type,
-            result=vote.result,
-            bill_display_number=bill_display_number,
-            bill_title=bill_title,
-            total_yea=vote.total_yea,
-            total_nay=vote.total_nay,
-            dem_yea=vote.dem_yea,
-            dem_nay=vote.dem_nay,
-            rep_yea=vote.rep_yea,
-            rep_nay=vote.rep_nay,
-            is_bipartisan=vote.is_bipartisan,
-        )
-
-        # Update the vote
-        vote.ai_summary = summary
-        vote.ai_summary_model = ai_service.MODEL
-        vote.ai_summary_created_at = timezone.now()
-        vote.ai_summary_prompt_version = VOTE_SUMMARY_VERSION
-        vote.save(
-            update_fields=[
-                "ai_summary",
-                "ai_summary_model",
-                "ai_summary_created_at",
-                "ai_summary_prompt_version",
-            ]
-        )
-
-        # Invalidate caches
-        CacheService.invalidate_vote(vote_id)
-
-        logger.info(f"Generated summary for vote {vote_id} ({tokens} tokens)")
-
-        return {
-            "success": True,
-            "vote_id": vote_id,
-            "tokens": tokens,
-            "model": ai_service.MODEL,
-        }
-
+        return _generate_vote_summary_core(vote_id)
     except Exception as e:
         logger.error(f"Error generating summary for vote {vote_id}: {e}")
         raise self.retry(exc=e)
