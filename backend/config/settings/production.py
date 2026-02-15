@@ -13,6 +13,7 @@ from .base import *  # noqa: F401, F403
 DEBUG = False
 
 INSTALLED_APPS += ["schema_graph"]  # noqa: F405
+SCHEMA_GRAPH_VISIBLE = True  # Access is gated by staff_member_required in urls.py
 
 # Require critical secrets in production — fail fast if missing
 _REQUIRED_SECRETS = [
