@@ -22,17 +22,17 @@ from django.urls import include, path
 from schema_graph.views import Schema  # type: ignore[import-untyped]
 
 urlpatterns = [
+    path(
+        "admin/schema/",
+        staff_member_required(Schema.as_view()),
+        name="schema-graph",
+    ),
     path("admin/", admin.site.urls),
     path("api/v1/", include("apps.congress.api.urls")),
     path("api/v1/auth/", include("apps.users.api.urls")),
     path("api/v1/content/", include("apps.content.api.urls")),
     path("api/v1/analytics/", include("apps.analytics.api.urls")),
     path("api/", include("apps.core.urls")),
-    path(
-        "admin/schema/",
-        staff_member_required(Schema.as_view()),
-        name="schema-graph",
-    ),
 ]
 
 if settings.DEBUG:
