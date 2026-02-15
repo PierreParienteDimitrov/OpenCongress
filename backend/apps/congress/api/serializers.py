@@ -6,11 +6,17 @@ from rest_framework import serializers
 
 from apps.congress.models import (
     Bill,
+    CandidateFinance,
+    CBOCostEstimate,
     Committee,
     CommitteeMember,
+    Hearing,
+    HearingWitness,
+    IndustryContribution,
     Member,
     MemberVote,
     Seat,
+    TopContributor,
     Vote,
 )
 
@@ -459,3 +465,206 @@ class CommitteeDetailSerializer(serializers.ModelSerializer):
                 "party": cm.member.party,
             }
         return None
+
+
+# ── Campaign Finance serializers ───────────────────────────────────────
+
+
+class TopContributorSerializer(serializers.ModelSerializer):
+    """Serializer for a top contributor to a candidate."""
+
+    class Meta:
+        model = TopContributor
+        fields = ["contributor_name", "total_amount", "rank"]
+
+
+class IndustryContributionSerializer(serializers.ModelSerializer):
+    """Serializer for an industry contribution to a candidate."""
+
+    class Meta:
+        model = IndustryContribution
+        fields = ["industry_name", "total_amount", "rank"]
+
+
+class CandidateFinanceListSerializer(serializers.ModelSerializer):
+    """Serializer for candidate finance summary in list views."""
+
+    member_name = serializers.CharField(source="member.full_name")
+    member_party = serializers.CharField(source="member.party")
+    member_state = serializers.CharField(source="member.state")
+
+    class Meta:
+        model = CandidateFinance
+        fields = [
+            "fec_candidate_id",
+            "cycle",
+            "member_name",
+            "member_party",
+            "member_state",
+            "total_receipts",
+            "total_disbursements",
+            "cash_on_hand",
+            "individual_contributions",
+            "pac_contributions",
+        ]
+
+
+class CandidateFinanceDetailSerializer(serializers.ModelSerializer):
+    """Serializer for candidate finance detail with contributors."""
+
+    member_name = serializers.CharField(source="member.full_name")
+    member_party = serializers.CharField(source="member.party")
+    member_state = serializers.CharField(source="member.state")
+    member_chamber = serializers.CharField(source="member.chamber")
+    member_photo_url = serializers.URLField(source="member.photo_url")
+    top_contributors = TopContributorSerializer(many=True, read_only=True)
+    industry_contributions = IndustryContributionSerializer(
+        many=True, read_only=True
+    )
+
+    class Meta:
+        model = CandidateFinance
+        fields = [
+            "fec_candidate_id",
+            "cycle",
+            "member_name",
+            "member_party",
+            "member_state",
+            "member_chamber",
+            "member_photo_url",
+            "total_receipts",
+            "total_disbursements",
+            "cash_on_hand",
+            "debt",
+            "individual_contributions",
+            "pac_contributions",
+            "small_contributions",
+            "large_contributions",
+            "coverage_start_date",
+            "coverage_end_date",
+            "top_contributors",
+            "industry_contributions",
+            "updated_at",
+        ]
+
+
+# ── Hearing serializers ────────────────────────────────────────────────
+
+
+class HearingWitnessSerializer(serializers.ModelSerializer):
+    """Serializer for a witness at a hearing."""
+
+    class Meta:
+        model = HearingWitness
+        fields = [
+            "name",
+            "position",
+            "organization",
+            "statement_url",
+            "biography_url",
+        ]
+
+
+class HearingListSerializer(serializers.ModelSerializer):
+    """Serializer for hearing list views."""
+
+    committee_name = serializers.CharField(
+        source="committee.name", allow_null=True
+    )
+    committee_id = serializers.CharField(
+        source="committee.committee_id", allow_null=True
+    )
+    witness_count = serializers.SerializerMethodField()
+    related_bill_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Hearing
+        fields = [
+            "hearing_id",
+            "title",
+            "chamber",
+            "meeting_type",
+            "meeting_status",
+            "date",
+            "room",
+            "building",
+            "committee_name",
+            "committee_id",
+            "witness_count",
+            "related_bill_count",
+        ]
+
+    def get_witness_count(self, obj):
+        return obj.witnesses.count()
+
+    def get_related_bill_count(self, obj):
+        return obj.related_bills.count()
+
+
+class HearingDetailSerializer(serializers.ModelSerializer):
+    """Serializer for hearing detail views with witnesses and bills."""
+
+    committee_name = serializers.CharField(
+        source="committee.name", allow_null=True
+    )
+    committee_id = serializers.CharField(
+        source="committee.committee_id", allow_null=True
+    )
+    witnesses = HearingWitnessSerializer(many=True, read_only=True)
+    related_bills = BillListSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Hearing
+        fields = [
+            "hearing_id",
+            "jacket_number",
+            "event_id",
+            "congress",
+            "chamber",
+            "title",
+            "meeting_type",
+            "meeting_status",
+            "date",
+            "room",
+            "building",
+            "committee_name",
+            "committee_id",
+            "transcript_url",
+            "source_url",
+            "ai_summary",
+            "witnesses",
+            "related_bills",
+        ]
+
+
+# ── CBO Cost Estimate serializers ─────────────────────────────────────
+
+
+class CBOCostEstimateSerializer(serializers.ModelSerializer):
+    """Serializer for CBO cost estimates."""
+
+    bill_id = serializers.CharField(source="bill.bill_id", allow_null=True)
+    bill_display_number = serializers.CharField(
+        source="bill.display_number", allow_null=True
+    )
+    bill_short_title = serializers.CharField(
+        source="bill.short_title", allow_null=True
+    )
+
+    class Meta:
+        model = CBOCostEstimate
+        fields = [
+            "id",
+            "title",
+            "description",
+            "cbo_url",
+            "publication_date",
+            "congress",
+            "ten_year_direct_spending",
+            "ten_year_revenues",
+            "ten_year_deficit",
+            "ai_summary",
+            "bill_id",
+            "bill_display_number",
+            "bill_short_title",
+        ]
