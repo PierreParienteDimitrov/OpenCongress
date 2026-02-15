@@ -618,7 +618,7 @@ def run_generate_weekly_summaries(self, job_run_id: int):
                         summary_type="recap",
                         defaults={
                             "content": content,
-                            "model_used": AIService.MODEL,
+                            "model_used": ai_service.MODEL,
                             "prompt_version": WEEKLY_RECAP_VERSION,
                             "tokens_used": tokens,
                             "votes_included": vote_ids,
@@ -665,7 +665,7 @@ def run_generate_weekly_summaries(self, job_run_id: int):
                         summary_type="preview",
                         defaults={
                             "content": content,
-                            "model_used": AIService.MODEL,
+                            "model_used": ai_service.MODEL,
                             "prompt_version": WEEKLY_PREVIEW_VERSION,
                             "tokens_used": tokens,
                             "votes_included": [],

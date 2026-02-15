@@ -22,7 +22,7 @@ Member Information:
 
 Instructions:
 1. Write 4-6 sentences providing a comprehensive, factual overview of this member
-2. Use Google Search to find their educational background, prior career, and when they were first elected to Congress
+2. Search the web to find their educational background, prior career, and when they were first elected to Congress
 3. Highlight any committee leadership roles (Chair or Ranking Member)
 4. Mention their legislative focus areas based on their sponsored bills and committee assignments
 5. Keep the tone neutral, professional, and nonpartisan

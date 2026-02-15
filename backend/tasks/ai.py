@@ -57,7 +57,7 @@ def generate_bill_summary(self, bill_id: str) -> dict:
 
         # Update the bill
         bill.ai_summary = summary
-        bill.ai_summary_model = AIService.MODEL
+        bill.ai_summary_model = ai_service.MODEL
         bill.ai_summary_created_at = timezone.now()
         bill.ai_summary_prompt_version = BILL_SUMMARY_VERSION
         bill.save(
@@ -78,7 +78,7 @@ def generate_bill_summary(self, bill_id: str) -> dict:
             "success": True,
             "bill_id": bill_id,
             "tokens": tokens,
-            "model": AIService.MODEL,
+            "model": ai_service.MODEL,
         }
 
     except Exception as e:
@@ -195,7 +195,7 @@ def generate_member_bio(self, bioguide_id: str) -> dict:
 
         # Update the member
         member.ai_bio = bio
-        member.ai_bio_model = AIService.MODEL
+        member.ai_bio_model = ai_service.MODEL
         member.ai_bio_created_at = timezone.now()
         member.ai_bio_prompt_version = MEMBER_BIO_VERSION
         member.save(
@@ -216,7 +216,7 @@ def generate_member_bio(self, bioguide_id: str) -> dict:
             "success": True,
             "bioguide_id": bioguide_id,
             "tokens": tokens,
-            "model": AIService.MODEL,
+            "model": ai_service.MODEL,
         }
 
     except Exception as e:
@@ -310,7 +310,7 @@ def generate_vote_summary(self, vote_id: str) -> dict:
 
         # Update the vote
         vote.ai_summary = summary
-        vote.ai_summary_model = AIService.MODEL
+        vote.ai_summary_model = ai_service.MODEL
         vote.ai_summary_created_at = timezone.now()
         vote.ai_summary_prompt_version = VOTE_SUMMARY_VERSION
         vote.save(
@@ -331,7 +331,7 @@ def generate_vote_summary(self, vote_id: str) -> dict:
             "success": True,
             "vote_id": vote_id,
             "tokens": tokens,
-            "model": AIService.MODEL,
+            "model": ai_service.MODEL,
         }
 
     except Exception as e:
@@ -466,7 +466,7 @@ def generate_weekly_recap(self) -> dict:
             week_number=week_number,
             summary_type="recap",
             content=content,
-            model_used=AIService.MODEL,
+            model_used=ai_service.MODEL,
             prompt_version=WEEKLY_RECAP_VERSION,
             tokens_used=tokens,
             votes_included=vote_ids,
@@ -564,7 +564,7 @@ def generate_weekly_preview(self) -> dict:
             week_number=week_number,
             summary_type="preview",
             content=content,
-            model_used=AIService.MODEL,
+            model_used=ai_service.MODEL,
             prompt_version=WEEKLY_PREVIEW_VERSION,
             tokens_used=tokens,
             votes_included=[],

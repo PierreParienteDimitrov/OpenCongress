@@ -179,6 +179,11 @@ CACHE_TIMEOUTS = {
 CONGRESS_API_KEY = os.environ.get("CONGRESS_API_KEY")
 GOOGLE_CIVIC_API_KEY = os.environ.get("GOOGLE_CIVIC_API_KEY")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+# AI provider for content generation: "anthropic", "gemini", or "openai"
+AI_PROVIDER = os.environ.get("AI_PROVIDER", "anthropic")
 
 # Encryption key for user API key storage (Fernet)
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY", "")

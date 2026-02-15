@@ -1,122 +1,96 @@
 """
-AI Service - Wrapper for Google Gen AI SDK (Gemini).
+AI Service - Multi-provider wrapper (Anthropic, Gemini, OpenAI).
+
+The active provider is controlled by the ``AI_PROVIDER`` setting
+(default ``"anthropic"``).  Each provider needs its own API-key setting:
+
+    AI_PROVIDER=anthropic  →  ANTHROPIC_API_KEY
+    AI_PROVIDER=gemini     →  GOOGLE_API_KEY
+    AI_PROVIDER=openai     →  OPENAI_API_KEY
 """
 
 import logging
 
 from django.conf import settings
-from google import genai
-from google.genai import types
+
+from .ai_providers import PROVIDERS
 
 logger = logging.getLogger(__name__)
 
+# Maps provider name → Django setting that holds the API key
+_KEY_SETTINGS = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GOOGLE_API_KEY",
+    "openai": "OPENAI_API_KEY",
+}
+
 
 class AIService:
-    """Service for generating AI content using Gemini."""
+    """High-level service for generating AI content.
 
-    MODEL = "gemini-2.5-flash"
+    All domain methods (bill summaries, vote summaries, …) live here.
+    The low-level LLM call is delegated to whichever provider is active.
+    """
 
     def __init__(self):
-        api_key = getattr(settings, "GOOGLE_API_KEY", None)
+        provider_name = getattr(settings, "AI_PROVIDER", "anthropic")
+        if provider_name not in PROVIDERS:
+            raise ValueError(
+                f"Unknown AI_PROVIDER '{provider_name}'. "
+                f"Choose from: {', '.join(PROVIDERS)}"
+            )
+
+        key_setting = _KEY_SETTINGS[provider_name]
+        api_key = getattr(settings, key_setting, None)
         if not api_key:
-            raise ValueError("GOOGLE_API_KEY is not configured in settings")
-        self.client = genai.Client(
-            api_key=api_key,
-            http_options=types.HttpOptions(timeout=60),
-        )
+            raise ValueError(f"{key_setting} is not configured in settings")
+
+        self._provider = PROVIDERS[provider_name](api_key)
+
+    @property
+    def MODEL(self) -> str:  # noqa: N802 – kept uppercase for back-compat
+        return self._provider.MODEL
+
+    # ── Low-level completions ────────────────────────────────────────
 
     def generate_completion(
         self, prompt: str, max_tokens: int = 200
     ) -> tuple[str, int]:
-        """
-        Generate a completion for the given prompt.
-
-        Args:
-            prompt: The prompt to send to the model
-            max_tokens: Maximum number of output tokens
+        """Generate a plain completion.
 
         Returns:
             Tuple of (generated text, total tokens used)
         """
         try:
-            response = self.client.models.generate_content(
-                model=self.MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=max_tokens,
-                    temperature=0.3,
-                    thinking_config=types.ThinkingConfig(
-                        thinking_budget=0,
-                    ),
-                ),
-            )
-
-            text = response.text.strip()
-            tokens = response.usage_metadata.total_token_count
-
+            text, tokens = self._provider.generate(prompt, max_tokens, temperature=0.3)
             logger.info(f"Generated completion with {tokens} tokens using {self.MODEL}")
-
             return text, tokens
-
         except Exception as e:
             logger.error(f"Error generating completion: {e}")
             raise
 
-    def generate_completion_with_grounding(
+    def generate_completion_with_web_search(
         self, prompt: str, max_tokens: int = 400
     ) -> tuple[str, int]:
-        """
-        Generate a completion with Google Search grounding enabled.
-
-        This allows the model to search the web during generation for
-        supplementary facts (education, career history, etc.).
-
-        Args:
-            prompt: The prompt to send to the model
-            max_tokens: Maximum number of output tokens
+        """Generate a completion with web-search grounding.
 
         Returns:
             Tuple of (generated text, total tokens used)
         """
         try:
-            google_search_tool = types.Tool(google_search=types.GoogleSearch())
-
-            response = self.client.models.generate_content(
-                model=self.MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=max_tokens,
-                    temperature=0.3,
-                    thinking_config=types.ThinkingConfig(
-                        thinking_budget=0,
-                    ),
-                    tools=[google_search_tool],
-                ),
+            text, tokens = self._provider.generate_with_web_search(
+                prompt, max_tokens, temperature=0.3
             )
-
-            text = response.text.strip()
-            tokens = response.usage_metadata.total_token_count
-
-            # Log grounding metadata if available
-            if response.candidates and response.candidates[0].grounding_metadata:
-                supports = (
-                    response.candidates[0].grounding_metadata.grounding_supports or []
-                )
-                logger.info(
-                    f"Generated grounded completion with {tokens} tokens, "
-                    f"{len(supports)} grounding supports using {self.MODEL}"
-                )
-            else:
-                logger.info(
-                    f"Generated grounded completion with {tokens} tokens "
-                    f"(no grounding metadata) using {self.MODEL}"
-                )
-
+            logger.info(
+                f"Generated web-search completion with {tokens} tokens "
+                f"using {self.MODEL}"
+            )
             return text, tokens
-
         except Exception as e:
-            logger.error(f"Error generating grounded completion: {e}")
+            logger.error(f"Error generating web-search completion: {e}")
             raise
+
+    # ── Domain helpers (unchanged public API) ────────────────────────
 
     def generate_bill_summary(
         self,
@@ -164,7 +138,7 @@ class AIService:
         top_bills: list[str],
         total_bills_count: int,
     ) -> tuple[str, int]:
-        """Generate a biographical summary for a member using search grounding."""
+        """Generate a biographical summary for a member using web search."""
         from prompts import MEMBER_BIO_PROMPT
 
         party_name = {"D": "Democrat", "R": "Republican", "I": "Independent"}.get(
@@ -208,7 +182,7 @@ class AIService:
             pronoun_object=pronoun_object,
         )
 
-        return self.generate_completion_with_grounding(prompt, max_tokens=400)
+        return self.generate_completion_with_web_search(prompt, max_tokens=400)
 
     def generate_vote_summary(
         self,
