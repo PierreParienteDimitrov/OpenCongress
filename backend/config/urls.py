@@ -17,6 +17,7 @@ Including another URLconf
 
 from django.conf import settings
 from django.contrib import admin
+from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import include, path
 
 urlpatterns = [
@@ -29,7 +30,16 @@ urlpatterns = [
 
 if settings.DEBUG:
     import debug_toolbar
+    from schema_graph.views import Schema
 
     urlpatterns = [
         path("__debug__/", include(debug_toolbar.urls)),
     ] + urlpatterns
+
+    urlpatterns += [
+        path(
+            "admin/schema/",
+            staff_member_required(Schema.as_view()),
+            name="schema-graph",
+        ),
+    ]
