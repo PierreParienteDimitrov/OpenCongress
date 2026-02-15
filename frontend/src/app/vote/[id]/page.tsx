@@ -1,5 +1,7 @@
+import { Fragment } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 import { getVote, getSeatVoteOverlay } from "@/lib/api";
 import { GridContainer } from "@/components/layout/GridContainer";
@@ -7,16 +9,12 @@ import { ChatContextProvider } from "@/lib/chat-context";
 import { routes } from "@/lib/routes";
 import type { SeatWithVote } from "@/types";
 import {
-  cn,
   formatDate,
-  getResultBgColor,
-  getResultLabel,
   getChamberName,
+  getChamberShortName,
 } from "@/lib/utils";
-import HemicycleWithZoom from "@/components/hemicycle/HemicycleWithZoom";
-import VoteMemberTable from "@/components/vote/VoteMemberTable";
+import VoteDetailContent from "@/components/vote/VoteDetailContent";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 
 export const revalidate = 86400; // 24 hours
 
@@ -33,7 +31,7 @@ export async function generateMetadata({ params }: PageProps) {
       ? `${vote.question}: ${billLabel} - ${getChamberName(vote.chamber)} Vote`
       : `${vote.question} - ${getChamberName(vote.chamber)} Vote`;
     const description = vote.ai_summary
-      || `${getResultLabel(vote.result)}: ${vote.total_yea} Yea, ${vote.total_nay} Nay`;
+      || `${vote.total_yea} Yea, ${vote.total_nay} Nay`;
     return {
       title,
       description,
@@ -73,6 +71,90 @@ export default async function VotePage({ params }: PageProps) {
     overlaySeats = [];
   }
 
+  /* Left-column metadata — rendered on server, passed into client tabs */
+  const sidebar = (
+    <div className="space-y-5">
+      {/* Chamber */}
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+          Chamber
+        </h3>
+        <p className="text-sm font-medium">{getChamberName(vote.chamber)}</p>
+      </div>
+
+      {/* Date */}
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+          Date
+        </h3>
+        <p className="text-sm font-medium">
+          {formatDate(vote.date)}
+          {vote.time && (
+            <span className="text-muted-foreground font-normal"> · {vote.time}</span>
+          )}
+        </p>
+      </div>
+
+      <Separator />
+
+      {/* Related Bill */}
+      {vote.bill_display_number && (
+        <Fragment key="related-bill">
+          <div>
+            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+              Related Bill
+            </h3>
+            <Link
+              href={routes.legislation.detail(vote.bill_id!)}
+              className="cursor-pointer text-accent hover:text-accent/80 text-sm font-medium"
+            >
+              {vote.bill_display_number}
+            </Link>
+            {vote.bill_short_title && (
+              <p className="text-sm text-foreground/80 mt-1">{vote.bill_short_title}</p>
+            )}
+          </div>
+          <Separator />
+        </Fragment>
+      )}
+
+      {/* Vote ID */}
+      <div>
+        <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+          Vote ID
+        </h3>
+        <p className="text-sm font-mono text-foreground/80">{vote.vote_id}</p>
+      </div>
+
+      {/* External link */}
+      {vote.bill_id && (
+        <Fragment key="external-link">
+          <Separator />
+          <a
+            href={`https://clerk.house.gov/Votes/${vote.vote_id.split("-").pop()}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cursor-pointer inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80"
+          >
+            View on {getChamberShortName(vote.chamber)} Clerk
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+          </a>
+        </Fragment>
+      )}
+    </div>
+  );
 
   return (
     <ChatContextProvider
@@ -91,177 +173,33 @@ export default async function VotePage({ params }: PageProps) {
     >
     <main className="min-h-screen bg-background">
       <GridContainer className="py-8">
-        {/* Header */}
-        <div className="mb-6 pb-6">
+        {/* Header — matches legislation page */}
+        <div className="mb-6">
           <Link
             href={routes.calendar.index}
-            className="text-accent hover:text-accent/80 text-sm mb-2 inline-block"
+            className="cursor-pointer inline-flex items-center gap-0.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-2"
           >
-            &larr; Back to Calendar
+            <ChevronLeft className="size-4" />
+            Back
           </Link>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-sm text-muted-foreground">
-              {getChamberName(vote.chamber)}
-            </span>
-            <span className="text-sm text-muted-foreground/60">&middot;</span>
-            <span className="text-sm text-muted-foreground">{formatDate(vote.date)}</span>
-            {vote.time && (
-              <>
-                <span className="text-sm text-muted-foreground/60">&middot;</span>
-                <span className="text-sm text-muted-foreground">{vote.time}</span>
-              </>
-            )}
-          </div>
-          <h1 className="text-3xl font-bold text-foreground mb-3">
-            {vote.bill_short_title || vote.question}
+          <h1 className="text-3xl font-bold text-foreground mb-1">
+            {vote.question}
           </h1>
-          {vote.bill_display_number && (
-            <p className="text-base text-muted-foreground mb-3">
-              {vote.question}
-              {" \u2014 "}
-              <Link
-                href={routes.legislation.detail(vote.bill_id!)}
-                className="text-accent hover:text-accent/80 cursor-pointer"
-              >
-                {vote.bill_display_number}
-              </Link>
-              {vote.bill_title && !vote.bill_short_title && (
-                <span>: {vote.bill_title}</span>
-              )}
-            </p>
+          {vote.bill_short_title && (
+            <h2 className="text-lg text-foreground/80">
+              {vote.bill_short_title}
+            </h2>
           )}
-          {vote.ai_summary && (
-            <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-              {vote.ai_summary}
-            </p>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className={cn("text-sm px-3 py-1", getResultBgColor(vote.result))}>
-              {getResultLabel(vote.result)}
-            </Badge>
-            {vote.is_bipartisan && (
-              <Badge className="bg-purple-100 text-purple-700 text-sm">
-                Bipartisan Vote
-              </Badge>
-            )}
-          </div>
         </div>
 
         <Separator className="mb-6" />
 
-        {/* Vote Results */}
-        <div className="mb-6 pb-6">
-          <h2 className="text-lg font-semibold mb-4">Results</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="flex flex-col items-center gap-1 rounded-sm bg-white/90 dark:bg-white/10 p-4">
-              <span className="text-3xl font-bold text-foreground">{vote.total_yea}</span>
-              <span className="text-sm font-medium text-muted-foreground">Yea</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 rounded-sm p-4" style={{ backgroundColor: "#18181b" }}>
-              <span className="text-3xl font-bold text-white">{vote.total_nay}</span>
-              <span className="text-sm font-medium text-white/60">Nay</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 rounded-sm bg-yellow-500/20 p-4">
-              <span className="text-3xl font-bold text-foreground">{vote.total_present}</span>
-              <span className="text-sm font-medium text-muted-foreground">Present</span>
-            </div>
-            <div className="flex flex-col items-center gap-1 rounded-sm bg-secondary p-4">
-              <span className="text-3xl font-bold text-foreground">{vote.total_not_voting}</span>
-              <span className="text-sm font-medium text-muted-foreground">Not Voting</span>
-            </div>
-          </div>
-
-          {/* Party breakdown */}
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left py-2 font-medium">Party</th>
-                  <th className="text-right py-2 font-medium">Yea</th>
-                  <th className="text-right py-2 font-medium">Nay</th>
-                  <th className="text-right py-2 font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-border/50">
-                  <td className="py-2 text-glory-blue-500 font-medium">Democrats</td>
-                  <td className="py-2 text-right">{vote.dem_yea}</td>
-                  <td className="py-2 text-right">{vote.dem_nay}</td>
-                  <td className="py-2 text-right font-medium">{vote.dem_yea + vote.dem_nay}</td>
-                </tr>
-                <tr className="border-b border-border/50">
-                  <td className="py-2 text-glory-red-500 font-medium">Republicans</td>
-                  <td className="py-2 text-right">{vote.rep_yea}</td>
-                  <td className="py-2 text-right">{vote.rep_nay}</td>
-                  <td className="py-2 text-right font-medium">{vote.rep_yea + vote.rep_nay}</td>
-                </tr>
-                <tr>
-                  <td className="py-2 text-violet-500 font-medium">Independents</td>
-                  <td className="py-2 text-right">{vote.ind_yea}</td>
-                  <td className="py-2 text-right">{vote.ind_nay}</td>
-                  <td className="py-2 text-right font-medium">{vote.ind_yea + vote.ind_nay}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Hemicycle Seat Map */}
-        {overlaySeats.length > 0 && (
-          <>
-            <Separator className="mb-6" />
-            <div className="mb-6 pb-6">
-              <h2 className="text-lg font-semibold mb-4">Seat Map</h2>
-              <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-4">
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block h-3 w-3 rounded-full border border-border bg-white" />
-                  <span>Yea</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: "#18181b" }} />
-                  <span>Nay</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block h-3 w-3 rounded-full bg-yellow-500" />
-                  <span>Present</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block h-3 w-3 rounded-full bg-background0" />
-                  <span>Not Voting</span>
-                </div>
-                <div className="ml-2 flex items-center gap-1.5 border-l border-border pl-3">
-                  <span className="text-muted-foreground/60">
-                    Border = party color
-                  </span>
-                </div>
-              </div>
-              <div className="h-[400px]">
-                <HemicycleWithZoom
-                  chamber={vote.chamber}
-                  seats={overlaySeats}
-                  showVoteOverlay
-                />
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Member Votes Table */}
-        {overlaySeats.length > 0 && (
-          <>
-            <Separator className="mb-6" />
-            <div className="mb-6 pb-6">
-              <h2 className="text-lg font-semibold mb-4">Member Votes</h2>
-              <VoteMemberTable seats={overlaySeats} chamber={vote.chamber} />
-            </div>
-          </>
-        )}
-
-        {/* Vote ID */}
-        <Separator className="mb-6" />
-        <div className="text-sm text-muted-foreground">
-          Vote ID: <span className="font-mono">{vote.vote_id}</span>
-        </div>
+        {/* Tabs sit right below the separator */}
+        <VoteDetailContent
+          vote={vote}
+          overlaySeats={overlaySeats}
+          sidebar={sidebar}
+        />
       </GridContainer>
     </main>
     </ChatContextProvider>
