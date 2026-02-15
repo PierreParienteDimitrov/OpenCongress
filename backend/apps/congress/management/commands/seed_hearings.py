@@ -119,7 +119,7 @@ class Command(BaseCommand):
             if not pagination.get("next"):
                 break
 
-            params["offset"] = params["offset"] + len(meetings)
+            params["offset"] = int(params["offset"]) + len(meetings)
 
         return created, updated
 
