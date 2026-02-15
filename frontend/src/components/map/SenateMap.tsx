@@ -149,7 +149,7 @@ export default function SenateMap({ members, focusedState }: SenateMapProps) {
   if (features.length === 0) return null;
 
   return (
-    <div className="relative">
+    <div className="relative h-full">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}

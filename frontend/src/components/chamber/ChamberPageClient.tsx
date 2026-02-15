@@ -107,13 +107,13 @@ export default function ChamberPageClient({
     <main
       className={cn(
         "flex flex-col bg-background",
-        isSeats
+        isSeats || currentView === "map"
           ? "h-[calc(100vh-var(--navbar-height))]"
           : "min-h-screen",
       )}
     >
       {/* Header + Tab bar */}
-      <GridContainer className="shrink-0 pt-4 pb-2">
+      <GridContainer className="w-full shrink-0 pt-4 pb-2">
         <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
           {LABELS[chamber].title}
         </h1>
@@ -195,9 +195,9 @@ export default function ChamberPageClient({
           />
         </div>
       ) : currentView === "map" ? (
-        <GridContainer className="py-4">
+        <div className="min-h-0 flex-1">
           <CongressMap members={allMembers} chamber={chamber} />
-        </GridContainer>
+        </div>
       ) : (
         <GridContainer className="py-4">
           <MemberList
