@@ -883,3 +883,507 @@ def _xml_int(elem: ET.Element | None, tag: str) -> int:
         except ValueError:
             pass
     return 0
+
+
+# ===========================================================================
+# sync_finance — runs weekly on Sunday at 3am
+# ===========================================================================
+
+FEC_API_BASE = "https://api.open.fec.gov/v1"
+
+
+def _get_fec_api_key() -> str | None:
+    return os.environ.get("FEC_API_KEY")
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
+def sync_finance(self) -> dict:
+    """
+    Sync campaign finance data from the FEC OpenFEC API.
+
+    Fetches financial totals and top contributors for all active members
+    of Congress for the current election cycle.
+
+    Returns:
+        Dict with sync statistics
+    """
+    from apps.congress.models import CandidateFinance, Member, TopContributor
+
+    fec_key = _get_fec_api_key()
+    if not fec_key:
+        logger.warning("FEC_API_KEY not configured — skipping finance sync")
+        return {"success": False, "error": "FEC_API_KEY not configured"}
+
+    # Determine current cycle (even year)
+    current_year = date.today().year
+    cycle = current_year if current_year % 2 == 0 else current_year + 1
+
+    members = list(Member.objects.filter(is_active=True).order_by("bioguide_id"))
+
+    created = 0
+    updated = 0
+    errors = 0
+
+    for member in members:
+        try:
+            result = _sync_member_finance(fec_key, member, cycle)
+            if result == "created":
+                created += 1
+            elif result == "updated":
+                updated += 1
+        except Exception as e:
+            logger.warning(f"Error syncing finance for {member.full_name}: {e}")
+            errors += 1
+
+    logger.info(
+        f"Finance sync complete: {created} created, {updated} updated, "
+        f"{errors} errors"
+    )
+
+    return {
+        "success": True,
+        "created": created,
+        "updated": updated,
+        "errors": errors,
+        "cycle": cycle,
+    }
+
+
+def _sync_member_finance(fec_key: str, member, cycle: int) -> str:
+    """Sync finance data for a single member. Returns 'created', 'updated', or 'skipped'."""
+    from apps.congress.models import CandidateFinance, TopContributor
+
+    # Check if we already have a fec_candidate_id
+    existing = CandidateFinance.objects.filter(member=member, cycle=cycle).first()
+    candidate_id = existing.fec_candidate_id if existing else None
+
+    if not candidate_id:
+        candidate_id = _fec_find_candidate(fec_key, member)
+
+    if not candidate_id:
+        return "skipped"
+
+    # Fetch totals
+    totals = _fec_fetch_totals(fec_key, candidate_id, cycle)
+    if not totals:
+        return "skipped"
+
+    finance, was_created = CandidateFinance.objects.update_or_create(
+        member=member,
+        cycle=cycle,
+        defaults={
+            "fec_candidate_id": candidate_id,
+            "total_receipts": totals.get("receipts", 0) or 0,
+            "total_disbursements": totals.get("disbursements", 0) or 0,
+            "cash_on_hand": totals.get("last_cash_on_hand_end_period", 0) or 0,
+            "debt": totals.get("last_debts_owed_by_committee", 0) or 0,
+            "individual_contributions": totals.get("individual_contributions", 0) or 0,
+            "pac_contributions": totals.get(
+                "other_political_committee_contributions", 0
+            ) or 0,
+            "small_contributions": totals.get(
+                "individual_unitemized_contributions", 0
+            ) or 0,
+            "large_contributions": totals.get(
+                "individual_itemized_contributions", 0
+            ) or 0,
+            "coverage_start_date": _parse_fec_date(
+                totals.get("coverage_start_date")
+            ),
+            "coverage_end_date": _parse_fec_date(totals.get("coverage_end_date")),
+        },
+    )
+
+    return "created" if was_created else "updated"
+
+
+def _fec_find_candidate(fec_key: str, member) -> str | None:
+    """Find FEC candidate ID for a member."""
+    office = "H" if member.chamber == "house" else "S"
+    params = {
+        "api_key": fec_key,
+        "name": f"{member.last_name}, {member.first_name}",
+        "state": member.state.upper(),
+        "office": office,
+        "is_active_candidate": "true",
+        "sort": "-election_years",
+        "per_page": 5,
+    }
+
+    try:
+        time.sleep(0.5)
+        resp = requests.get(
+            f"{FEC_API_BASE}/candidates/search/", params=params, timeout=30
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if results:
+            return results[0].get("candidate_id")
+    except Exception as e:
+        logger.warning(f"FEC candidate search failed for {member.full_name}: {e}")
+
+    return None
+
+
+def _fec_fetch_totals(fec_key: str, candidate_id: str, cycle: int) -> dict | None:
+    """Fetch FEC financial totals for a candidate."""
+    params = {"api_key": fec_key, "cycle": cycle, "per_page": 1}
+
+    try:
+        time.sleep(0.5)
+        resp = requests.get(
+            f"{FEC_API_BASE}/candidate/{candidate_id}/totals/",
+            params=params,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if results:
+            return results[0]
+    except Exception as e:
+        logger.warning(f"FEC totals fetch failed for {candidate_id}: {e}")
+
+    return None
+
+
+def _parse_fec_date(date_str: str | None):
+    """Parse date from FEC API response."""
+    if not date_str:
+        return None
+    try:
+        return datetime.fromisoformat(date_str.replace("Z", "+00:00")).date()
+    except (ValueError, TypeError):
+        try:
+            return datetime.strptime(date_str[:10], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return None
+
+
+# ===========================================================================
+# sync_hearings — runs daily at 8am
+# ===========================================================================
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
+def sync_hearings(self) -> dict:
+    """
+    Sync committee hearings from the Congress.gov API.
+
+    Fetches recent committee meetings (hearings, markups) for both chambers.
+
+    Returns:
+        Dict with sync statistics
+    """
+    from apps.congress.models import Bill, Committee, Hearing, HearingWitness
+
+    api_key = _get_api_key()
+    if not api_key:
+        logger.error("CONGRESS_API_KEY not configured")
+        return {"success": False, "error": "CONGRESS_API_KEY not configured"}
+
+    try:
+        total_created = 0
+        total_updated = 0
+
+        for chamber in ["house", "senate"]:
+            created, updated = _sync_chamber_hearings(
+                api_key, CURRENT_CONGRESS, chamber
+            )
+            total_created += created
+            total_updated += updated
+
+        logger.info(
+            f"Hearing sync complete: {total_created} created, "
+            f"{total_updated} updated"
+        )
+
+        return {
+            "success": True,
+            "created": total_created,
+            "updated": total_updated,
+        }
+
+    except Exception as e:
+        logger.error(f"Error syncing hearings: {e}")
+        raise self.retry(exc=e)
+
+
+def _sync_chamber_hearings(
+    api_key: str, congress: int, chamber: str
+) -> tuple[int, int]:
+    """Fetch recent committee meetings for a chamber."""
+    from apps.congress.models import Bill, Committee, Hearing, HearingWitness
+
+    url = f"{CONGRESS_API_BASE}/committee-meeting/{congress}/{chamber}"
+    params: dict[str, Any] = {
+        "api_key": api_key,
+        "limit": 50,
+        "format": "json",
+        "offset": 0,
+    }
+
+    created = 0
+    updated = 0
+
+    try:
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        logger.error(f"Failed to fetch {chamber} hearings: {e}")
+        return 0, 0
+
+    meetings = data.get("committeeMeetings", [])
+
+    for meeting in meetings:
+        event_id = meeting.get("eventId")
+        if not event_id:
+            continue
+
+        hearing_id = f"{chamber}-{congress}-{event_id}"
+
+        # Fetch detail
+        detail_url = meeting.get("url")
+        detail_data = {}
+        if detail_url:
+            try:
+                time.sleep(0.3)
+                resp = requests.get(
+                    detail_url,
+                    params={"api_key": api_key, "format": "json"},
+                    timeout=30,
+                )
+                resp.raise_for_status()
+                detail_data = resp.json().get("committeeMeeting", {})
+            except Exception:
+                pass
+
+        # Parse meeting type
+        meeting_type_raw = detail_data.get("type", "Meeting").lower()
+        if "hearing" in meeting_type_raw:
+            meeting_type = "hearing"
+        elif "markup" in meeting_type_raw:
+            meeting_type = "markup"
+        else:
+            meeting_type = "meeting"
+
+        # Parse date
+        date_str = detail_data.get("date") or meeting.get("date", "")
+        meeting_date = None
+        if date_str:
+            try:
+                meeting_date = datetime.fromisoformat(
+                    date_str.replace("Z", "+00:00")
+                )
+            except ValueError:
+                try:
+                    meeting_date = datetime.strptime(date_str[:10], "%Y-%m-%d")
+                except ValueError:
+                    pass
+
+        # Status
+        status_raw = detail_data.get("meetingStatus", "Scheduled").lower()
+        status_map = {
+            "scheduled": "scheduled",
+            "canceled": "canceled",
+            "postponed": "postponed",
+            "rescheduled": "rescheduled",
+        }
+        meeting_status = status_map.get(status_raw, "scheduled")
+
+        title = detail_data.get("title", "") or meeting.get("title", "")
+
+        # Find committee
+        committee = None
+        committees_data = detail_data.get("committees", [])
+        if committees_data:
+            system_code = committees_data[0].get("systemCode", "")
+            if system_code:
+                try:
+                    committee = Committee.objects.get(committee_id=system_code)
+                except Committee.DoesNotExist:
+                    pass
+
+        hearing, was_created = Hearing.objects.update_or_create(
+            hearing_id=hearing_id,
+            defaults={
+                "event_id": str(event_id),
+                "congress": congress,
+                "chamber": chamber,
+                "title": title,
+                "meeting_type": meeting_type,
+                "meeting_status": meeting_status,
+                "date": meeting_date,
+                "room": detail_data.get("room", ""),
+                "building": detail_data.get("building", ""),
+                "committee": committee,
+                "source_url": (detail_url.split("?")[0] if detail_url else ""),
+            },
+        )
+
+        if was_created:
+            created += 1
+        else:
+            updated += 1
+
+        # Process witnesses
+        witnesses = detail_data.get("witnesses", [])
+        if witnesses:
+            HearingWitness.objects.filter(hearing=hearing).delete()
+            for w in witnesses:
+                name = w.get("name", "")
+                if name:
+                    statement_url = ""
+                    biography_url = ""
+                    for doc in w.get("documents", []):
+                        doc_type = doc.get("documentType", "").lower()
+                        if "statement" in doc_type:
+                            statement_url = doc.get("url", "")
+                        elif "biography" in doc_type:
+                            biography_url = doc.get("url", "")
+
+                    HearingWitness.objects.create(
+                        hearing=hearing,
+                        name=name,
+                        position=w.get("position", ""),
+                        organization=w.get("organization", ""),
+                        statement_url=statement_url,
+                        biography_url=biography_url,
+                    )
+
+        # Link related bills
+        related_bills = detail_data.get("bills", [])
+        if related_bills:
+            bill_ids = []
+            for b in related_bills:
+                bill_type = b.get("type", "").lower()
+                bill_number = b.get("number")
+                bill_congress = b.get("congress", congress)
+                if bill_type and bill_number:
+                    bill_id = f"{bill_type}{bill_number}-{bill_congress}"
+                    if Bill.objects.filter(bill_id=bill_id).exists():
+                        bill_ids.append(bill_id)
+            if bill_ids:
+                hearing.related_bills.set(
+                    Bill.objects.filter(bill_id__in=bill_ids)
+                )
+
+    return created, updated
+
+
+# ===========================================================================
+# sync_cbo_estimates — runs daily at 9am
+# ===========================================================================
+
+CBO_RSS_URL = "https://www.cbo.gov/rss/{congress}congress-cost-estimates.xml"
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
+def sync_cbo_estimates(self) -> dict:
+    """
+    Sync CBO cost estimates from the CBO RSS feed.
+
+    Fetches the RSS feed and creates/updates CBOCostEstimate records,
+    linking them to Bill records when possible.
+
+    Returns:
+        Dict with sync statistics
+    """
+    from apps.congress.models import Bill, CBOCostEstimate
+
+    try:
+        rss_url = CBO_RSS_URL.format(congress=CURRENT_CONGRESS)
+
+        resp = requests.get(rss_url, timeout=30)
+        resp.raise_for_status()
+
+        root = ET.fromstring(resp.content)
+
+        channel = root.find("channel")
+        if channel is not None:
+            item_elements = channel.findall("item")
+        else:
+            item_elements = root.findall(".//item")
+
+        created = 0
+        updated = 0
+
+        for item_elem in item_elements:
+            title = _xml_text(item_elem, "title") or ""
+            link = _xml_text(item_elem, "link") or ""
+            description = _xml_text(item_elem, "description") or ""
+            pub_date_str = _xml_text(item_elem, "pubDate") or ""
+
+            if not link:
+                continue
+
+            # Parse publication date
+            pub_date = None
+            if pub_date_str:
+                try:
+                    from email.utils import parsedate_to_datetime
+
+                    pub_date = parsedate_to_datetime(pub_date_str).date()
+                except (ValueError, TypeError):
+                    pass
+
+            # Match to bill
+            bill = _match_cbo_bill(title, CURRENT_CONGRESS)
+
+            estimate, was_created = CBOCostEstimate.objects.update_or_create(
+                cbo_url=link.strip(),
+                defaults={
+                    "bill": bill,
+                    "title": title,
+                    "description": description,
+                    "publication_date": pub_date,
+                    "congress": CURRENT_CONGRESS,
+                },
+            )
+
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+
+        logger.info(
+            f"CBO sync complete: {created} created, {updated} updated"
+        )
+
+        return {
+            "success": True,
+            "created": created,
+            "updated": updated,
+        }
+
+    except Exception as e:
+        logger.error(f"Error syncing CBO estimates: {e}")
+        raise self.retry(exc=e)
+
+
+def _match_cbo_bill(title: str, congress: int):
+    """Try to match a CBO title to a Bill record."""
+    from apps.congress.models import Bill
+
+    patterns = [
+        (r"H\.R\.\s*(\d+)", "hr"),
+        (r"S\.\s*(\d+)", "s"),
+        (r"H\.J\.Res\.\s*(\d+)", "hjres"),
+        (r"S\.J\.Res\.\s*(\d+)", "sjres"),
+        (r"H\.Con\.Res\.\s*(\d+)", "hconres"),
+        (r"S\.Con\.Res\.\s*(\d+)", "sconres"),
+        (r"H\.Res\.\s*(\d+)", "hres"),
+        (r"S\.Res\.\s*(\d+)", "sres"),
+    ]
+
+    for pattern, bill_type in patterns:
+        match = re.search(pattern, title)
+        if match:
+            number = match.group(1)
+            bill_id = f"{bill_type}{number}-{congress}"
+            try:
+                return Bill.objects.get(bill_id=bill_id)
+            except Bill.DoesNotExist:
+                pass
+
+    return None
