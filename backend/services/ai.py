@@ -20,7 +20,10 @@ class AIService:
         api_key = getattr(settings, "GOOGLE_API_KEY", None)
         if not api_key:
             raise ValueError("GOOGLE_API_KEY is not configured in settings")
-        self.client = genai.Client(api_key=api_key)
+        self.client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=60),
+        )
 
     def generate_completion(
         self, prompt: str, max_tokens: int = 200
