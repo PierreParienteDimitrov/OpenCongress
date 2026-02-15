@@ -83,7 +83,7 @@ class Command(BaseCommand):
     ) -> tuple[int, int]:
         """Fetch committee meetings (hearings, markups) for a chamber."""
         url = f"{CONGRESS_API_BASE}/committee-meeting/{congress}/{chamber}"
-        params = {
+        params: dict[str, str | int] = {
             "api_key": api_key,
             "limit": min(limit, 250),
             "format": "json",
@@ -93,6 +93,7 @@ class Command(BaseCommand):
         created = 0
         updated = 0
         fetched = 0
+        offset = 0
 
         while fetched < limit:
             data = self._api_get(url, params)
@@ -119,7 +120,8 @@ class Command(BaseCommand):
             if not pagination.get("next"):
                 break
 
-            params["offset"] = int(params["offset"]) + len(meetings)
+            offset += len(meetings)
+            params["offset"] = offset
 
         return created, updated
 
