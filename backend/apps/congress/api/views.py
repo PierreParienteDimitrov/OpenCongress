@@ -401,9 +401,8 @@ class CandidateFinanceViewSet(viewsets.ReadOnlyModelViewSet):
     by_member: Get finance data for a specific member (by bioguide_id)
     """
 
-    queryset = (
-        CandidateFinance.objects.select_related("member")
-        .order_by("-total_receipts")
+    queryset = CandidateFinance.objects.select_related("member").order_by(
+        "-total_receipts"
     )
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["cycle", "member__chamber", "member__party", "member__state"]
@@ -433,10 +432,10 @@ class CandidateFinanceViewSet(viewsets.ReadOnlyModelViewSet):
         """Get finance data for a specific member by bioguide_id."""
         cycle = request.query_params.get("cycle")
 
-        queryset = CandidateFinance.objects.filter(
-            member__bioguide_id=bioguide_id
-        ).select_related("member").prefetch_related(
-            "top_contributors", "industry_contributions"
+        queryset = (
+            CandidateFinance.objects.filter(member__bioguide_id=bioguide_id)
+            .select_related("member")
+            .prefetch_related("top_contributors", "industry_contributions")
         )
 
         if cycle:
@@ -463,10 +462,7 @@ class HearingViewSet(viewsets.ReadOnlyModelViewSet):
     upcoming: Get upcoming scheduled hearings
     """
 
-    queryset = (
-        Hearing.objects.select_related("committee")
-        .order_by("-date")
-    )
+    queryset = Hearing.objects.select_related("committee").order_by("-date")
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = [
         "chamber",
@@ -485,9 +481,7 @@ class HearingViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         if self.action == "retrieve":
-            queryset = queryset.prefetch_related(
-                "witnesses", "related_bills__sponsor"
-            )
+            queryset = queryset.prefetch_related("witnesses", "related_bills__sponsor")
 
         search = self.request.query_params.get("search")
         if search:
@@ -521,9 +515,8 @@ class CBOCostEstimateViewSet(viewsets.ReadOnlyModelViewSet):
     for_bill: Get CBO estimates for a specific bill
     """
 
-    queryset = (
-        CBOCostEstimate.objects.select_related("bill")
-        .order_by("-publication_date")
+    queryset = CBOCostEstimate.objects.select_related("bill").order_by(
+        "-publication_date"
     )
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ["congress", "bill__bill_id"]
@@ -537,9 +530,11 @@ class CBOCostEstimateViewSet(viewsets.ReadOnlyModelViewSet):
     )
     def for_bill(self, request, bill_id=None):
         """Get CBO cost estimates for a specific bill."""
-        queryset = CBOCostEstimate.objects.filter(
-            bill__bill_id=bill_id
-        ).select_related("bill").order_by("-publication_date")
+        queryset = (
+            CBOCostEstimate.objects.filter(bill__bill_id=bill_id)
+            .select_related("bill")
+            .order_by("-publication_date")
+        )
 
         if not queryset.exists():
             return Response(

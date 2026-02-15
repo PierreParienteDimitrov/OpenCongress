@@ -51,9 +51,7 @@ class Command(BaseCommand):
         items = self._fetch_rss_items(rss_url)
 
         if not items:
-            self.stderr.write(
-                self.style.ERROR("No items found in CBO RSS feed")
-            )
+            self.stderr.write(self.style.ERROR("No items found in CBO RSS feed"))
             return
 
         if limit:

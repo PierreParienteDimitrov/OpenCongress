@@ -518,9 +518,7 @@ class CandidateFinanceDetailSerializer(serializers.ModelSerializer):
     member_chamber = serializers.CharField(source="member.chamber")
     member_photo_url = serializers.URLField(source="member.photo_url")
     top_contributors = TopContributorSerializer(many=True, read_only=True)
-    industry_contributions = IndustryContributionSerializer(
-        many=True, read_only=True
-    )
+    industry_contributions = IndustryContributionSerializer(many=True, read_only=True)
 
     class Meta:
         model = CandidateFinance
@@ -568,9 +566,7 @@ class HearingWitnessSerializer(serializers.ModelSerializer):
 class HearingListSerializer(serializers.ModelSerializer):
     """Serializer for hearing list views."""
 
-    committee_name = serializers.CharField(
-        source="committee.name", allow_null=True
-    )
+    committee_name = serializers.CharField(source="committee.name", allow_null=True)
     committee_id = serializers.CharField(
         source="committee.committee_id", allow_null=True
     )
@@ -604,9 +600,7 @@ class HearingListSerializer(serializers.ModelSerializer):
 class HearingDetailSerializer(serializers.ModelSerializer):
     """Serializer for hearing detail views with witnesses and bills."""
 
-    committee_name = serializers.CharField(
-        source="committee.name", allow_null=True
-    )
+    committee_name = serializers.CharField(source="committee.name", allow_null=True)
     committee_id = serializers.CharField(
         source="committee.committee_id", allow_null=True
     )
@@ -647,9 +641,7 @@ class CBOCostEstimateSerializer(serializers.ModelSerializer):
     bill_display_number = serializers.CharField(
         source="bill.display_number", allow_null=True
     )
-    bill_short_title = serializers.CharField(
-        source="bill.short_title", allow_null=True
-    )
+    bill_short_title = serializers.CharField(source="bill.short_title", allow_null=True)
 
     class Meta:
         model = CBOCostEstimate

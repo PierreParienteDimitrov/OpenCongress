@@ -907,7 +907,7 @@ def sync_finance(self) -> dict:
     Returns:
         Dict with sync statistics
     """
-    from apps.congress.models import CandidateFinance, Member, TopContributor
+    from apps.congress.models import Member
 
     fec_key = _get_fec_api_key()
     if not fec_key:
@@ -951,7 +951,7 @@ def sync_finance(self) -> dict:
 
 def _sync_member_finance(fec_key: str, member, cycle: int) -> str:
     """Sync finance data for a single member. Returns 'created', 'updated', or 'skipped'."""
-    from apps.congress.models import CandidateFinance, TopContributor
+    from apps.congress.models import CandidateFinance
 
     # Check if we already have a fec_candidate_id
     existing = CandidateFinance.objects.filter(member=member, cycle=cycle).first()
@@ -980,16 +980,13 @@ def _sync_member_finance(fec_key: str, member, cycle: int) -> str:
             "individual_contributions": totals.get("individual_contributions", 0) or 0,
             "pac_contributions": totals.get(
                 "other_political_committee_contributions", 0
-            ) or 0,
-            "small_contributions": totals.get(
-                "individual_unitemized_contributions", 0
-            ) or 0,
-            "large_contributions": totals.get(
-                "individual_itemized_contributions", 0
-            ) or 0,
-            "coverage_start_date": _parse_fec_date(
-                totals.get("coverage_start_date")
-            ),
+            )
+            or 0,
+            "small_contributions": totals.get("individual_unitemized_contributions", 0)
+            or 0,
+            "large_contributions": totals.get("individual_itemized_contributions", 0)
+            or 0,
+            "coverage_start_date": _parse_fec_date(totals.get("coverage_start_date")),
             "coverage_end_date": _parse_fec_date(totals.get("coverage_end_date")),
         },
     )
@@ -1074,7 +1071,6 @@ def sync_hearings(self) -> dict:
     Returns:
         Dict with sync statistics
     """
-    from apps.congress.models import Bill, Committee, Hearing, HearingWitness
 
     api_key = _get_api_key()
     if not api_key:
@@ -1172,9 +1168,7 @@ def _sync_chamber_hearings(
         meeting_date = None
         if date_str:
             try:
-                meeting_date = datetime.fromisoformat(
-                    date_str.replace("Z", "+00:00")
-                )
+                meeting_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
             except ValueError:
                 try:
                     meeting_date = datetime.strptime(date_str[:10], "%Y-%m-%d")
@@ -1264,9 +1258,7 @@ def _sync_chamber_hearings(
                     if Bill.objects.filter(bill_id=bill_id).exists():
                         bill_ids.append(bill_id)
             if bill_ids:
-                hearing.related_bills.set(
-                    Bill.objects.filter(bill_id__in=bill_ids)
-                )
+                hearing.related_bills.set(Bill.objects.filter(bill_id__in=bill_ids))
 
     return created, updated
 
@@ -1289,7 +1281,7 @@ def sync_cbo_estimates(self) -> dict:
     Returns:
         Dict with sync statistics
     """
-    from apps.congress.models import Bill, CBOCostEstimate
+    from apps.congress.models import CBOCostEstimate
 
     try:
         rss_url = CBO_RSS_URL.format(congress=CURRENT_CONGRESS)
@@ -1346,9 +1338,7 @@ def sync_cbo_estimates(self) -> dict:
             else:
                 updated += 1
 
-        logger.info(
-            f"CBO sync complete: {created} created, {updated} updated"
-        )
+        logger.info(f"CBO sync complete: {created} created, {updated} updated")
 
         return {
             "success": True,

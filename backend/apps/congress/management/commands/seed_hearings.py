@@ -10,7 +10,6 @@ Usage:
 """
 
 import os
-import re
 import time
 from datetime import datetime
 
@@ -64,7 +63,9 @@ class Command(BaseCommand):
         total_updated = 0
 
         for ch in chambers:
-            self.stdout.write(f"Fetching {ch} committee meetings for Congress {congress}...")
+            self.stdout.write(
+                f"Fetching {ch} committee meetings for Congress {congress}..."
+            )
             created, updated = self._fetch_committee_meetings(
                 api_key, congress, ch, limit
             )
@@ -105,9 +106,7 @@ class Command(BaseCommand):
             for meeting in meetings:
                 if fetched >= limit:
                     break
-                result = self._process_meeting(
-                    api_key, meeting, congress, chamber
-                )
+                result = self._process_meeting(api_key, meeting, congress, chamber)
                 if result == "created":
                     created += 1
                 elif result == "updated":
@@ -137,9 +136,7 @@ class Command(BaseCommand):
         # Fetch meeting detail
         detail_url = meeting.get("url")
         if detail_url:
-            detail = self._api_get(
-                detail_url, {"api_key": api_key, "format": "json"}
-            )
+            detail = self._api_get(detail_url, {"api_key": api_key, "format": "json"})
         else:
             detail = None
 
@@ -189,9 +186,7 @@ class Command(BaseCommand):
         jacket_number = ""
         hearing_transcripts = detail_data.get("hearingTranscripts", [])
         if hearing_transcripts:
-            jacket_number = str(
-                hearing_transcripts[0].get("jacketNumber", "")
-            )
+            jacket_number = str(hearing_transcripts[0].get("jacketNumber", ""))
 
         # Source URL
         source_url = ""
@@ -202,7 +197,10 @@ class Command(BaseCommand):
         transcript_url = ""
         formats_data = detail_data.get("formats", [])
         for fmt in formats_data:
-            if fmt.get("type") == "Formatted Text" or "pdf" in fmt.get("type", "").lower():
+            if (
+                fmt.get("type") == "Formatted Text"
+                or "pdf" in fmt.get("type", "").lower()
+            ):
                 transcript_url = fmt.get("url", "")
                 break
 
@@ -293,9 +291,7 @@ class Command(BaseCommand):
                     pass
 
         if bill_ids:
-            hearing.related_bills.set(
-                Bill.objects.filter(bill_id__in=bill_ids)
-            )
+            hearing.related_bills.set(Bill.objects.filter(bill_id__in=bill_ids))
 
     def _api_get(self, url: str, params: dict) -> dict | None:
         """Make an API request with retry logic."""

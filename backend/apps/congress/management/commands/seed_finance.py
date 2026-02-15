@@ -17,7 +17,6 @@ from django.core.management.base import BaseCommand
 
 from apps.congress.models import (
     CandidateFinance,
-    IndustryContribution,
     Member,
     TopContributor,
 )
@@ -98,9 +97,7 @@ class Command(BaseCommand):
             )
         )
 
-    def _process_member(
-        self, api_key: str, member: Member, cycle: int
-    ) -> str:
+    def _process_member(self, api_key: str, member: Member, cycle: int) -> str:
         """Fetch FEC data for a single member. Returns 'created', 'updated', or 'skipped'."""
         # Step 1: Find FEC candidate ID
         candidate_id = self._find_fec_candidate(api_key, member)
@@ -122,24 +119,22 @@ class Command(BaseCommand):
                 "total_disbursements": totals.get("disbursements", 0) or 0,
                 "cash_on_hand": totals.get("last_cash_on_hand_end_period", 0) or 0,
                 "debt": totals.get("last_debts_owed_by_committee", 0) or 0,
-                "individual_contributions": totals.get(
-                    "individual_contributions", 0
-                ) or 0,
+                "individual_contributions": totals.get("individual_contributions", 0)
+                or 0,
                 "pac_contributions": totals.get(
                     "other_political_committee_contributions", 0
-                ) or 0,
+                )
+                or 0,
                 "small_contributions": totals.get(
                     "individual_unitemized_contributions", 0
-                ) or 0,
+                )
+                or 0,
                 "large_contributions": totals.get(
                     "individual_itemized_contributions", 0
-                ) or 0,
-                "coverage_start_date": _parse_date(
-                    totals.get("coverage_start_date")
-                ),
-                "coverage_end_date": _parse_date(
-                    totals.get("coverage_end_date")
-                ),
+                )
+                or 0,
+                "coverage_start_date": _parse_date(totals.get("coverage_start_date")),
+                "coverage_end_date": _parse_date(totals.get("coverage_end_date")),
             },
         )
 
@@ -250,9 +245,7 @@ class Command(BaseCommand):
                 results = data.get("results", [])
 
                 # Clear existing contributors for this finance record
-                TopContributor.objects.filter(
-                    candidate_finance=finance
-                ).delete()
+                TopContributor.objects.filter(candidate_finance=finance).delete()
 
                 for rank, result in enumerate(results, 1):
                     name = result.get("contributor_name", "Unknown")
@@ -268,13 +261,10 @@ class Command(BaseCommand):
             except Exception as e:
                 if attempt == 2:
                     self.stderr.write(
-                        f"  Failed to fetch contributors for "
-                        f"{candidate_id}: {e}"
+                        f"  Failed to fetch contributors for " f"{candidate_id}: {e}"
                     )
 
-    def _find_principal_committee(
-        self, api_key: str, candidate_id: str
-    ) -> str | None:
+    def _find_principal_committee(self, api_key: str, candidate_id: str) -> str | None:
         """Find the principal campaign committee for a candidate."""
         params: dict[str, str | int] = {
             "api_key": api_key,
