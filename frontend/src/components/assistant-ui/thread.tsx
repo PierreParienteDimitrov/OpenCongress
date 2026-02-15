@@ -77,12 +77,29 @@ const ThreadScrollToBottom: FC = () => {
 };
 
 const ThreadWelcome: FC<{ contextLabel?: string }> = ({ contextLabel }) => {
+  const label = contextLabel || "congressional activity";
+  const isPageSpecific =
+    contextLabel === "this bill" ||
+    contextLabel === "this vote" ||
+    contextLabel === "this member";
+
   return (
-    <div className="aui-thread-welcome-root mx-auto my-auto flex w-full grow flex-col items-center justify-center text-center">
-      <MessageSquareIcon className="size-8 mb-2 text-muted-foreground/30" />
-      <p className="text-sm text-muted-foreground">
-        Ask me anything about {contextLabel || "congressional activity"}.
-      </p>
+    <div className="aui-thread-welcome-root mx-auto my-auto flex w-full grow flex-col items-center justify-center text-center gap-3">
+      <div>
+        <MessageSquareIcon className="mx-auto size-8 mb-2 text-muted-foreground/30" />
+        <p className="text-sm text-muted-foreground">
+          Ask me anything about {label}.
+        </p>
+      </div>
+      {isPageSpecific && (
+        <ThreadPrimitive.Suggestion
+          prompt={`Explain ${label} to me`}
+          send
+          className="cursor-pointer rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          Explain {label} to me
+        </ThreadPrimitive.Suggestion>
+      )}
     </div>
   );
 };
