@@ -86,6 +86,22 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute=0, hour=9),
         "options": {"queue": "default"},
     },
+    # Analytics
+    "analytics-aggregate-hourly": {
+        "task": "tasks.analytics.aggregate_pageviews_hourly",
+        "schedule": crontab(minute=5),
+        "options": {"queue": "default"},
+    },
+    "analytics-resolve-identities-daily": {
+        "task": "tasks.analytics.resolve_identities",
+        "schedule": crontab(minute=0, hour=4),
+        "options": {"queue": "default"},
+    },
+    "analytics-cleanup-weekly": {
+        "task": "tasks.analytics.cleanup_old_events",
+        "schedule": crontab(minute=0, hour=3, day_of_week=0),
+        "options": {"queue": "default"},
+    },
 }
 
 # Queue routing
@@ -95,6 +111,7 @@ app.conf.task_routes = {
     "tasks.notifications.*": {"queue": "notifications"},
     "tasks.monitoring.*": {"queue": "default"},
     "apps.jobs.tasks.*": {"queue": "default"},
+    "tasks.analytics.*": {"queue": "default"},
 }
 
 # Task settings

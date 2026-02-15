@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.content",
     "apps.notifications",
     "apps.jobs",
+    "apps.analytics",
 ]
 
 MIDDLEWARE = [
