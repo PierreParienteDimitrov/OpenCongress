@@ -10,6 +10,7 @@ import QueryProvider from "@/components/providers/QueryProvider";
 import { Navbar } from "@/components/nav/Navbar";
 import { ContentWithSidebar } from "@/components/layout/ContentWithSidebar";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -70,6 +71,7 @@ export default function RootLayout({
             {children}
           </ContentWithSidebar>
         </QueryProvider>
+        <Analytics />
       </body>
     </html>
   );
