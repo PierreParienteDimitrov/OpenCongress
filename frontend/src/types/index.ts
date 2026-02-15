@@ -226,6 +226,45 @@ export interface ZipLookupResult {
   members: MemberListItem[];
 }
 
+// Committee types
+export interface CommitteeLeader {
+  bioguide_id: string;
+  full_name: string;
+  party: string;
+}
+
+export interface CommitteeMemberItem {
+  bioguide_id: string;
+  full_name: string;
+  party: "D" | "R" | "I";
+  state: string;
+  district: number | null;
+  photo_url: string;
+  role: string;
+  role_display: string;
+}
+
+export interface CommitteeListItem {
+  committee_id: string;
+  name: string;
+  chamber: "house" | "senate";
+  committee_type: string;
+  url: string;
+  parent_committee_id: string | null;
+  member_count: number;
+  subcommittee_count: number;
+  chair: CommitteeLeader | null;
+  ranking_member: CommitteeLeader | null;
+  referred_bills_count: number;
+}
+
+export interface CommitteeDetail extends CommitteeListItem {
+  ai_summary: string;
+  members: CommitteeMemberItem[];
+  subcommittees: CommitteeListItem[];
+  referred_bills: BillListItem[];
+}
+
 // API response types
 export interface PaginatedResponse<T> {
   count: number;

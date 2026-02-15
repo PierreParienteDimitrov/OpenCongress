@@ -16,15 +16,17 @@ from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
 
-from apps.congress.models import Bill, Member, MemberVote, Seat, Vote
+from apps.congress.models import Bill, Committee, Member, MemberVote, Seat, Vote
 from apps.congress.zcta import STATE_NAMES, ZCTA_CD
 
-from .filters import BillFilter, MemberFilter, VoteFilter
+from .filters import BillFilter, CommitteeFilter, MemberFilter, VoteFilter
 from .search import MemberSearchFilter
 from .serializers import (
     BillCalendarSerializer,
     BillDetailSerializer,
     BillListSerializer,
+    CommitteeDetailSerializer,
+    CommitteeListSerializer,
     MemberDetailSerializer,
     MemberListSerializer,
     SeatSerializer,
@@ -328,3 +330,48 @@ class SeatViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = SeatVoteOverlaySerializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class CommitteeViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for Congressional Committees.
+
+    list: Get all top-level committees with optional filtering
+    retrieve: Get a specific committee with members, subcommittees, and bills
+    """
+
+    queryset = Committee.objects.filter(parent_committee__isnull=True).order_by(
+        "chamber", "name"
+    )
+    filterset_class = CommitteeFilter
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    search_fields = ["name"]
+    ordering_fields = ["name", "chamber"]
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return CommitteeDetailSerializer
+        return CommitteeListSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Allow search by name
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+        if self.action == "retrieve":
+            queryset = Committee.objects.all()  # Allow retrieving subcommittees too
+            queryset = queryset.prefetch_related(
+                "members__member",
+                "subcommittees",
+                "referred_bills__bill__sponsor",
+            )
+        return queryset
+
+    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("member_list", 60 * 60)))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("member_detail", 60 * 60)))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)

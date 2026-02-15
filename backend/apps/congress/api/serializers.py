@@ -4,7 +4,15 @@ Serializers for the Congress API.
 
 from rest_framework import serializers
 
-from apps.congress.models import Bill, Member, MemberVote, Seat, Vote
+from apps.congress.models import (
+    Bill,
+    Committee,
+    CommitteeMember,
+    Member,
+    MemberVote,
+    Seat,
+    Vote,
+)
 
 
 class MemberListSerializer(serializers.ModelSerializer):
@@ -304,3 +312,150 @@ class SeatVoteOverlaySerializer(serializers.ModelSerializer):
             "member",
             "vote_position",
         ]
+
+
+# ── Committee serializers ────────────────────────────────────────────
+
+
+class CommitteeMemberSerializer(serializers.ModelSerializer):
+    """Nested member info for a committee's member list."""
+
+    bioguide_id = serializers.CharField(source="member.bioguide_id")
+    full_name = serializers.CharField(source="member.full_name")
+    party = serializers.CharField(source="member.party")
+    state = serializers.CharField(source="member.state")
+    district = serializers.IntegerField(source="member.district", allow_null=True)
+    photo_url = serializers.URLField(source="member.photo_url")
+    role_display = serializers.CharField(source="get_role_display")
+
+    class Meta:
+        model = CommitteeMember
+        fields = [
+            "bioguide_id",
+            "full_name",
+            "party",
+            "state",
+            "district",
+            "photo_url",
+            "role",
+            "role_display",
+        ]
+
+
+class CommitteeListSerializer(serializers.ModelSerializer):
+    """Serializer for committee list views with aggregated metrics."""
+
+    member_count = serializers.SerializerMethodField()
+    subcommittee_count = serializers.SerializerMethodField()
+    chair = serializers.SerializerMethodField()
+    ranking_member = serializers.SerializerMethodField()
+    referred_bills_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Committee
+        fields = [
+            "committee_id",
+            "name",
+            "chamber",
+            "committee_type",
+            "url",
+            "parent_committee_id",
+            "member_count",
+            "subcommittee_count",
+            "chair",
+            "ranking_member",
+            "referred_bills_count",
+        ]
+
+    def get_member_count(self, obj):
+        return obj.members.count()
+
+    def get_subcommittee_count(self, obj):
+        return obj.subcommittees.count()
+
+    def get_chair(self, obj):
+        cm = obj.members.select_related("member").filter(role="chair").first()
+        if cm:
+            return {
+                "bioguide_id": cm.member.bioguide_id,
+                "full_name": cm.member.full_name,
+                "party": cm.member.party,
+            }
+        return None
+
+    def get_ranking_member(self, obj):
+        cm = obj.members.select_related("member").filter(role="ranking").first()
+        if cm:
+            return {
+                "bioguide_id": cm.member.bioguide_id,
+                "full_name": cm.member.full_name,
+                "party": cm.member.party,
+            }
+        return None
+
+    def get_referred_bills_count(self, obj):
+        return obj.referred_bills.count()
+
+
+class CommitteeDetailSerializer(serializers.ModelSerializer):
+    """Serializer for committee detail views with members and bills."""
+
+    members = serializers.SerializerMethodField()
+    subcommittees = serializers.SerializerMethodField()
+    referred_bills = serializers.SerializerMethodField()
+    chair = serializers.SerializerMethodField()
+    ranking_member = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Committee
+        fields = [
+            "committee_id",
+            "name",
+            "chamber",
+            "committee_type",
+            "url",
+            "parent_committee_id",
+            "ai_summary",
+            "members",
+            "subcommittees",
+            "referred_bills",
+            "chair",
+            "ranking_member",
+        ]
+
+    def get_members(self, obj):
+        members_qs = obj.members.select_related("member").order_by(
+            "role", "member__last_name"
+        )
+        return CommitteeMemberSerializer(members_qs, many=True).data
+
+    def get_subcommittees(self, obj):
+        subs = obj.subcommittees.all()
+        return CommitteeListSerializer(subs, many=True).data
+
+    def get_referred_bills(self, obj):
+        bill_committees = obj.referred_bills.select_related(
+            "bill", "bill__sponsor"
+        ).order_by("-bill__latest_action_date")[:20]
+        bills = [bc.bill for bc in bill_committees]
+        return BillListSerializer(bills, many=True).data
+
+    def get_chair(self, obj):
+        cm = obj.members.select_related("member").filter(role="chair").first()
+        if cm:
+            return {
+                "bioguide_id": cm.member.bioguide_id,
+                "full_name": cm.member.full_name,
+                "party": cm.member.party,
+            }
+        return None
+
+    def get_ranking_member(self, obj):
+        cm = obj.members.select_related("member").filter(role="ranking").first()
+        if cm:
+            return {
+                "bioguide_id": cm.member.bioguide_id,
+                "full_name": cm.member.full_name,
+                "party": cm.member.party,
+            }
+        return None

@@ -307,10 +307,39 @@ class MemberVote(models.Model):
 class Committee(models.Model):
     """A congressional committee."""
 
+    class CommitteeType(models.TextChoices):
+        STANDING = "standing", "Standing"
+        SELECT = "select", "Select"
+        JOINT = "joint", "Joint"
+        SUBCOMMITTEE = "subcommittee", "Subcommittee"
+
+    class CommitteeChamber(models.TextChoices):
+        HOUSE = "house", "House"
+        SENATE = "senate", "Senate"
+        JOINT = "joint", "Joint"
+
     committee_id = models.CharField(max_length=20, primary_key=True)
     name = models.CharField(max_length=255)
-    chamber = models.CharField(max_length=10, choices=Member.Chamber.choices)
+    chamber = models.CharField(max_length=10, choices=CommitteeChamber.choices)
+    committee_type = models.CharField(
+        max_length=20, choices=CommitteeType.choices, default=CommitteeType.STANDING
+    )
     url = models.URLField(blank=True)
+
+    # Subcommittee relationship
+    parent_committee = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="subcommittees",
+    )
+
+    # AI-generated content
+    ai_summary = models.TextField(blank=True)
+    ai_summary_model = models.CharField(max_length=50, blank=True)
+    ai_summary_created_at = models.DateTimeField(null=True, blank=True)
+    ai_summary_prompt_version = models.CharField(max_length=20, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -350,3 +379,27 @@ class CommitteeMember(models.Model):
 
     def __str__(self):
         return f"{self.member.full_name} - {self.committee.name} ({self.role})"
+
+
+class BillCommittee(models.Model):
+    """A bill's referral to a committee."""
+
+    id = models.BigAutoField(primary_key=True)
+    bill = models.ForeignKey(
+        Bill,
+        on_delete=models.CASCADE,
+        related_name="committees",
+    )
+    committee = models.ForeignKey(
+        Committee,
+        on_delete=models.CASCADE,
+        related_name="referred_bills",
+    )
+    referred_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        db_table = "bill_committees"
+        unique_together = ("bill", "committee")
+
+    def __str__(self):
+        return f"{self.bill.display_number} → {self.committee.name}"

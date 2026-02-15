@@ -4,7 +4,7 @@ Filters for the Congress API.
 
 import django_filters  # type: ignore[import-untyped]
 
-from apps.congress.models import Bill, Member, Vote
+from apps.congress.models import Bill, Committee, Member, Vote
 
 
 class MemberFilter(django_filters.FilterSet):
@@ -50,6 +50,19 @@ class BillFilter(django_filters.FilterSet):
             "action_from",
             "action_to",
         ]
+
+
+class CommitteeFilter(django_filters.FilterSet):
+    """Filter for Committee list views."""
+
+    chamber = django_filters.ChoiceFilter(choices=Committee.CommitteeChamber.choices)
+    committee_type = django_filters.ChoiceFilter(
+        choices=Committee.CommitteeType.choices
+    )
+
+    class Meta:
+        model = Committee
+        fields = ["chamber", "committee_type"]
 
 
 class VoteFilter(django_filters.FilterSet):

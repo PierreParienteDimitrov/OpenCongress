@@ -264,3 +264,34 @@ class AIService:
         )
 
         return self.generate_completion(prompt, max_tokens=400)
+
+    def generate_committee_summary(
+        self,
+        name: str,
+        chamber: str,
+        committee_type: str,
+        chair_info: str,
+        ranking_info: str,
+        member_count: int,
+        subcommittee_names: str,
+        recent_bills: str,
+        total_bills_count: int,
+    ) -> tuple[str, int]:
+        """Generate a summary for a committee using web search."""
+        from prompts import COMMITTEE_SUMMARY_PROMPT
+
+        chamber_name = "House of Representatives" if chamber == "house" else "Senate"
+
+        prompt = COMMITTEE_SUMMARY_PROMPT.format(
+            name=name,
+            chamber=chamber_name,
+            committee_type=committee_type or "Standing",
+            chair_info=chair_info or "Vacant",
+            ranking_info=ranking_info or "Vacant",
+            member_count=member_count,
+            subcommittee_names=subcommittee_names or "None",
+            recent_bills=recent_bills or "None",
+            total_bills_count=total_bills_count,
+        )
+
+        return self.generate_completion_with_web_search(prompt, max_tokens=300)

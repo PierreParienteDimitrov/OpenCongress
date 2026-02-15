@@ -12,7 +12,7 @@ from datetime import datetime
 import requests
 from django.core.management.base import BaseCommand
 
-from apps.congress.models import Bill, Member
+from apps.congress.models import Bill, BillCommittee, Committee, Member
 
 
 class Command(BaseCommand):
@@ -268,10 +268,13 @@ class Command(BaseCommand):
             "congress_url": detail.get("url", ""),
         }
 
-        _, was_created = Bill.objects.update_or_create(
+        bill_obj, was_created = Bill.objects.update_or_create(
             bill_id=bill_id,
             defaults=defaults,
         )
+
+        # Link bill to committees
+        self._link_bill_committees(bill_obj, detail)
 
         # Fetch summary if available
         if was_created:
@@ -310,3 +313,61 @@ class Command(BaseCommand):
             except Exception:
                 if attempt == 2:
                     pass  # Summary is optional
+
+    def _link_bill_committees(self, bill: Bill, detail: dict):
+        """Link a bill to its referred committees from the API response."""
+        committees_data = detail.get("committees", {})
+
+        # Congress.gov nests committees under a "url" key or returns a list;
+        # the actual committee items may be in a "committees" sub-key
+        # or at the top level depending on the endpoint response format.
+        # We handle both cases.
+        if isinstance(committees_data, dict):
+            # Sometimes the detail response has committees as
+            # {"count": N, "url": "..."} - we'd need a separate call.
+            # Skip if no inline committee data.
+            return
+
+        if not isinstance(committees_data, list):
+            return
+
+        # Parse referred date from actions
+        referred_date = None
+        actions = detail.get("actions", {})
+        if isinstance(actions, dict):
+            actions = actions.get("actions", [])
+        if isinstance(actions, list):
+            for action_item in actions:
+                text = action_item.get("text", "")
+                if "Referred to" in text and action_item.get("actionDate"):
+                    try:
+                        from datetime import datetime
+
+                        referred_date = datetime.strptime(
+                            action_item["actionDate"][:10], "%Y-%m-%d"
+                        ).date()
+                    except ValueError:
+                        pass
+                    break
+
+        linked = 0
+        for comm_item in committees_data:
+            system_code = comm_item.get("systemCode", "")
+            if not system_code:
+                continue
+
+            try:
+                committee = Committee.objects.get(committee_id=system_code)
+                BillCommittee.objects.update_or_create(
+                    bill=bill,
+                    committee=committee,
+                    defaults={"referred_date": referred_date},
+                )
+                linked += 1
+            except Committee.DoesNotExist:
+                continue
+
+        if linked > 0:
+            self.stdout.write(
+                f"    Linked {bill.display_number} to {linked} committee(s)"
+            )

@@ -119,4 +119,12 @@ JOB_REGISTRY = {
             "House: batch from Congress.gov list API. Senate: from Senate.gov XML."
         ),
     },
+    "generate_committee_summaries": {
+        "label": "Generate Committee Summaries",
+        "task": "tasks.ai.generate_committee_summaries",
+        "queue": "ai",
+        "description": (
+            "Generate AI summaries for committees that need them (up to 50 per run)."
+        ),
+    },
 }

@@ -41,6 +41,15 @@ export const routes = {
     district: (districtId: string) => `/house/district/${districtId}`,
   },
 
+  // Committees
+  committees: {
+    index: "/committees",
+    detail: (committeeId: string, name?: string) =>
+      name
+        ? `/committees/${committeeId}-${slugifyName(name)}`
+        : `/committees/${committeeId}`,
+  },
+
   // Legislation
   legislation: {
     detail: (billId: string) => `/legislation/${billId}`,

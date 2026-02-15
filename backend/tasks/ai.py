@@ -580,3 +580,150 @@ def generate_weekly_preview(self) -> dict:
     except Exception as e:
         logger.error(f"Error generating weekly preview: {e}")
         raise self.retry(exc=e)
+
+
+# ── Committee summary tasks ──────────────────────────────────────────
+
+
+def _generate_committee_summary_core(committee_id: str) -> dict:
+    """Core logic for generating an AI summary for a single committee."""
+    from apps.congress.models import Committee
+    from prompts import COMMITTEE_SUMMARY_VERSION
+    from services import AIService, CacheService
+
+    try:
+        committee = Committee.objects.prefetch_related(
+            "members__member",
+            "subcommittees",
+            "referred_bills__bill",
+        ).get(committee_id=committee_id)
+    except Committee.DoesNotExist:
+        logger.error(f"Committee not found: {committee_id}")
+        return {"success": False, "error": "Committee not found"}
+
+    ai_service = AIService()
+
+    # Get chair info
+    chair_info = "Vacant"
+    try:
+        chair_cm = committee.members.select_related("member").get(role="chair")
+        m = chair_cm.member
+        chair_info = f"{m.full_name} ({m.party}-{m.state})"
+    except Exception:
+        pass
+
+    # Get ranking member info
+    ranking_info = "Vacant"
+    try:
+        ranking_cm = committee.members.select_related("member").get(role="ranking")
+        m = ranking_cm.member
+        ranking_info = f"{m.full_name} ({m.party}-{m.state})"
+    except Exception:
+        pass
+
+    # Get member count
+    member_count = committee.members.count()
+
+    # Get subcommittee names
+    subs = list(committee.subcommittees.values_list("name", flat=True))
+    subcommittee_names = ", ".join(subs) if subs else "None"
+
+    # Get recent referred bills
+    recent_bill_committees = committee.referred_bills.select_related("bill").order_by(
+        "-bill__latest_action_date"
+    )[:10]
+    bill_lines = [
+        f"{bc.bill.display_number}: {bc.bill.short_title or bc.bill.title[:80]}"
+        for bc in recent_bill_committees
+    ]
+    recent_bills = "; ".join(bill_lines) if bill_lines else "None"
+    total_bills_count = committee.referred_bills.count()
+
+    summary, tokens = ai_service.generate_committee_summary(
+        name=committee.name,
+        chamber=committee.chamber,
+        committee_type=committee.get_committee_type_display(),
+        chair_info=chair_info,
+        ranking_info=ranking_info,
+        member_count=member_count,
+        subcommittee_names=subcommittee_names,
+        recent_bills=recent_bills,
+        total_bills_count=total_bills_count,
+    )
+
+    # Update the committee
+    committee.ai_summary = summary
+    committee.ai_summary_model = ai_service.MODEL
+    committee.ai_summary_created_at = timezone.now()
+    committee.ai_summary_prompt_version = COMMITTEE_SUMMARY_VERSION
+    committee.save(
+        update_fields=[
+            "ai_summary",
+            "ai_summary_model",
+            "ai_summary_created_at",
+            "ai_summary_prompt_version",
+        ]
+    )
+
+    # Invalidate caches
+    CacheService.invalidate_committee(committee_id)
+
+    logger.info(f"Generated summary for committee {committee_id} ({tokens} tokens)")
+
+    return {
+        "success": True,
+        "committee_id": committee_id,
+        "tokens": tokens,
+        "model": ai_service.MODEL,
+    }
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def generate_committee_summary(self, committee_id: str) -> dict:
+    """Celery task wrapper — adds retry behaviour for async/scheduled use."""
+    try:
+        return _generate_committee_summary_core(committee_id)
+    except Exception as e:
+        logger.error(f"Error generating summary for committee {committee_id}: {e}")
+        raise self.retry(exc=e)
+
+
+@shared_task
+def generate_committee_summaries() -> dict:
+    """
+    Batch generate summaries for committees that need them.
+
+    Returns:
+        Dict with processing statistics
+    """
+    from apps.congress.models import Committee
+
+    from prompts import COMMITTEE_SUMMARY_VERSION
+
+    # Only top-level committees (not subcommittees)
+    committees_needing_summaries = (
+        Committee.objects.filter(parent_committee__isnull=True)
+        .filter(
+            Q(ai_summary="") | ~Q(ai_summary_prompt_version=COMMITTEE_SUMMARY_VERSION)
+        )
+        .values_list("committee_id", flat=True)[:50]
+    )
+
+    processed = 0
+    errors = 0
+
+    for committee_id in committees_needing_summaries:
+        try:
+            generate_committee_summary.delay(committee_id)
+            processed += 1
+        except Exception as e:
+            logger.error(f"Failed to queue summary for committee {committee_id}: {e}")
+            errors += 1
+
+    logger.info(f"Queued {processed} committee summaries, {errors} errors")
+
+    return {
+        "queued": processed,
+        "errors": errors,
+        "total_needing_summaries": len(committees_needing_summaries),
+    }

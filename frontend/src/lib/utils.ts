@@ -356,6 +356,13 @@ export function extractBioguideId(slug: string): string {
   return slug.slice(0, 7);
 }
 
+// Extract committee ID from a URL slug like "hsag00-committee-on-agriculture"
+// Committee IDs are alphanumeric with no hyphens (e.g., "hsag00", "ssfr00")
+export function extractCommitteeId(slug: string): string {
+  const idx = slug.indexOf("-");
+  return idx === -1 ? slug : slug.slice(0, idx);
+}
+
 // News-style vote headline: "Senate Passes Defense Bill 62-38"
 export function generateVoteHeadline(vote: VoteCalendarItem): string {
   const chamber = getChamberShortName(vote.chamber);

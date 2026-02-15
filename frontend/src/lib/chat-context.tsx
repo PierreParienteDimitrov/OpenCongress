@@ -8,6 +8,7 @@ export interface PageContext {
     | "vote"
     | "member"
     | "chamber"
+    | "committee"
     | "calendar"
     | "this-week"
     | "home";

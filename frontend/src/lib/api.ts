@@ -8,6 +8,8 @@ import type {
   BillCalendarItem,
   BillDetail,
   BillListItem,
+  CommitteeDetail,
+  CommitteeListItem,
   MemberDetail,
   MemberListItem,
   PaginatedResponse,
@@ -233,6 +235,26 @@ export async function getWeeklySummaries(): Promise<
   );
 }
 
+// Committee endpoints
+export async function getCommittees(
+  params: Record<string, string> = {}
+): Promise<PaginatedResponse<CommitteeListItem>> {
+  const searchParams = new URLSearchParams(params);
+  const query = searchParams.toString();
+  return fetchAPI<PaginatedResponse<CommitteeListItem>>(
+    `/committees/${query ? `?${query}` : ""}`,
+    { next: { revalidate: 3600 } }
+  );
+}
+
+export async function getCommittee(
+  committeeId: string
+): Promise<CommitteeDetail> {
+  return fetchAPI<CommitteeDetail>(`/committees/${committeeId}/`, {
+    next: { revalidate: 3600 },
+  });
+}
+
 // Client-side pagination functions for infinite scroll
 // These are designed to be called from React Query on the client side
 
@@ -277,6 +299,22 @@ export async function getRepresentativesPaginated(
   if (search) params.set("search", search);
   return fetchAPIClient<PaginatedResponse<MemberListItem>>(
     `/members/representatives/?${params}`
+  );
+}
+
+export async function getCommitteesPaginated(
+  page: number = 1,
+  search: string = "",
+  chamber: string = ""
+): Promise<PaginatedResponse<CommitteeListItem>> {
+  const params = new URLSearchParams({
+    page: String(page),
+    ordering: "name",
+  });
+  if (search) params.set("search", search);
+  if (chamber) params.set("chamber", chamber);
+  return fetchAPIClient<PaginatedResponse<CommitteeListItem>>(
+    `/committees/?${params}`
   );
 }
 
