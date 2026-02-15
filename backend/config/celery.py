@@ -75,24 +75,6 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute=0, hour=10, day_of_week=6),
         "options": {"queue": "notifications"},
     },
-    # Campaign Finance (FEC)
-    "sync-finance-weekly": {
-        "task": "tasks.sync.sync_finance",
-        "schedule": crontab(minute=0, hour=3, day_of_week=0),
-        "options": {"queue": "sync"},
-    },
-    # Committee Hearings (Congress.gov)
-    "sync-hearings-daily": {
-        "task": "tasks.sync.sync_hearings",
-        "schedule": crontab(minute=0, hour=8),
-        "options": {"queue": "sync"},
-    },
-    # CBO Cost Estimates (RSS feed)
-    "sync-cbo-estimates-daily": {
-        "task": "tasks.sync.sync_cbo_estimates",
-        "schedule": crontab(minute=0, hour=9),
-        "options": {"queue": "sync"},
-    },
     # Health Monitoring
     "health-check-5min": {
         "task": "tasks.monitoring.run_health_check",
