@@ -19,27 +19,25 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import include, path
+from schema_graph.views import Schema  # type: ignore[import-untyped]
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include("apps.congress.api.urls")),
     path("api/v1/auth/", include("apps.users.api.urls")),
     path("api/v1/content/", include("apps.content.api.urls")),
+    path("api/v1/analytics/", include("apps.analytics.api.urls")),
     path("api/", include("apps.core.urls")),
+    path(
+        "admin/schema/",
+        staff_member_required(Schema.as_view()),
+        name="schema-graph",
+    ),
 ]
 
 if settings.DEBUG:
     import debug_toolbar
-    from schema_graph.views import Schema  # type: ignore[import-untyped]
 
     urlpatterns = [
         path("__debug__/", include(debug_toolbar.urls)),
     ] + urlpatterns
-
-    urlpatterns += [
-        path(
-            "admin/schema/",
-            staff_member_required(Schema.as_view()),
-            name="schema-graph",
-        ),
-    ]

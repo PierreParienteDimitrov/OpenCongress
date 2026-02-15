@@ -12,6 +12,8 @@ from .base import *  # noqa: F401, F403
 
 DEBUG = False
 
+INSTALLED_APPS += ["schema_graph"]  # noqa: F405
+
 # Require critical secrets in production — fail fast if missing
 _REQUIRED_SECRETS = [
     "SECRET_KEY",
