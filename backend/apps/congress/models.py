@@ -403,3 +403,208 @@ class BillCommittee(models.Model):
 
     def __str__(self):
         return f"{self.bill.display_number} → {self.committee.name}"
+
+
+class CandidateFinance(models.Model):
+    """Campaign finance data for a member from FEC OpenFEC API."""
+
+    id = models.BigAutoField(primary_key=True)
+    member = models.ForeignKey(
+        Member,
+        on_delete=models.CASCADE,
+        related_name="finance_records",
+    )
+    fec_candidate_id = models.CharField(max_length=20)
+    election_cycle = models.IntegerField()
+
+    # Fundraising totals
+    total_receipts = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    total_disbursements = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0
+    )
+    cash_on_hand = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    total_individual_contributions = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0
+    )
+    total_pac_contributions = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0
+    )
+    total_party_contributions = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0
+    )
+    candidate_self_contributions = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0
+    )
+
+    # AI-generated summary
+    ai_summary = models.TextField(blank=True)
+    ai_summary_model = models.CharField(max_length=50, blank=True)
+    ai_summary_created_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "candidate_finance"
+        unique_together = ("member", "election_cycle")
+        indexes = [
+            models.Index(fields=["election_cycle"]),
+            models.Index(fields=["fec_candidate_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.member.full_name} ({self.election_cycle}): ${self.total_receipts:,.0f}"
+
+
+class TopContributor(models.Model):
+    """Top contributor (organization) to a candidate from FEC data."""
+
+    id = models.BigAutoField(primary_key=True)
+    finance_record = models.ForeignKey(
+        CandidateFinance,
+        on_delete=models.CASCADE,
+        related_name="top_contributors",
+    )
+    contributor_name = models.CharField(max_length=255)
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    contributor_type = models.CharField(max_length=50, blank=True)
+
+    class Meta:
+        db_table = "top_contributors"
+        ordering = ["-total_amount"]
+
+    def __str__(self):
+        return f"{self.contributor_name}: ${self.total_amount:,.0f}"
+
+
+class IndustryContribution(models.Model):
+    """Industry-level contribution aggregation for a candidate."""
+
+    id = models.BigAutoField(primary_key=True)
+    finance_record = models.ForeignKey(
+        CandidateFinance,
+        on_delete=models.CASCADE,
+        related_name="industry_contributions",
+    )
+    industry_name = models.CharField(max_length=255)
+    total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+
+    class Meta:
+        db_table = "industry_contributions"
+        ordering = ["-total_amount"]
+
+    def __str__(self):
+        return f"{self.industry_name}: ${self.total_amount:,.0f}"
+
+
+class Hearing(models.Model):
+    """A congressional committee hearing."""
+
+    hearing_id = models.CharField(max_length=50, primary_key=True)
+    committee = models.ForeignKey(
+        Committee,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="hearings",
+    )
+    chamber = models.CharField(max_length=10, choices=Member.Chamber.choices)
+    congress = models.IntegerField()
+    title = models.TextField()
+    date = models.DateTimeField(null=True, blank=True)
+    location = models.CharField(max_length=255, blank=True)
+    hearing_type = models.CharField(max_length=50, blank=True)
+
+    # Related bill (if any)
+    bill = models.ForeignKey(
+        Bill,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="hearings",
+    )
+
+    # URLs
+    url = models.URLField(blank=True)
+    video_url = models.URLField(blank=True)
+
+    # AI-generated summary
+    ai_summary = models.TextField(blank=True)
+    ai_summary_model = models.CharField(max_length=50, blank=True)
+    ai_summary_created_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "hearings"
+        indexes = [
+            models.Index(fields=["congress", "chamber"]),
+            models.Index(fields=["-date"]),
+            models.Index(fields=["committee"]),
+        ]
+
+    def __str__(self):
+        return f"{self.hearing_id}: {self.title[:60]}"
+
+
+class HearingWitness(models.Model):
+    """A witness who testified at a hearing."""
+
+    id = models.BigAutoField(primary_key=True)
+    hearing = models.ForeignKey(
+        Hearing,
+        on_delete=models.CASCADE,
+        related_name="witnesses",
+    )
+    name = models.CharField(max_length=255)
+    position = models.CharField(max_length=255, blank=True)
+    organization = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        db_table = "hearing_witnesses"
+
+    def __str__(self):
+        return f"{self.name} ({self.organization})"
+
+
+class CBOCostEstimate(models.Model):
+    """A CBO cost estimate for a bill or proposed legislation."""
+
+    id = models.BigAutoField(primary_key=True)
+    bill = models.ForeignKey(
+        Bill,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="cbo_estimates",
+    )
+    title = models.TextField()
+    publish_date = models.DateField()
+    url = models.URLField(unique=True)
+    description = models.TextField(blank=True)
+
+    # Cost figures (in millions of dollars)
+    cost_estimate_millions = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+    deficit_impact_millions = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True
+    )
+
+    # AI-generated summary
+    ai_summary = models.TextField(blank=True)
+    ai_summary_model = models.CharField(max_length=50, blank=True)
+    ai_summary_created_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "cbo_cost_estimates"
+        indexes = [
+            models.Index(fields=["-publish_date"]),
+        ]
+
+    def __str__(self):
+        return f"CBO: {self.title[:60]} ({self.publish_date})"

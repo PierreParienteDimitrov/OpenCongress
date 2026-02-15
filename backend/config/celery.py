@@ -27,6 +27,21 @@ app.conf.beat_schedule = {
         "schedule": crontab(minute=0, hour=2, day_of_week=0),
         "options": {"queue": "sync"},
     },
+    "sync-finance-weekly": {
+        "task": "tasks.sync.sync_finance",
+        "schedule": crontab(minute=0, hour=3, day_of_week=0),
+        "options": {"queue": "sync"},
+    },
+    "sync-hearings-daily": {
+        "task": "tasks.sync.sync_hearings",
+        "schedule": crontab(minute=0, hour=8),
+        "options": {"queue": "sync"},
+    },
+    "sync-cbo-estimates-daily": {
+        "task": "tasks.sync.sync_cbo_estimates",
+        "schedule": crontab(minute=0, hour=9),
+        "options": {"queue": "sync"},
+    },
     # AI Content Generation
     "generate-daily-summaries": {
         "task": "tasks.ai.generate_bill_summaries",

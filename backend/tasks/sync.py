@@ -883,3 +883,451 @@ def _xml_int(elem: ET.Element | None, tag: str) -> int:
         except ValueError:
             pass
     return 0
+
+
+# ===========================================================================
+# sync_finance — runs weekly on Sunday at 3am
+# ===========================================================================
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
+def sync_finance(self) -> dict:
+    """
+    Sync campaign finance data from FEC OpenFEC API.
+
+    Updates financial totals and top contributors for all active members.
+    """
+    fec_api_key = os.environ.get("FEC_API_KEY")
+    if not fec_api_key:
+        logger.error("FEC_API_KEY not configured")
+        return {"success": False, "error": "FEC_API_KEY not configured"}
+
+    try:
+        from apps.congress.models import Member
+
+        cycle = _current_election_cycle()
+        members = Member.objects.filter(is_active=True)
+        created = 0
+        updated = 0
+        skipped = 0
+
+        for member in members:
+            result = _sync_member_finance(fec_api_key, member, cycle)
+            if result == "created":
+                created += 1
+            elif result == "updated":
+                updated += 1
+            else:
+                skipped += 1
+
+        logger.info(
+            f"Finance sync complete: {created} created, {updated} updated, "
+            f"{skipped} skipped"
+        )
+
+        return {
+            "success": True,
+            "created": created,
+            "updated": updated,
+            "skipped": skipped,
+        }
+
+    except Exception as e:
+        logger.error(f"Error syncing finance data: {e}")
+        raise self.retry(exc=e)
+
+
+def _current_election_cycle() -> int:
+    """Get the current election cycle year (always even)."""
+    year = date.today().year
+    return year if year % 2 == 0 else year + 1
+
+
+def _sync_member_finance(api_key: str, member, cycle: int) -> str:
+    """Sync finance data for a single member. Returns 'created', 'updated', or 'skipped'."""
+    from apps.congress.models import CandidateFinance, TopContributor
+
+    FEC_BASE = "https://api.open.fec.gov/v1"
+
+    # Find FEC candidate
+    url = f"{FEC_BASE}/candidates/search/"
+    params = {
+        "api_key": api_key,
+        "name": f"{member.last_name}, {member.first_name}",
+        "state": member.state,
+        "office": "H" if member.chamber == "house" else "S",
+        "is_active_candidate": "true",
+        "per_page": 5,
+    }
+
+    try:
+        time.sleep(0.5)
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        candidates = response.json().get("results", [])
+        if not candidates:
+            return "skipped"
+        fec_id = candidates[0].get("candidate_id", "")
+        if not fec_id:
+            return "skipped"
+    except Exception:
+        return "skipped"
+
+    # Get totals
+    url = f"{FEC_BASE}/candidate/{fec_id}/totals/"
+    params = {"api_key": api_key, "cycle": cycle, "per_page": 1}
+
+    try:
+        time.sleep(0.5)
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        totals_list = response.json().get("results", [])
+        if not totals_list:
+            return "skipped"
+        totals = totals_list[0]
+    except Exception:
+        return "skipped"
+
+    defaults = {
+        "fec_candidate_id": fec_id,
+        "total_receipts": totals.get("receipts", 0) or 0,
+        "total_disbursements": totals.get("disbursements", 0) or 0,
+        "cash_on_hand": totals.get("cash_on_hand_end_period", 0) or 0,
+        "total_individual_contributions": totals.get("individual_contributions", 0)
+        or 0,
+        "total_pac_contributions": totals.get(
+            "other_political_committee_contributions", 0
+        )
+        or 0,
+        "total_party_contributions": totals.get(
+            "political_party_committee_contributions", 0
+        )
+        or 0,
+        "candidate_self_contributions": totals.get("candidate_contribution", 0) or 0,
+    }
+
+    record, was_created = CandidateFinance.objects.update_or_create(
+        member=member,
+        election_cycle=cycle,
+        defaults=defaults,
+    )
+
+    # Update top contributors
+    try:
+        url = f"{FEC_BASE}/schedules/schedule_a/by_employer/"
+        params = {
+            "api_key": api_key,
+            "candidate_id": fec_id,
+            "cycle": cycle,
+            "sort": "-total",
+            "per_page": 20,
+        }
+        time.sleep(0.5)
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        contributors = response.json().get("results", [])
+
+        record.top_contributors.all().delete()
+        for item in contributors:
+            employer = item.get("employer", "")
+            if not employer or employer.upper() in (
+                "NOT EMPLOYED",
+                "RETIRED",
+                "NONE",
+                "N/A",
+                "SELF-EMPLOYED",
+                "SELF",
+            ):
+                continue
+            TopContributor.objects.create(
+                finance_record=record,
+                contributor_name=employer,
+                total_amount=item.get("total", 0) or 0,
+                contributor_type="employer",
+            )
+    except Exception:
+        pass
+
+    return "created" if was_created else "updated"
+
+
+# ===========================================================================
+# sync_hearings — runs daily at 8am
+# ===========================================================================
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
+def sync_hearings(self) -> dict:
+    """
+    Sync recent committee hearings from Congress.gov API.
+    """
+    api_key = _get_api_key()
+    if not api_key:
+        logger.error("CONGRESS_API_KEY not configured")
+        return {"success": False, "error": "CONGRESS_API_KEY not configured"}
+
+    try:
+        from apps.congress.models import Committee
+
+        congress = CURRENT_CONGRESS
+        created = 0
+        updated = 0
+        offset = 0
+
+        # Build committee cache
+        committee_cache = {}
+        for c in Committee.objects.all():
+            committee_cache[c.committee_id.lower()] = c
+
+        while True:
+            url = f"{CONGRESS_API_BASE}/hearing/{congress}"
+            params = {
+                "api_key": api_key,
+                "limit": 50,
+                "offset": offset,
+                "format": "json",
+            }
+
+            try:
+                time.sleep(0.3)
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+            except Exception as e:
+                logger.warning(f"Failed to fetch hearings at offset {offset}: {e}")
+                break
+
+            hearings = data.get("hearings", [])
+            if not hearings:
+                break
+
+            for h_data in hearings:
+                was_created = _process_hearing_sync(
+                    api_key, h_data, congress, committee_cache
+                )
+                if was_created:
+                    created += 1
+                else:
+                    updated += 1
+
+            pagination = data.get("pagination", {})
+            if not pagination.get("next"):
+                break
+
+            offset += len(hearings)
+
+            # Only sync recent hearings (first 250)
+            if offset >= 250:
+                break
+
+        logger.info(f"Hearing sync complete: {created} created, {updated} updated")
+
+        return {
+            "success": True,
+            "created": created,
+            "updated": updated,
+        }
+
+    except Exception as e:
+        logger.error(f"Error syncing hearings: {e}")
+        raise self.retry(exc=e)
+
+
+def _process_hearing_sync(
+    api_key: str, hearing_data: dict, congress: int, committee_cache: dict
+) -> bool:
+    """Process a single hearing during sync. Returns True if created."""
+    from apps.congress.models import Hearing
+
+    number = hearing_data.get("number")
+    part = hearing_data.get("part", 1) or 1
+    chamber = hearing_data.get("chamber", "").lower()
+    if chamber == "house of representatives":
+        chamber = "house"
+
+    hearing_id = f"hearing-{congress}-{chamber}-{number}-{part}"
+
+    title = hearing_data.get("title", "")
+    if not title:
+        return False
+
+    # Parse date
+    hearing_date = None
+    date_str = hearing_data.get("dates", [{}])
+    if isinstance(date_str, list) and date_str:
+        first_date = date_str[0]
+        if isinstance(first_date, dict):
+            first_date = first_date.get("date", "")
+        if first_date:
+            try:
+                from datetime import datetime as dt
+
+                hearing_date = dt.fromisoformat(first_date.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+
+    # Find committee
+    committee = None
+    committees_data = hearing_data.get("committees", [])
+    if committees_data:
+        for cd in committees_data:
+            sys_code = cd.get("systemCode", "")
+            if sys_code:
+                committee = committee_cache.get(sys_code.lower())
+                if committee:
+                    break
+
+    defaults = {
+        "committee": committee,
+        "chamber": chamber if chamber in ("house", "senate") else "house",
+        "congress": congress,
+        "title": title,
+        "date": hearing_date,
+        "url": f"https://www.congress.gov/event/{congress}th-congress/hearings",
+    }
+
+    _, was_created = Hearing.objects.update_or_create(
+        hearing_id=hearing_id,
+        defaults=defaults,
+    )
+
+    return was_created
+
+
+# ===========================================================================
+# sync_cbo_estimates — runs daily at 9am
+# ===========================================================================
+
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=120)
+def sync_cbo_estimates(self) -> dict:
+    """
+    Sync CBO cost estimates from the CBO RSS feed.
+    """
+    try:
+        from apps.congress.models import CBOCostEstimate
+
+        CBO_RSS_URL = "https://www.cbo.gov/publications/cost-estimates/rss.xml"
+
+        try:
+            response = requests.get(CBO_RSS_URL, timeout=30)
+            response.raise_for_status()
+        except Exception as e:
+            logger.error(f"Failed to fetch CBO RSS: {e}")
+            return {"success": False, "error": str(e)}
+
+        try:
+            root = ET.fromstring(response.content)
+        except ET.ParseError as e:
+            logger.error(f"Failed to parse CBO RSS XML: {e}")
+            return {"success": False, "error": str(e)}
+
+        channel = root.find("channel")
+        if channel is None:
+            return {"success": False, "error": "No channel in RSS"}
+
+        items = channel.findall("item")
+        created = 0
+        updated = 0
+
+        for item in items:
+            title_elem = item.find("title")
+            link_elem = item.find("link")
+            desc_elem = item.find("description")
+            pubdate_elem = item.find("pubDate")
+
+            title = (
+                title_elem.text.strip()
+                if title_elem is not None and title_elem.text
+                else ""
+            )
+            link = (
+                link_elem.text.strip()
+                if link_elem is not None and link_elem.text
+                else ""
+            )
+            description = (
+                desc_elem.text.strip()
+                if desc_elem is not None and desc_elem.text
+                else ""
+            )
+            pub_date_str = (
+                pubdate_elem.text.strip()
+                if pubdate_elem is not None and pubdate_elem.text
+                else ""
+            )
+
+            if not title or not link:
+                continue
+
+            publish_date = None
+            if pub_date_str:
+                for fmt in [
+                    "%a, %d %b %Y %H:%M:%S %z",
+                    "%a, %d %b %Y %H:%M:%S GMT",
+                    "%Y-%m-%d",
+                ]:
+                    try:
+                        publish_date = datetime.strptime(pub_date_str, fmt).date()
+                        break
+                    except ValueError:
+                        continue
+
+            if publish_date is None:
+                continue
+
+            # Try to link to a bill
+            bill = _find_bill_from_cbo_title(title, CURRENT_CONGRESS)
+
+            defaults = {
+                "title": title,
+                "publish_date": publish_date,
+                "description": description,
+                "bill": bill,
+            }
+
+            _, was_created = CBOCostEstimate.objects.update_or_create(
+                url=link,
+                defaults=defaults,
+            )
+
+            if was_created:
+                created += 1
+            else:
+                updated += 1
+
+        logger.info(f"CBO sync complete: {created} created, {updated} updated")
+
+        return {
+            "success": True,
+            "created": created,
+            "updated": updated,
+        }
+
+    except Exception as e:
+        logger.error(f"Error syncing CBO estimates: {e}")
+        raise self.retry(exc=e)
+
+
+def _find_bill_from_cbo_title(title: str, congress: int):
+    """Try to find a Bill from a CBO estimate title."""
+    from apps.congress.models import Bill
+
+    patterns = [
+        (r"H\.R\.\s*(\d+)", "hr"),
+        (r"S\.\s*(\d+)", "s"),
+        (r"H\.J\.Res\.\s*(\d+)", "hjres"),
+        (r"S\.J\.Res\.\s*(\d+)", "sjres"),
+    ]
+
+    for pattern, bill_type in patterns:
+        match = re.search(pattern, title, re.IGNORECASE)
+        if match:
+            number = match.group(1)
+            bill_id = f"{bill_type}{number}-{congress}"
+            try:
+                return Bill.objects.get(bill_id=bill_id)
+            except Bill.DoesNotExist:
+                pass
+
+    return None
