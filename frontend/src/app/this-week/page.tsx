@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import {
+  getDailySummariesByRange,
   getCurrentWeeklySummaries,
   getWeeklySummaryByWeek,
 } from "@/lib/api";
@@ -14,7 +15,7 @@ import {
   getISOWeekNumber,
   parseWeekParam,
 } from "@/lib/utils";
-import type { WeeklySummary } from "@/types";
+import type { DailySummary, WeeklySummary } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import WeekPicker from "@/components/this-week/WeekPicker";
@@ -56,7 +57,7 @@ export async function generateMetadata({ searchParams }: PageProps) {
   }
   const title = "This Week in Congress";
   const description =
-    "Weekly recap and preview of congressional activity, bills, and votes";
+    "Daily and weekly recaps and previews of congressional activity, bills, and votes";
   return {
     title,
     description,
@@ -148,6 +149,119 @@ function SummaryArticle({ summary }: { summary: WeeklySummary }) {
   );
 }
 
+function DailySummaryCard({ summary }: { summary: DailySummary }) {
+  const isRecap = summary.summary_type === "recap";
+
+  // Strip markdown formatting
+  const paragraphs = summary.content
+    .replace(/\*\*[^*]+\*\*\s*/g, "")
+    .replace(/#{1,6}\s+/g, "")
+    .trim()
+    .split(/\n\n+/)
+    .filter((p) => p.trim());
+
+  return (
+    <div>
+      {/* Type badge */}
+      <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-accent">
+        {isRecap ? "Daily Recap" : "Day Ahead"}
+      </p>
+
+      {/* Body paragraphs — smaller text than weekly */}
+      <div className="space-y-3">
+        {paragraphs.map((paragraph, i) => (
+          <p
+            key={i}
+            className="font-domine text-base leading-relaxed text-foreground/85"
+          >
+            {paragraph.replace(/\*([^*]+)\*/g, "$1").trim()}
+          </p>
+        ))}
+      </div>
+
+      {/* Compact meta */}
+      <p className="mt-3 text-xs text-muted-foreground">
+        {summary.votes_included.length > 0 && (
+          <>{summary.votes_included.length} votes</>
+        )}
+        {summary.votes_included.length > 0 &&
+          summary.bills_included.length > 0 && <> · </>}
+        {summary.bills_included.length > 0 && (
+          <>{summary.bills_included.length} bills</>
+        )}
+      </p>
+    </div>
+  );
+}
+
+function DailySection({
+  dailySummaries,
+}: {
+  dailySummaries: DailySummary[];
+}) {
+  if (dailySummaries.length === 0) return null;
+
+  // Group by date
+  const byDate = new Map<string, DailySummary[]>();
+  for (const s of dailySummaries) {
+    const existing = byDate.get(s.date) || [];
+    existing.push(s);
+    byDate.set(s.date, existing);
+  }
+
+  // Sort dates descending (most recent first)
+  const sortedDates = Array.from(byDate.keys()).sort(
+    (a, b) => new Date(b).getTime() - new Date(a).getTime()
+  );
+
+  return (
+    <section>
+      <h2 className="mb-6 font-domine text-xl font-bold text-foreground sm:text-2xl">
+        Daily Briefings
+      </h2>
+
+      <div className="mb-2 border-l-2 border-muted-foreground/30 pl-4">
+        <AiDisclaimer />
+      </div>
+
+      <div className="space-y-6">
+        {sortedDates.map((dateStr) => {
+          const daySummaries = byDate.get(dateStr)!;
+          const preview = daySummaries.find((s) => s.summary_type === "preview");
+          const recap = daySummaries.find((s) => s.summary_type === "recap");
+
+          const dayDate = new Date(dateStr + "T12:00:00");
+          const dayLabel = dayDate.toLocaleDateString("en-US", {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          });
+
+          return (
+            <div
+              key={dateStr}
+              className="rounded-lg border border-border bg-card p-4"
+            >
+              {/* Day header */}
+              <h3 className="mb-3 text-sm font-semibold text-foreground">
+                {dayLabel}
+              </h3>
+
+              <div className="space-y-4">
+                {preview && <DailySummaryCard summary={preview} />}
+                {preview && recap && (
+                  <Separator className="my-3" />
+                )}
+                {recap && <DailySummaryCard summary={recap} />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function EmptyState() {
   return (
     <div className="py-16 text-center">
@@ -166,19 +280,19 @@ export default async function ThisWeekPage({ searchParams }: PageProps) {
   const params = await searchParams;
 
   // Determine which week to show
-  let summaries: WeeklySummary[];
+  let weeklySummaries: WeeklySummary[];
   let isoYear: number;
   let isoWeek: number;
 
   if (params.week) {
     const weekDate = parseWeekParam(params.week);
     ({ year: isoYear, week: isoWeek } = getISOWeekNumber(weekDate));
-    summaries = await getWeeklySummaryByWeek(isoYear, isoWeek);
+    weeklySummaries = await getWeeklySummaryByWeek(isoYear, isoWeek);
   } else {
-    summaries = await getCurrentWeeklySummaries();
+    weeklySummaries = await getCurrentWeeklySummaries();
     const summary =
-      summaries.find((s) => s.summary_type === "recap") ||
-      summaries.find((s) => s.summary_type === "preview");
+      weeklySummaries.find((s) => s.summary_type === "recap") ||
+      weeklySummaries.find((s) => s.summary_type === "preview");
     if (summary) {
       isoYear = summary.year;
       isoWeek = summary.week_number;
@@ -189,8 +303,16 @@ export default async function ThisWeekPage({ searchParams }: PageProps) {
 
   const { start: weekStart, end: weekEnd } = isoWeekRange(isoYear, isoWeek);
 
-  const recap = summaries.find((s) => s.summary_type === "recap");
-  const preview = summaries.find((s) => s.summary_type === "preview");
+  // Fetch daily summaries for this week's Mon-Fri range
+  const weekFriday = new Date(weekStart);
+  weekFriday.setDate(weekStart.getDate() + 4);
+  const dailySummaries = await getDailySummariesByRange(
+    formatDateParam(weekStart),
+    formatDateParam(weekFriday)
+  );
+
+  const recap = weeklySummaries.find((s) => s.summary_type === "recap");
+  const preview = weeklySummaries.find((s) => s.summary_type === "preview");
   const currentWeek = recap?.week_number || preview?.week_number;
   const currentYear = recap?.year || preview?.year;
 
@@ -223,6 +345,9 @@ export default async function ThisWeekPage({ searchParams }: PageProps) {
     });
     return `${startStr} – ${endStr}`;
   };
+
+  const hasAnyContent =
+    weeklySummaries.length > 0 || dailySummaries.length > 0;
 
   return (
     <ChatContextProvider
@@ -301,11 +426,20 @@ export default async function ThisWeekPage({ searchParams }: PageProps) {
 
           <Separator className="mb-8" />
 
-          {/* Articles */}
-          {summaries.length === 0 ? (
+          {/* Content */}
+          {!hasAnyContent ? (
             <EmptyState />
           ) : (
             <div className="space-y-12">
+              {/* Daily briefings section */}
+              <DailySection dailySummaries={dailySummaries} />
+
+              {/* Separator between daily and weekly if both exist */}
+              {dailySummaries.length > 0 && weeklySummaries.length > 0 && (
+                <Separator />
+              )}
+
+              {/* Weekly summaries */}
               {recap && <SummaryArticle summary={recap} />}
               {recap && preview && <Separator />}
               {preview && <SummaryArticle summary={preview} />}
