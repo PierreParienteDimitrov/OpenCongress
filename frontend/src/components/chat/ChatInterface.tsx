@@ -25,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Thread } from "@/components/assistant-ui/thread";
 import { fetchAPIKeys, type ConfiguredAPIKey } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
-import { useChatContext } from "@/lib/chat-context";
 import { useChatUI } from "@/lib/chat-store";
 import { CHAT_MODELS, getModelById } from "@/lib/chat-models";
 import { createDjangoChatAdapter } from "./ChatModelAdapter";
@@ -75,7 +74,7 @@ export function ChatInterface() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const pageContext = useChatContext();
+  const pageContext = useChatUI((s) => s.pageContext);
   const isOpen = useChatUI((s) => s.isOpen);
   const isExpanded = useChatUI((s) => s.isExpanded);
   const storedModel = useChatUI((s) => s.selectedModel);
@@ -209,7 +208,7 @@ export function ChatInterface() {
 
   // Context label for welcome message
   const contextLabel = useMemo(() => {
-    switch (pageContext?.type) {
+    switch (pageContext.type) {
       case "bill":
         return "this bill";
       case "vote":
@@ -219,7 +218,7 @@ export function ChatInterface() {
       default:
         return "congressional activity";
     }
-  }, [pageContext?.type]);
+  }, [pageContext.type]);
 
   // assistant-ui adapter + runtime
   const adapter = useMemo(() => {

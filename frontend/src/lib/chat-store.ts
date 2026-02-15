@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import type { PageContext } from "./chat-context";
 
 export type { AIProvider } from "./chat-models";
 
@@ -13,6 +14,7 @@ interface ChatUIState {
   isExpanded: boolean;
   selectedModel: string | null;
   sidebarWidth: number;
+  pageContext: PageContext;
   toggle: () => void;
   open: () => void;
   close: () => void;
@@ -20,6 +22,7 @@ interface ChatUIState {
   collapse: () => void;
   setModel: (modelId: string) => void;
   setSidebarWidth: (width: number) => void;
+  setPageContext: (context: PageContext) => void;
 }
 
 export const useChatUI = create<ChatUIState>((set) => ({
@@ -27,6 +30,7 @@ export const useChatUI = create<ChatUIState>((set) => ({
   isExpanded: false,
   selectedModel: null,
   sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
+  pageContext: { type: "home", data: {} },
   toggle: () => set((s) => ({ isOpen: !s.isOpen })),
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false, isExpanded: false }),
@@ -38,6 +42,7 @@ export const useChatUI = create<ChatUIState>((set) => ({
     set({
       sidebarWidth: Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width)),
     }),
+  setPageContext: (context) => set({ pageContext: context }),
 }));
 
 export { MIN_SIDEBAR_WIDTH, MAX_SIDEBAR_WIDTH };
