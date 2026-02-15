@@ -424,29 +424,25 @@ class CandidateFinance(models.Model):
     cycle = models.IntegerField()
 
     # Financial totals (in dollars)
-    total_receipts = models.DecimalField(
-        max_digits=14, decimal_places=2, default=0
-    )
+    total_receipts = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     total_disbursements = models.DecimalField(
         max_digits=14, decimal_places=2, default=0
     )
-    cash_on_hand = models.DecimalField(
-        max_digits=14, decimal_places=2, default=0
-    )
+    cash_on_hand = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     debt = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     individual_contributions = models.DecimalField(
         max_digits=14, decimal_places=2, default=0
     )
-    pac_contributions = models.DecimalField(
-        max_digits=14, decimal_places=2, default=0
-    )
+    pac_contributions = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     small_contributions = models.DecimalField(
-        max_digits=14, decimal_places=2,
+        max_digits=14,
+        decimal_places=2,
         default=0,
         help_text="Contributions $200 and under",
     )
     large_contributions = models.DecimalField(
-        max_digits=14, decimal_places=2,
+        max_digits=14,
+        decimal_places=2,
         default=0,
         help_text="Contributions over $200",
     )
@@ -660,15 +656,24 @@ class CBOCostEstimate(models.Model):
 
     # Fiscal impact (parsed from CBO data when available)
     ten_year_direct_spending = models.DecimalField(
-        max_digits=16, decimal_places=0, null=True, blank=True,
+        max_digits=16,
+        decimal_places=0,
+        null=True,
+        blank=True,
         help_text="10-year direct spending impact in millions of dollars",
     )
     ten_year_revenues = models.DecimalField(
-        max_digits=16, decimal_places=0, null=True, blank=True,
+        max_digits=16,
+        decimal_places=0,
+        null=True,
+        blank=True,
         help_text="10-year revenue impact in millions of dollars",
     )
     ten_year_deficit = models.DecimalField(
-        max_digits=16, decimal_places=0, null=True, blank=True,
+        max_digits=16,
+        decimal_places=0,
+        null=True,
+        blank=True,
         help_text="10-year deficit impact in millions of dollars",
     )
 

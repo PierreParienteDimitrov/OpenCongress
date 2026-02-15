@@ -271,15 +271,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="hearing",
-            index=models.Index(
-                fields=["meeting_type"], name="hearing_type_idx"
-            ),
+            index=models.Index(fields=["meeting_type"], name="hearing_type_idx"),
         ),
         migrations.AddIndex(
             model_name="hearing",
-            index=models.Index(
-                fields=["committee"], name="hearing_committee_idx"
-            ),
+            index=models.Index(fields=["committee"], name="hearing_committee_idx"),
         ),
         # ── HearingWitness ────────────────────────────────────────────
         migrations.CreateModel(
@@ -404,15 +400,11 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="cbocostestimate",
-            index=models.Index(
-                fields=["congress"], name="cbo_congress_idx"
-            ),
+            index=models.Index(fields=["congress"], name="cbo_congress_idx"),
         ),
         migrations.AddIndex(
             model_name="cbocostestimate",
-            index=models.Index(
-                fields=["-publication_date"], name="cbo_pub_date_idx"
-            ),
+            index=models.Index(fields=["-publication_date"], name="cbo_pub_date_idx"),
         ),
         migrations.AddIndex(
             model_name="cbocostestimate",
