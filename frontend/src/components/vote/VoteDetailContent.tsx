@@ -8,10 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   cn,
-  formatDate,
   getResultBgColor,
   getResultLabel,
-  getChamberName,
 } from "@/lib/utils";
 import type { SeatWithVote, VoteSummary } from "@/types";
 import { routes } from "@/lib/routes";
