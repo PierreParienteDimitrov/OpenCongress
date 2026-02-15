@@ -470,3 +470,221 @@ def run_link_votes_to_bills(self, job_run_id: int):
         "link_votes_to_bills",
         "Linking votes to bills...",
     )
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_generate_weekly_summaries(self, job_run_id: int):
+    """Generate weekly recap and preview summaries for all weeks with activity."""
+    from datetime import date, timedelta
+
+    from apps.congress.models import Bill, Vote
+    from apps.content.models import WeeklySummary
+    from prompts import WEEKLY_PREVIEW_VERSION, WEEKLY_RECAP_VERSION
+    from services import AIService, CacheService
+
+    try:
+        # Find the range of congressional activity
+        earliest_vote = (
+            Vote.objects.order_by("date").values_list("date", flat=True).first()
+        )
+        earliest_bill = (
+            Bill.objects.exclude(latest_action_date__isnull=True)
+            .order_by("latest_action_date")
+            .values_list("latest_action_date", flat=True)
+            .first()
+        )
+
+        if not earliest_vote and not earliest_bill:
+            _start_job(job_run_id, 0)
+            _complete_job(job_run_id, 0, 0, {"message": "No votes or bills found"})
+            return
+
+        earliest = min(filter(None, [earliest_vote, earliest_bill]))
+        today = date.today()
+
+        # Build list of (year, week_number, week_start, week_end) for every
+        # ISO week from the earliest activity to now.
+        weeks = []
+        # Start from the Monday of the earliest week
+        iso = earliest.isocalendar()
+        current = earliest - timedelta(days=iso[2] - 1)  # Monday of that week
+        while current <= today:
+            year, wk, _ = current.isocalendar()
+            week_start = current
+            week_end = current + timedelta(days=6)
+            weeks.append((year, wk, week_start, week_end))
+            current += timedelta(days=7)
+
+        # Pre-load existing summaries for fast lookup
+        existing_recaps = set(
+            WeeklySummary.objects.filter(
+                summary_type="recap", prompt_version=WEEKLY_RECAP_VERSION
+            ).values_list("year", "week_number")
+        )
+        existing_previews = set(
+            WeeklySummary.objects.filter(
+                summary_type="preview", prompt_version=WEEKLY_PREVIEW_VERSION
+            ).values_list("year", "week_number")
+        )
+
+        # Build work items: (year, week, type, week_start, week_end)
+        work_items = []
+        for year, wk, week_start, week_end in weeks:
+            if (year, wk) not in existing_recaps:
+                work_items.append((year, wk, "recap", week_start, week_end))
+            if (year, wk) not in existing_previews:
+                work_items.append((year, wk, "preview", week_start, week_end))
+
+        _start_job(job_run_id, len(work_items))
+
+        if not work_items:
+            _complete_job(
+                job_run_id, 0, 0, {"message": "All weekly summaries already exist"}
+            )
+            return
+
+        ai_service = AIService()
+        succeeded = 0
+        failed = 0
+        errors = []
+
+        for i, (year, wk, summary_type, week_start, week_end) in enumerate(
+            work_items, 1
+        ):
+            label = f"{year}-W{wk:02d} {summary_type}"
+            _update_progress(
+                job_run_id,
+                i - 1,
+                f"[{i}/{len(work_items)}] Generating: {label}",
+            )
+
+            try:
+                if summary_type == "recap":
+                    # Gather votes for this week
+                    votes = (
+                        Vote.objects.filter(date__gte=week_start, date__lte=week_end)
+                        .select_related("bill")
+                        .order_by("-date", "-time")[:20]
+                    )
+                    vote_lines = []
+                    for v in votes:
+                        line = (
+                            f"- {v.date}: {v.description} - {v.result.upper()} "
+                            f"(Yea: {v.total_yea}, Nay: {v.total_nay})"
+                            f"{' [Bipartisan]' if v.is_bipartisan else ''}"
+                        )
+                        if v.ai_summary:
+                            line += f"\n  Summary: {v.ai_summary}"
+                        vote_lines.append(line)
+                    votes_text = (
+                        "\n".join(vote_lines)
+                        if vote_lines
+                        else "No votes recorded this week."
+                    )
+                    vote_ids = [v.vote_id for v in votes]
+
+                    # Gather bills with action this week
+                    bills = Bill.objects.filter(
+                        latest_action_date__gte=week_start,
+                        latest_action_date__lte=week_end,
+                    ).order_by("-latest_action_date")[:15]
+                    bill_lines = []
+                    for b in bills:
+                        line = (
+                            f"- {b.display_number}: "
+                            f"{b.short_title or b.title[:100]} - "
+                            f"{b.latest_action_text}"
+                        )
+                        if b.ai_summary:
+                            line += f"\n  Summary: {b.ai_summary}"
+                        bill_lines.append(line)
+                    bills_text = (
+                        "\n".join(bill_lines)
+                        if bill_lines
+                        else "No significant bill activity this week."
+                    )
+                    bill_ids = [b.bill_id for b in bills]
+
+                    content, tokens = ai_service.generate_weekly_recap(
+                        week_start=str(week_start),
+                        week_end=str(week_end),
+                        votes_summary=votes_text,
+                        bills_summary=bills_text,
+                    )
+
+                    WeeklySummary.objects.update_or_create(
+                        year=year,
+                        week_number=wk,
+                        summary_type="recap",
+                        defaults={
+                            "content": content,
+                            "model_used": AIService.MODEL,
+                            "prompt_version": WEEKLY_RECAP_VERSION,
+                            "tokens_used": tokens,
+                            "votes_included": vote_ids,
+                            "bills_included": bill_ids,
+                        },
+                    )
+                    CacheService.invalidate_weekly_summary(year, wk, "recap")
+
+                else:
+                    # Preview: gather recently active bills leading into that week
+                    lookback = week_start - timedelta(days=14)
+                    pending_bills = Bill.objects.filter(
+                        latest_action_date__gte=lookback,
+                        latest_action_date__lt=week_start,
+                    ).order_by("-latest_action_date")[:10]
+                    pending_lines = []
+                    for b in pending_bills:
+                        line = (
+                            f"- {b.display_number}: "
+                            f"{b.short_title or b.title[:100]}"
+                        )
+                        if b.ai_summary:
+                            line += f"\n  Summary: {b.ai_summary}"
+                        pending_lines.append(line)
+                    pending_text = (
+                        "\n".join(pending_lines)
+                        if pending_lines
+                        else "No bills currently pending action."
+                    )
+                    bill_ids = [b.bill_id for b in pending_bills]
+
+                    week_friday = week_start + timedelta(days=4)
+                    content, tokens = ai_service.generate_weekly_preview(
+                        week_start=str(week_start),
+                        week_end=str(week_friday),
+                        scheduled_votes="Check congress.gov for the latest floor schedule.",
+                        pending_bills=pending_text,
+                        hearings="Check committee websites for hearing schedules.",
+                    )
+
+                    WeeklySummary.objects.update_or_create(
+                        year=year,
+                        week_number=wk,
+                        summary_type="preview",
+                        defaults={
+                            "content": content,
+                            "model_used": AIService.MODEL,
+                            "prompt_version": WEEKLY_PREVIEW_VERSION,
+                            "tokens_used": tokens,
+                            "votes_included": [],
+                            "bills_included": bill_ids,
+                        },
+                    )
+                    CacheService.invalidate_weekly_summary(year, wk, "preview")
+
+                succeeded += 1
+
+            except Exception as e:
+                failed += 1
+                errors.append({"week": label, "error": str(e)})
+                logger.error(f"Job {job_run_id}: error on {label}: {e}")
+
+            _update_progress(job_run_id, i, f"Done: {label}")
+
+        _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
+
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))

@@ -417,17 +417,18 @@ def generate_weekly_recap(self) -> dict:
             .order_by("-date", "-time")[:20]
         )
 
-        votes_summary = (
-            "\n".join(
-                [
-                    f"- {v.date}: {v.description} - {v.result.upper()} "
-                    f"(Yea: {v.total_yea}, Nay: {v.total_nay})"
-                    f"{' [Bipartisan]' if v.is_bipartisan else ''}"
-                    for v in votes
-                ]
+        vote_lines = []
+        for v in votes:
+            line = (
+                f"- {v.date}: {v.description} - {v.result.upper()} "
+                f"(Yea: {v.total_yea}, Nay: {v.total_nay})"
+                f"{' [Bipartisan]' if v.is_bipartisan else ''}"
             )
-            if votes
-            else "No votes recorded this week."
+            if v.ai_summary:
+                line += f"\n  Summary: {v.ai_summary}"
+            vote_lines.append(line)
+        votes_summary = (
+            "\n".join(vote_lines) if vote_lines else "No votes recorded this week."
         )
 
         vote_ids = [v.vote_id for v in votes]
@@ -437,14 +438,15 @@ def generate_weekly_recap(self) -> dict:
             latest_action_date__gte=week_start, latest_action_date__lte=week_end
         ).order_by("-latest_action_date")[:15]
 
+        bill_lines = []
+        for b in bills:
+            line = f"- {b.display_number}: {b.short_title or b.title[:100]} - {b.latest_action_text}"
+            if b.ai_summary:
+                line += f"\n  Summary: {b.ai_summary}"
+            bill_lines.append(line)
         bills_summary = (
-            "\n".join(
-                [
-                    f"- {b.display_number}: {b.short_title or b.title[:100]} - {b.latest_action_text}"
-                    for b in bills
-                ]
-            )
-            if bills
+            "\n".join(bill_lines)
+            if bill_lines
             else "No significant bill activity this week."
         )
 
@@ -532,14 +534,15 @@ def generate_weekly_preview(self) -> dict:
             latest_action_date__gte=today - timedelta(days=14)
         ).order_by("-latest_action_date")[:10]
 
+        pending_lines = []
+        for b in pending_bills:
+            line = f"- {b.display_number}: {b.short_title or b.title[:100]}"
+            if b.ai_summary:
+                line += f"\n  Summary: {b.ai_summary}"
+            pending_lines.append(line)
         pending_bills_summary = (
-            "\n".join(
-                [
-                    f"- {b.display_number}: {b.short_title or b.title[:100]}"
-                    for b in pending_bills
-                ]
-            )
-            if pending_bills
+            "\n".join(pending_lines)
+            if pending_lines
             else "No bills currently pending action."
         )
 
