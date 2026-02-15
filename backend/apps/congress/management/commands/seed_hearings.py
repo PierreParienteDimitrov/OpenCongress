@@ -1,11 +1,16 @@
 """
-Seed committee hearings from Congress.gov API.
+Seed committee hearing data from the Congress.gov API.
+
+Fetches hearings and committee meetings (including witness lists) for the
+current Congress using the Congress.gov API v3.
 
 Usage:
     python manage.py seed_hearings --congress=119
+    python manage.py seed_hearings --congress=119 --chamber=house --limit=100
 """
 
 import os
+import re
 import time
 from datetime import datetime
 
@@ -28,16 +33,17 @@ class Command(BaseCommand):
             help="Congress number (default: 119)",
         )
         parser.add_argument(
+            "--chamber",
+            type=str,
+            choices=["house", "senate"],
+            default=None,
+            help="Only fetch for one chamber",
+        )
+        parser.add_argument(
             "--limit",
             type=int,
             default=250,
-            help="Maximum number of hearings to fetch (default: 250)",
-        )
-        parser.add_argument(
-            "--offset",
-            type=int,
-            default=0,
-            help="Starting offset for pagination",
+            help="Max hearings to fetch per chamber (default: 250)",
         )
 
     def handle(self, *args, **options):
@@ -49,198 +55,276 @@ class Command(BaseCommand):
             return
 
         congress = options["congress"]
+        chamber = options["chamber"]
         limit = options["limit"]
-        start_offset = options["offset"]
 
-        # Pre-load committee lookup
-        self._committee_cache = {}
-        for c in Committee.objects.all():
-            self._committee_cache[c.committee_id.lower()] = c
-            # Also cache by name prefix for fuzzy matching
-            name_key = c.name.lower().strip()
-            self._committee_cache[name_key] = c
+        chambers = [chamber] if chamber else ["house", "senate"]
+
+        total_created = 0
+        total_updated = 0
+
+        for ch in chambers:
+            self.stdout.write(f"Fetching {ch} committee meetings for Congress {congress}...")
+            created, updated = self._fetch_committee_meetings(
+                api_key, congress, ch, limit
+            )
+            total_created += created
+            total_updated += updated
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Done! Created {total_created} hearings, updated {total_updated}"
+            )
+        )
+
+    def _fetch_committee_meetings(
+        self, api_key: str, congress: int, chamber: str, limit: int
+    ) -> tuple[int, int]:
+        """Fetch committee meetings (hearings, markups) for a chamber."""
+        url = f"{CONGRESS_API_BASE}/committee-meeting/{congress}/{chamber}"
+        params = {
+            "api_key": api_key,
+            "limit": min(limit, 250),
+            "format": "json",
+            "offset": 0,
+        }
 
         created = 0
         updated = 0
-        offset = start_offset
+        fetched = 0
 
-        self.stdout.write(
-            f"Fetching hearings for Congress {congress} (limit {limit})..."
-        )
-
-        while created + updated < limit:
-            url = f"{CONGRESS_API_BASE}/hearing/{congress}"
-            params = {
-                "api_key": api_key,
-                "limit": min(limit - (created + updated), 50),
-                "offset": offset,
-                "format": "json",
-            }
-
-            data = None
-            for attempt in range(3):
-                try:
-                    time.sleep(0.3 if attempt == 0 else 2.0)
-                    response = requests.get(url, params=params, timeout=30)
-                    response.raise_for_status()
-                    data = response.json()
-                    break
-                except Exception as e:
-                    if attempt == 2:
-                        self.stderr.write(
-                            f"  Failed to fetch hearings at offset {offset}: {e}"
-                        )
-
+        while fetched < limit:
+            data = self._api_get(url, params)
             if data is None:
                 break
 
-            hearings = data.get("hearings", [])
-            if not hearings:
+            meetings = data.get("committeeMeetings", [])
+            if not meetings:
                 break
 
-            for hearing_data in hearings:
-                if created + updated >= limit:
+            for meeting in meetings:
+                if fetched >= limit:
                     break
-
-                was_created = self._process_hearing(api_key, hearing_data, congress)
-                if was_created:
+                result = self._process_meeting(
+                    api_key, meeting, congress, chamber
+                )
+                if result == "created":
                     created += 1
-                else:
+                elif result == "updated":
                     updated += 1
+                fetched += 1
 
-            total = created + updated
-            self.stdout.write(f"  Processed {total} hearings...")
+            self.stdout.write(f"  Processed {fetched} {chamber} meetings...")
 
             pagination = data.get("pagination", {})
             if not pagination.get("next"):
                 break
 
-            offset += len(hearings)
+            params["offset"] = params["offset"] + len(meetings)
 
-        self.stdout.write(
-            self.style.SUCCESS(f"Done! Created {created}, updated {updated}")
-        )
+        return created, updated
 
-    def _process_hearing(self, api_key: str, hearing_data: dict, congress: int) -> bool:
-        """Process a single hearing. Returns True if created."""
-        number = hearing_data.get("number")
-        part = hearing_data.get("part", 1) or 1
-        chamber = hearing_data.get("chamber", "").lower()
-        if chamber == "house of representatives":
-            chamber = "house"
+    def _process_meeting(
+        self, api_key: str, meeting: dict, congress: int, chamber: str
+    ) -> str:
+        """Process a single committee meeting. Returns 'created', 'updated', or 'skipped'."""
+        event_id = meeting.get("eventId")
+        if not event_id:
+            return "skipped"
 
-        hearing_id = f"hearing-{congress}-{chamber}-{number}-{part}"
+        hearing_id = f"{chamber}-{congress}-{event_id}"
 
-        # Fetch detail
-        detail_url = hearing_data.get("url", "")
-        if not detail_url:
-            detail_url = f"{CONGRESS_API_BASE}/hearing/{congress}/{chamber}/{number}"
+        # Fetch meeting detail
+        detail_url = meeting.get("url")
+        if detail_url:
+            detail = self._api_get(
+                detail_url, {"api_key": api_key, "format": "json"}
+            )
+        else:
+            detail = None
 
-        detail = None
-        for attempt in range(3):
-            try:
-                time.sleep(0.3 if attempt == 0 else 2.0)
-                params = {"api_key": api_key, "format": "json"}
-                response = requests.get(detail_url, params=params, timeout=30)
-                response.raise_for_status()
-                detail = response.json().get("hearing", {})
-                break
-            except Exception as e:
-                if attempt == 2:
-                    self.stderr.write(f"  Failed to fetch hearing {hearing_id}: {e}")
+        detail_data = detail.get("committeeMeeting", {}) if detail else {}
 
-        if detail is None:
-            detail = hearing_data
-
-        title = detail.get("title", hearing_data.get("title", ""))
-        if not title:
-            return False
+        # Determine meeting type
+        meeting_type_raw = detail_data.get("type", "Meeting").lower()
+        if "hearing" in meeting_type_raw:
+            meeting_type = "hearing"
+        elif "markup" in meeting_type_raw:
+            meeting_type = "markup"
+        else:
+            meeting_type = "meeting"
 
         # Parse date
-        hearing_date = None
-        date_str = detail.get("dates", [{}])
-        if isinstance(date_str, list) and date_str:
-            first_date = date_str[0]
-            if isinstance(first_date, dict):
-                first_date = first_date.get("date", "")
-            if first_date:
-                try:
-                    hearing_date = datetime.fromisoformat(
-                        first_date.replace("Z", "+00:00")
-                    )
-                except ValueError:
-                    try:
-                        hearing_date = datetime.strptime(first_date[:10], "%Y-%m-%d")
-                    except ValueError:
-                        pass
+        date_str = detail_data.get("date") or meeting.get("date", "")
+        meeting_date = _parse_datetime(date_str)
+
+        # Meeting status
+        status_raw = detail_data.get("meetingStatus", "Scheduled").lower()
+        status_map = {
+            "scheduled": "scheduled",
+            "canceled": "canceled",
+            "postponed": "postponed",
+            "rescheduled": "rescheduled",
+        }
+        meeting_status = status_map.get(status_raw, "scheduled")
+
+        title = detail_data.get("title", "") or meeting.get("title", "Unknown hearing")
+
+        # Location
+        room = detail_data.get("room", "")
+        building = detail_data.get("building", "")
 
         # Find committee
         committee = None
-        committees_data = detail.get("committees", [])
+        committees_data = detail_data.get("committees", [])
         if committees_data:
-            for cd in committees_data:
-                sys_code = cd.get("systemCode", "")
-                if sys_code:
-                    committee = self._committee_cache.get(sys_code.lower())
-                    if committee:
-                        break
-                name = cd.get("name", "")
-                if name:
-                    committee = self._committee_cache.get(name.lower().strip())
-                    if committee:
-                        break
+            system_code = committees_data[0].get("systemCode", "")
+            if system_code:
+                try:
+                    committee = Committee.objects.get(committee_id=system_code)
+                except Committee.DoesNotExist:
+                    pass
 
-        # Find related bill
-        bill = None
-        associated = detail.get("associatedBills", []) or detail.get(
-            "associatedLegislation", []
-        )
-        if associated:
-            for ab in associated:
-                bill_number = ab.get("number")
-                bill_type = ab.get("type", "").lower()
-                if bill_number and bill_type:
-                    bill_id = f"{bill_type}{bill_number}-{congress}"
-                    try:
-                        bill = Bill.objects.get(bill_id=bill_id)
-                        break
-                    except Bill.DoesNotExist:
-                        pass
+        # Jacket number (from hearing transcripts if available)
+        jacket_number = ""
+        hearing_transcripts = detail_data.get("hearingTranscripts", [])
+        if hearing_transcripts:
+            jacket_number = str(
+                hearing_transcripts[0].get("jacketNumber", "")
+            )
 
-        # Convert API URL to human-readable congress.gov URL
-        congress_url = f"https://www.congress.gov/event/{congress}th-congress/hearings"
+        # Source URL
+        source_url = ""
+        if detail_url:
+            source_url = detail_url.split("?")[0]
 
-        defaults = {
-            "committee": committee,
-            "chamber": chamber if chamber in ("house", "senate") else "house",
-            "congress": congress,
-            "title": title,
-            "date": hearing_date,
-            "location": detail.get("location", ""),
-            "hearing_type": detail.get("type", ""),
-            "bill": bill,
-            "url": congress_url,
-        }
+        # Transcript URL
+        transcript_url = ""
+        formats_data = detail_data.get("formats", [])
+        for fmt in formats_data:
+            if fmt.get("type") == "Formatted Text" or "pdf" in fmt.get("type", "").lower():
+                transcript_url = fmt.get("url", "")
+                break
 
-        _, was_created = Hearing.objects.update_or_create(
+        hearing, was_created = Hearing.objects.update_or_create(
             hearing_id=hearing_id,
-            defaults=defaults,
+            defaults={
+                "jacket_number": jacket_number,
+                "event_id": str(event_id),
+                "congress": congress,
+                "chamber": chamber,
+                "title": title,
+                "meeting_type": meeting_type,
+                "meeting_status": meeting_status,
+                "date": meeting_date,
+                "room": room,
+                "building": building,
+                "committee": committee,
+                "transcript_url": transcript_url,
+                "source_url": source_url,
+            },
         )
 
-        # Process witnesses if available
-        witnesses = detail.get("witnesses", [])
-        if witnesses and was_created:
-            for w in witnesses:
-                name = w.get("name", "")
-                if not name:
-                    continue
-                HearingWitness.objects.get_or_create(
-                    hearing_id=hearing_id,
-                    name=name,
-                    defaults={
-                        "position": w.get("position", ""),
-                        "organization": w.get("organization", ""),
-                    },
-                )
+        # Process witnesses
+        self._process_witnesses(hearing, detail_data)
 
-        return was_created
+        # Link related bills
+        self._link_related_bills(hearing, detail_data, congress)
+
+        return "created" if was_created else "updated"
+
+    def _process_witnesses(self, hearing: Hearing, detail_data: dict) -> None:
+        """Extract and save witness information."""
+        witnesses = detail_data.get("witnesses", [])
+        if not witnesses:
+            return
+
+        # Clear existing witnesses for this hearing (to handle updates)
+        HearingWitness.objects.filter(hearing=hearing).delete()
+
+        for witness_data in witnesses:
+            name = witness_data.get("name", "")
+            if not name:
+                continue
+
+            position = witness_data.get("position", "")
+            organization = witness_data.get("organization", "")
+
+            # Extract document URLs
+            statement_url = ""
+            biography_url = ""
+            for doc in witness_data.get("documents", []):
+                doc_type = doc.get("documentType", "").lower()
+                doc_url = doc.get("url", "")
+                if "statement" in doc_type:
+                    statement_url = doc_url
+                elif "biography" in doc_type:
+                    biography_url = doc_url
+
+            HearingWitness.objects.create(
+                hearing=hearing,
+                name=name,
+                position=position,
+                organization=organization,
+                statement_url=statement_url,
+                biography_url=biography_url,
+            )
+
+    def _link_related_bills(
+        self, hearing: Hearing, detail_data: dict, congress: int
+    ) -> None:
+        """Link hearing to related bills mentioned in the meeting data."""
+        related = detail_data.get("bills", [])
+        if not related:
+            return
+
+        bill_ids = []
+        for bill_data in related:
+            bill_type = bill_data.get("type", "").lower()
+            bill_number = bill_data.get("number")
+            bill_congress = bill_data.get("congress", congress)
+
+            if bill_type and bill_number:
+                bill_id = f"{bill_type}{bill_number}-{bill_congress}"
+                try:
+                    bill = Bill.objects.get(bill_id=bill_id)
+                    bill_ids.append(bill.bill_id)
+                except Bill.DoesNotExist:
+                    pass
+
+        if bill_ids:
+            hearing.related_bills.set(
+                Bill.objects.filter(bill_id__in=bill_ids)
+            )
+
+    def _api_get(self, url: str, params: dict) -> dict | None:
+        """Make an API request with retry logic."""
+        for attempt in range(3):
+            try:
+                time.sleep(0.3 if attempt == 0 else 2.0)
+                response = requests.get(url, params=params, timeout=30)
+                response.raise_for_status()
+                return response.json()
+            except Exception as e:
+                if attempt == 2:
+                    self.stderr.write(f"  API request failed after 3 attempts: {e}")
+        return None
+
+
+def _parse_datetime(date_str: str | None) -> datetime | None:
+    """Parse ISO datetime string from Congress.gov API."""
+    if not date_str:
+        return None
+    for fmt in [
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d",
+    ]:
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            continue
+    try:
+        return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    except ValueError:
+        return None

@@ -18,8 +18,8 @@ from rest_framework.response import Response
 
 from apps.congress.models import (
     Bill,
-    CBOCostEstimate,
     CandidateFinance,
+    CBOCostEstimate,
     Committee,
     Hearing,
     Member,
@@ -392,91 +392,90 @@ class CommitteeViewSet(viewsets.ReadOnlyModelViewSet):
         return super().retrieve(request, *args, **kwargs)
 
 
-class FinanceViewSet(viewsets.ReadOnlyModelViewSet):
+class CandidateFinanceViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for campaign finance data.
 
-    list: Get all finance records with optional filtering
-    retrieve: Get a specific finance record with contributors
-    member: Get finance data for a specific member by bioguide_id
+    list: Get finance summaries for all members
+    retrieve: Get detailed finance data for a specific finance record
+    by_member: Get finance data for a specific member (by bioguide_id)
     """
 
-    queryset = CandidateFinance.objects.select_related("member").order_by(
-        "-total_receipts"
+    queryset = (
+        CandidateFinance.objects.select_related("member")
+        .order_by("-total_receipts")
     )
     filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ["cycle", "member__chamber", "member__party", "member__state"]
     ordering_fields = [
         "total_receipts",
         "total_disbursements",
         "cash_on_hand",
-        "election_cycle",
+        "individual_contributions",
+        "pac_contributions",
     ]
 
     def get_serializer_class(self):
-        if self.action == "retrieve" or self.action == "member":
+        if self.action in ("retrieve", "by_member"):
             return CandidateFinanceDetailSerializer
         return CandidateFinanceListSerializer
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        cycle = self.request.query_params.get("cycle")
-        if cycle:
-            queryset = queryset.filter(election_cycle=cycle)
-        chamber = self.request.query_params.get("chamber")
-        if chamber:
-            queryset = queryset.filter(member__chamber=chamber)
-        party = self.request.query_params.get("party")
-        if party:
-            queryset = queryset.filter(member__party=party)
-        state = self.request.query_params.get("state")
-        if state:
-            queryset = queryset.filter(member__state__iexact=state)
-        if self.action == "retrieve":
+        if self.action in ("retrieve", "by_member"):
             queryset = queryset.prefetch_related(
                 "top_contributors", "industry_contributions"
             )
         return queryset
 
-    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("member_list", 60 * 60)))
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+    @action(detail=False, methods=["get"], url_path="member/(?P<bioguide_id>[^/.]+)")
+    def by_member(self, request, bioguide_id=None):
+        """Get finance data for a specific member by bioguide_id."""
+        cycle = request.query_params.get("cycle")
 
-    @action(
-        detail=False,
-        methods=["get"],
-        url_path="member/(?P<bioguide_id>[A-Z0-9]+)",
-    )
-    def member(self, request, bioguide_id=None):
-        """Get finance data for a specific member."""
-        records = (
-            CandidateFinance.objects.filter(member__bioguide_id=bioguide_id)
-            .select_related("member")
-            .prefetch_related("top_contributors", "industry_contributions")
-            .order_by("-election_cycle")
+        queryset = CandidateFinance.objects.filter(
+            member__bioguide_id=bioguide_id
+        ).select_related("member").prefetch_related(
+            "top_contributors", "industry_contributions"
         )
 
-        if not records.exists():
+        if cycle:
+            queryset = queryset.filter(cycle=cycle)
+
+        queryset = queryset.order_by("-cycle")
+
+        if not queryset.exists():
             return Response(
-                {"error": "No finance data found for this member"},
+                {"error": f"No finance data found for member {bioguide_id}"},
                 status=404,
             )
 
-        serializer = CandidateFinanceDetailSerializer(records, many=True)
+        serializer = CandidateFinanceDetailSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
 class HearingViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for committee hearings.
+    ViewSet for committee hearings and meetings.
 
     list: Get all hearings with optional filtering
-    retrieve: Get a specific hearing with witnesses
-    upcoming: Get upcoming hearings
+    retrieve: Get a specific hearing with witnesses and related bills
+    upcoming: Get upcoming scheduled hearings
     """
 
-    queryset = Hearing.objects.select_related("committee", "bill").order_by("-date")
+    queryset = (
+        Hearing.objects.select_related("committee")
+        .order_by("-date")
+    )
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    ordering_fields = ["date", "chamber"]
+    filterset_fields = [
+        "chamber",
+        "meeting_type",
+        "meeting_status",
+        "congress",
+        "committee__committee_id",
+    ]
+    ordering_fields = ["date", "chamber", "meeting_type"]
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -485,35 +484,30 @@ class HearingViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        chamber = self.request.query_params.get("chamber")
-        if chamber:
-            queryset = queryset.filter(chamber=chamber)
-        congress = self.request.query_params.get("congress")
-        if congress:
-            queryset = queryset.filter(congress=congress)
-        committee = self.request.query_params.get("committee")
-        if committee:
-            queryset = queryset.filter(committee__committee_id=committee)
         if self.action == "retrieve":
-            queryset = queryset.prefetch_related("witnesses")
-        return queryset
+            queryset = queryset.prefetch_related(
+                "witnesses", "related_bills__sponsor"
+            )
 
-    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("vote_list", 60 * 5)))
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(title__icontains=search)
+
+        return queryset
 
     @action(detail=False, methods=["get"])
     def upcoming(self, request):
-        """Get upcoming hearings (date >= today)."""
+        """Get upcoming scheduled hearings."""
         from django.utils import timezone
 
-        queryset = self.get_queryset().filter(date__gte=timezone.now()).order_by("date")
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = HearingListSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
+        queryset = (
+            Hearing.objects.filter(
+                date__gte=timezone.now(),
+                meeting_status="scheduled",
+            )
+            .select_related("committee")
+            .order_by("date")[:50]
+        )
         serializer = HearingListSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -522,32 +516,36 @@ class CBOCostEstimateViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for CBO cost estimates.
 
-    list: Get all CBO estimates
-    retrieve: Get a specific estimate
-    bill: Get estimates for a specific bill
+    list: Get all CBO cost estimates
+    retrieve: Get a specific CBO cost estimate
+    for_bill: Get CBO estimates for a specific bill
     """
 
-    queryset = CBOCostEstimate.objects.select_related("bill").order_by("-publish_date")
-    serializer_class = CBOCostEstimateSerializer
+    queryset = (
+        CBOCostEstimate.objects.select_related("bill")
+        .order_by("-publication_date")
+    )
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    ordering_fields = ["publish_date"]
-
-    @method_decorator(cache_page(settings.CACHE_TIMEOUTS.get("vote_list", 60 * 5)))
-    def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+    filterset_fields = ["congress", "bill__bill_id"]
+    ordering_fields = ["publication_date", "congress"]
+    serializer_class = CBOCostEstimateSerializer
 
     @action(
         detail=False,
         methods=["get"],
-        url_path="bill/(?P<bill_id>[a-z0-9-]+)",
+        url_path="bill/(?P<bill_id>[^/.]+)",
     )
-    def bill(self, request, bill_id=None):
-        """Get CBO estimates for a specific bill."""
-        estimates = (
-            CBOCostEstimate.objects.filter(bill__bill_id=bill_id)
-            .select_related("bill")
-            .order_by("-publish_date")
-        )
+    def for_bill(self, request, bill_id=None):
+        """Get CBO cost estimates for a specific bill."""
+        queryset = CBOCostEstimate.objects.filter(
+            bill__bill_id=bill_id
+        ).select_related("bill").order_by("-publication_date")
 
-        serializer = CBOCostEstimateSerializer(estimates, many=True)
+        if not queryset.exists():
+            return Response(
+                {"error": f"No CBO estimates found for bill {bill_id}"},
+                status=404,
+            )
+
+        serializer = CBOCostEstimateSerializer(queryset, many=True)
         return Response(serializer.data)
