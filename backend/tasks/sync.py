@@ -1081,7 +1081,7 @@ def sync_hearings(self) -> dict:
 
         while True:
             url = f"{CONGRESS_API_BASE}/hearing/{congress}"
-            params = {
+            params: dict[str, str | int] = {
                 "api_key": api_key,
                 "limit": 50,
                 "offset": offset,

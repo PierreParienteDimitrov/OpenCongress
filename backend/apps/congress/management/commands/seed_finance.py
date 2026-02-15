@@ -162,7 +162,7 @@ class Command(BaseCommand):
     ) -> dict | None:
         """Fetch candidate financial totals for a specific cycle."""
         url = f"{FEC_API_BASE}/candidate/{fec_id}/totals/"
-        params = {
+        params: dict[str, str | int] = {
             "api_key": api_key,
             "cycle": cycle,
             "per_page": 1,
@@ -189,7 +189,7 @@ class Command(BaseCommand):
         """Fetch top contributing committees/organizations."""
         # Use the schedules/schedule_a/by_employer endpoint for employer aggregation
         url = f"{FEC_API_BASE}/schedules/schedule_a/by_employer/"
-        params = {
+        params: dict[str, str | int] = {
             "api_key": api_key,
             "candidate_id": fec_id,
             "cycle": cycle,
