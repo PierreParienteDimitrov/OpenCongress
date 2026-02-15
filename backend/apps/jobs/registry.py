@@ -61,6 +61,25 @@ JOB_REGISTRY = {
             "Sync recent votes from House (Congress.gov) and Senate (Senate.gov)."
         ),
     },
+    # --- Seed commands (data import from FEC) ---
+    "seed_finance": {
+        "label": "Seed Finance from FEC",
+        "task": "apps.jobs.tasks.run_seed_finance",
+        "queue": "sync",
+        "description": (
+            "Import campaign finance data (totals, top contributors) "
+            "for all current members from the FEC OpenFEC API."
+        ),
+    },
+    "seed_industry_contributions": {
+        "label": "Seed Industry Contributions from FEC",
+        "task": "apps.jobs.tasks.run_seed_industry_contributions",
+        "queue": "sync",
+        "description": (
+            "Fetch top occupations from FEC API, map to industry categories, "
+            "and save as industry contribution records. Requires seed_finance first."
+        ),
+    },
     # --- Seed commands (data import from Congress.gov) ---
     "seed_bills": {
         "label": "Seed Bills from Congress.gov",

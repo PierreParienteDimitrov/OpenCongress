@@ -485,6 +485,30 @@ def run_link_votes_to_bills(self, job_run_id: int):
     )
 
 
+@shared_task(bind=True, time_limit=3600, soft_time_limit=3400)
+def run_seed_finance(self, job_run_id: int):
+    """Seed campaign finance data from the FEC OpenFEC API."""
+    _run_management_command(
+        job_run_id,
+        "seed_finance",
+        "Seeding finance data from FEC OpenFEC API...",
+        progress_total=0,
+        cycle=2026,
+    )
+
+
+@shared_task(bind=True, time_limit=3600, soft_time_limit=3400)
+def run_seed_industry_contributions(self, job_run_id: int):
+    """Seed industry contributions from the FEC OpenFEC API."""
+    _run_management_command(
+        job_run_id,
+        "seed_industry_contributions",
+        "Seeding industry contributions from FEC OpenFEC API...",
+        progress_total=0,
+        cycle=2026,
+    )
+
+
 @shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
 def run_generate_weekly_summaries(self, job_run_id: int):
     """Generate weekly recap and preview summaries for all weeks with activity."""

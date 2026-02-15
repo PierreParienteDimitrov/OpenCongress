@@ -991,6 +991,12 @@ def _sync_member_finance(fec_key: str, member, cycle: int) -> str:
         },
     )
 
+    # Sync top contributors and industry contributions
+    committee_id = _fec_find_principal_committee(fec_key, candidate_id)
+    if committee_id:
+        _sync_top_contributors(fec_key, finance, committee_id, cycle)
+        _sync_industry_contributions(fec_key, finance, committee_id, cycle)
+
     return "created" if was_created else "updated"
 
 
@@ -1054,6 +1060,123 @@ def _parse_fec_date(date_str: str | None):
             return datetime.strptime(date_str[:10], "%Y-%m-%d").date()
         except (ValueError, TypeError):
             return None
+
+
+def _fec_find_principal_committee(fec_key: str, candidate_id: str) -> str | None:
+    """Find the principal campaign committee for a candidate."""
+    params: dict[str, str | int] = {
+        "api_key": fec_key,
+        "candidate_id": candidate_id,
+        "designation": "P",
+        "per_page": 1,
+    }
+    try:
+        time.sleep(0.5)
+        resp = requests.get(
+            f"{FEC_API_BASE}/candidate/{candidate_id}/committees/",
+            params=params,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+        if results:
+            return results[0].get("committee_id")
+    except Exception as e:
+        logger.warning(f"FEC committee lookup failed for {candidate_id}: {e}")
+    return None
+
+
+def _sync_top_contributors(
+    fec_key: str, finance, committee_id: str, cycle: int
+) -> None:
+    """Fetch and save top 20 contributors for a candidate."""
+    from apps.congress.models import TopContributor
+
+    params: dict[str, str | int] = {
+        "api_key": fec_key,
+        "committee_id": committee_id,
+        "cycle": cycle,
+        "sort": "-total",
+        "per_page": 20,
+    }
+    try:
+        time.sleep(0.5)
+        resp = requests.get(
+            f"{FEC_API_BASE}/schedules/schedule_a/by_contributor/",
+            params=params,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+
+        TopContributor.objects.filter(candidate_finance=finance).delete()
+        for rank, result in enumerate(results, 1):
+            name = result.get("contributor_name", "Unknown")
+            amount = result.get("total", 0) or 0
+            if amount > 0:
+                TopContributor.objects.create(
+                    candidate_finance=finance,
+                    contributor_name=name,
+                    total_amount=amount,
+                    rank=rank,
+                )
+    except Exception as e:
+        logger.warning(f"Failed to sync top contributors for {committee_id}: {e}")
+
+
+def _sync_industry_contributions(
+    fec_key: str, finance, committee_id: str, cycle: int
+) -> None:
+    """Fetch occupations, map to industries, save IndustryContribution records."""
+    from collections import defaultdict
+    from decimal import Decimal
+
+    from apps.congress.industry_mapping import map_occupation_to_industry
+    from apps.congress.models import IndustryContribution
+
+    params: dict[str, str | int] = {
+        "api_key": fec_key,
+        "committee_id": committee_id,
+        "cycle": cycle,
+        "sort": "-total",
+        "per_page": 50,
+    }
+    try:
+        time.sleep(0.5)
+        resp = requests.get(
+            f"{FEC_API_BASE}/schedules/schedule_a/by_occupation/",
+            params=params,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        results = resp.json().get("results", [])
+    except Exception as e:
+        logger.warning(f"Failed to fetch occupations for {committee_id}: {e}")
+        return
+
+    industry_totals: dict[str, Decimal] = defaultdict(Decimal)
+    for occ in results:
+        occ_name = occ.get("occupation", "") or ""
+        amount = Decimal(str(occ.get("total", 0) or 0))
+        if amount > 0:
+            industry = map_occupation_to_industry(occ_name)
+            industry_totals[industry] += amount
+
+    if not industry_totals:
+        return
+
+    sorted_industries = sorted(
+        industry_totals.items(), key=lambda x: x[1], reverse=True
+    )
+
+    IndustryContribution.objects.filter(candidate_finance=finance).delete()
+    for rank, (industry_name, total) in enumerate(sorted_industries[:15], 1):
+        IndustryContribution.objects.create(
+            candidate_finance=finance,
+            industry_name=industry_name,
+            total_amount=total,
+            rank=rank,
+        )
 
 
 # ===========================================================================
