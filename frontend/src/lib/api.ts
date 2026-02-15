@@ -332,4 +332,36 @@ export async function lookupZipCode(zip: string): Promise<ZipLookupResult> {
   );
 }
 
+// Global search (client-side, for command palette)
+export async function searchMembers(
+  search: string
+): Promise<PaginatedResponse<MemberListItem>> {
+  const params = new URLSearchParams({
+    search,
+    page_size: "5",
+    ordering: "last_name",
+  });
+  return fetchAPIClient<PaginatedResponse<MemberListItem>>(
+    `/members/?${params}`
+  );
+}
+
+export async function searchBills(
+  search: string
+): Promise<PaginatedResponse<BillListItem>> {
+  const params = new URLSearchParams({ search, page_size: "5" });
+  return fetchAPIClient<PaginatedResponse<BillListItem>>(
+    `/bills/?${params}`
+  );
+}
+
+export async function searchVotes(
+  search: string
+): Promise<PaginatedResponse<VoteSummary>> {
+  const params = new URLSearchParams({ search, page_size: "5" });
+  return fetchAPIClient<PaginatedResponse<VoteSummary>>(
+    `/votes/?${params}`
+  );
+}
+
 export { APIError };
