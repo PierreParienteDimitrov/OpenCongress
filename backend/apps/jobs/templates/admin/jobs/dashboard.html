@@ -88,14 +88,14 @@
           {% if job.is_running %}
             <form method="post" action="{% url 'admin:jobs_stop' job.running_job.id %}" style="display: inline;">
               {% csrf_token %}
-              <button type="submit" class="btn-stop" onclick="return confirm('Stop {{ job.label }}? This will kill the running process.');">
+              <button type="submit" class="btn-stop">
                 &#x23F9; Stop
               </button>
             </form>
           {% else %}
             <form method="post" action="{% url 'admin:jobs_run' job.key %}" style="display: inline;">
               {% csrf_token %}
-              <button type="submit" class="btn-run" onclick="return confirm('Start {{ job.label }}?');">
+              <button type="submit" class="btn-run">
                 Run Now
               </button>
             </form>

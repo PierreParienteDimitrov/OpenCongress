@@ -27,11 +27,7 @@
         input.name = 'csrfmiddlewaretoken';
         input.value = token.value;
         form.insertBefore(input, form.firstChild);
-        form.addEventListener('submit', function(e) {
-          if (!confirm('Stop this job? This will kill the running process.')) {
-            e.preventDefault();
-          }
-        });
+        form.addEventListener('submit', function(e) {});
       });
     })();
   </script>

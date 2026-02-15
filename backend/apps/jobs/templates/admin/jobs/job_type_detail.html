@@ -68,7 +68,7 @@
   <div id="btn-run-wrap"{% if active_run %} style="display:none"{% endif %}>
     <form method="post" action="{% url 'admin:jobs_run' job_type %}" style="display:inline">
       {% csrf_token %}
-      <button type="submit" class="btn-run cursor-pointer" onclick="return confirm('Start {{ config.label }}?');">
+      <button type="submit" class="btn-run cursor-pointer">
         Run Now
       </button>
     </form>
@@ -77,7 +77,7 @@
   <div id="btn-stop-wrap">
     <form method="post" action="{% url 'admin:jobs_stop' active_run.id %}" style="display:inline">
       {% csrf_token %}
-      <button type="submit" class="btn-stop cursor-pointer" onclick="return confirm('Stop {{ config.label }}?');">
+      <button type="submit" class="btn-stop cursor-pointer">
         &#x23F9; Stop
       </button>
     </form>
