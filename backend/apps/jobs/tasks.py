@@ -451,8 +451,7 @@ def run_seed_committees(self, job_run_id: int):
     _run_management_command(
         job_run_id,
         "seed_committees",
-        "Seeding committees from Congress.gov...",
-        congress=119,
+        "Seeding committees from GitHub data...",
     )
 
 
