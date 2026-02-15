@@ -48,7 +48,7 @@ export default function VoteDetailContent({
       <TabsContent value="overview" className="pt-6">
         <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_280px] gap-6 lg:gap-8">
           {/* Left column — Vote metadata (passed from server) */}
-          {sidebar}
+          <div>{sidebar}</div>
 
           {/* Center column — Copy / description */}
           <div className="lg:border-l lg:border-r lg:border-border lg:px-8">
