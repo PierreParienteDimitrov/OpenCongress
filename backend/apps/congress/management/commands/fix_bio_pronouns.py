@@ -1,9 +1,9 @@
 """
 Fix they/them pronouns in existing AI-generated member bios.
 
-Uses a lightweight AI call to replace they/them/their with the correct
-gendered pronouns based on the member's gender field, without
-regenerating the entire bio.
+Fetches gender data from unitedstates.io (if not already in the DB),
+then uses a lightweight AI call to replace they/them/their with the
+correct gendered pronouns without regenerating the entire bio.
 
 Usage:
     python manage.py fix_bio_pronouns              # fix all bios
@@ -13,11 +13,16 @@ Usage:
 
 import time
 
+import requests
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 
 from apps.congress.models import Member
 
+LEGISLATORS_URL = (
+    "https://raw.githubusercontent.com/unitedstates/"
+    "congress-legislators/gh-pages/legislators-current.json"
+)
 
 PRONOUN_FIX_PROMPT = """You are a copy editor. The following biography uses "they/them/their" pronouns to refer to {full_name}. Rewrite it using {pronoun_subject}/{pronoun_object}/{possessive}/{possessive_pronoun}/{reflexive} pronouns instead.
 
@@ -52,14 +57,16 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         single_member = options.get("member")
 
+        # --- Step 1: Backfill gender from unitedstates.io ---
+        self._backfill_gender(dry_run)
+
+        # --- Step 2: Fix pronouns in bios ---
         ai_service = AIService()
 
-        # Build queryset: members with known gender and a bio containing "they/their/them"
         qs = Member.objects.filter(
             gender__in=["M", "F"],
         ).exclude(ai_bio="")
 
-        # Case-insensitive check for they/their/them in the bio
         qs = qs.filter(
             Q(ai_bio__icontains="they")
             | Q(ai_bio__icontains="their")
@@ -74,10 +81,10 @@ class Command(BaseCommand):
         )
 
         if not members:
-            self.stdout.write(self.style.SUCCESS("No bios need fixing."))
+            self.stdout.write(self.style.SUCCESS("No bios need pronoun fixing."))
             return
 
-        self.stdout.write(f"Found {len(members)} bio(s) to process.\n")
+        self.stdout.write(f"\nFound {len(members)} bio(s) to fix pronouns.\n")
 
         gender_map = {
             "M": ("He", "him", "his", "his", "himself"),
@@ -144,3 +151,45 @@ class Command(BaseCommand):
                 f"(out of {len(members)} processed)"
             )
         )
+
+    def _backfill_gender(self, dry_run: bool):
+        """Fetch gender data from unitedstates.io and backfill the gender field."""
+        missing_count = Member.objects.filter(gender="").count()
+        if missing_count == 0:
+            self.stdout.write("All members already have gender data.")
+            return
+
+        self.stdout.write(
+            f"Backfilling gender for {missing_count} members from unitedstates.io..."
+        )
+
+        try:
+            response = requests.get(LEGISLATORS_URL, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            self.stderr.write(self.style.ERROR(f"Failed to fetch gender data: {e}"))
+            return
+
+        # Build bioguide → gender map
+        gender_map = {}
+        for entry in data:
+            bioguide = entry.get("id", {}).get("bioguide")
+            gender = entry.get("bio", {}).get("gender")
+            if bioguide and gender:
+                gender_map[bioguide] = gender
+
+        self.stdout.write(f"  Found gender data for {len(gender_map)} legislators.")
+
+        updated = 0
+        for member in Member.objects.filter(gender=""):
+            gender = gender_map.get(member.bioguide_id)
+            if gender:
+                if not dry_run:
+                    Member.objects.filter(bioguide_id=member.bioguide_id).update(
+                        gender=gender
+                    )
+                updated += 1
+
+        mode = "Would update" if dry_run else "Updated"
+        self.stdout.write(self.style.SUCCESS(f"  {mode} gender for {updated} members."))

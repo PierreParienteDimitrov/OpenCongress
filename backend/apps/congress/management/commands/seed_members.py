@@ -22,6 +22,10 @@ class Command(BaseCommand):
     SOCIAL_MEDIA_URL = (
         "https://theunitedstates.io/congress-legislators/legislators-social-media.json"
     )
+    LEGISLATORS_URL = (
+        "https://raw.githubusercontent.com/unitedstates/"
+        "congress-legislators/gh-pages/legislators-current.json"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -48,6 +52,11 @@ class Command(BaseCommand):
         self.stdout.write("Fetching social media data...")
         social_media = self._fetch_social_media()
         self.stdout.write(f"Found social media for {len(social_media)} members")
+
+        # Fetch gender data
+        self.stdout.write("Fetching gender data...")
+        gender_data = self._fetch_gender_data()
+        self.stdout.write(f"Found gender data for {len(gender_data)} members")
 
         # Create or update members
         created = 0
@@ -84,6 +93,7 @@ class Command(BaseCommand):
                 "state": self._normalize_state(member_data.get("state", "")),
                 "district": district,
                 "photo_url": member_data.get("depiction", {}).get("imageUrl", "") or "",
+                "gender": gender_data.get(bioguide_id, ""),
                 "twitter_handle": social.get("twitter", ""),
                 "facebook_id": social.get("facebook", ""),
                 "youtube_id": social.get("youtube_id", ""),
@@ -157,6 +167,24 @@ class Command(BaseCommand):
             }
         except Exception as e:
             self.stderr.write(f"Failed to fetch social media: {e}")
+            return {}
+
+    def _fetch_gender_data(self) -> dict:
+        """Fetch gender data from unitedstates.io legislators dataset."""
+        try:
+            response = requests.get(self.LEGISLATORS_URL, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+
+            return {
+                entry["id"]["bioguide"]: entry["bio"]["gender"]
+                for entry in data
+                if "id" in entry
+                and "bioguide" in entry["id"]
+                and "gender" in entry.get("bio", {})
+            }
+        except Exception as e:
+            self.stderr.write(f"Failed to fetch gender data: {e}")
             return {}
 
     def _normalize_state(self, raw_state: str) -> str:
