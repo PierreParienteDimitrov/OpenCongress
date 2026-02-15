@@ -62,8 +62,9 @@ export function ContentWithSidebar({
       >
         {navbar}
         <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-1.5 text-center text-sm text-amber-400">
-          Alpha version — Under active development. Expect bugs and frequent
-          changes.
+          Alpha version — Under active development. Data is continuously
+          refined and improved. All information should be independently
+          verified.
         </div>
         <div className="flex-1 min-w-0">{children}</div>
       </div>
