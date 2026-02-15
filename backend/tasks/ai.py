@@ -670,7 +670,7 @@ def _generate_daily_recap_core(target_date: date) -> dict:
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def generate_daily_recap(self, target_date_str: str = None) -> dict:
+def generate_daily_recap(self, target_date_str: str | None = None) -> dict:
     """
     Generate a daily recap summary.
     Runs Mon-Fri at 10 PM ET.
@@ -771,7 +771,7 @@ def _generate_daily_preview_core(target_date: date) -> dict:
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def generate_daily_preview(self, target_date_str: str = None) -> dict:
+def generate_daily_preview(self, target_date_str: str | None = None) -> dict:
     """
     Generate a daily preview summary.
     Runs Sun-Thu at 9 PM ET (preview for next weekday).
