@@ -35,6 +35,12 @@ class Command(BaseCommand):
             help="Election cycle year (default: 2026)",
         )
         parser.add_argument(
+            "--fallback-cycle",
+            type=int,
+            default=0,
+            help="Fallback cycle if no totals found for primary cycle (e.g. 2024)",
+        )
+        parser.add_argument(
             "--limit",
             type=int,
             default=0,
@@ -46,6 +52,11 @@ class Command(BaseCommand):
             choices=["house", "senate"],
             default=None,
             help="Only fetch for one chamber",
+        )
+        parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Print detailed skip reasons",
         )
 
     def handle(self, *args, **options):
@@ -59,8 +70,10 @@ class Command(BaseCommand):
             return
 
         cycle = options["cycle"]
+        fallback_cycle = options["fallback_cycle"]
         limit = options["limit"]
         chamber = options["chamber"]
+        self.verbose = options["verbose"]
 
         members_qs = Member.objects.filter(is_active=True)
         if chamber:
@@ -73,20 +86,30 @@ class Command(BaseCommand):
         self.stdout.write(
             f"Fetching finance data for {len(members)} members, cycle {cycle}..."
         )
+        if fallback_cycle:
+            self.stdout.write(f"  Fallback cycle: {fallback_cycle}")
 
         created = 0
         updated = 0
         skipped = 0
+        skip_no_candidate = 0
+        skip_no_totals = 0
 
         for i, member in enumerate(members):
             if i > 0 and i % 25 == 0:
                 self.stdout.write(f"  Processed {i}/{len(members)} members...")
 
-            result = self._process_member(api_key, member, cycle)
+            result = self._process_member(api_key, member, cycle, fallback_cycle)
             if result == "created":
                 created += 1
             elif result == "updated":
                 updated += 1
+            elif result == "skip_no_candidate":
+                skip_no_candidate += 1
+                skipped += 1
+            elif result == "skip_no_totals":
+                skip_no_totals += 1
+                skipped += 1
             else:
                 skipped += 1
 
@@ -96,23 +119,49 @@ class Command(BaseCommand):
                 f"skipped {skipped} members"
             )
         )
+        if skipped > 0:
+            self.stdout.write(
+                f"  Skip reasons: {skip_no_candidate} not found in FEC, "
+                f"{skip_no_totals} no financial totals for cycle"
+            )
 
-    def _process_member(self, api_key: str, member: Member, cycle: int) -> str:
-        """Fetch FEC data for a single member. Returns 'created', 'updated', or 'skipped'."""
+    def _process_member(
+        self, api_key: str, member: Member, cycle: int, fallback_cycle: int = 0
+    ) -> str:
+        """Fetch FEC data for a single member.
+
+        Returns 'created', 'updated', 'skip_no_candidate', or 'skip_no_totals'.
+        """
         # Step 1: Find FEC candidate ID
         candidate_id = self._find_fec_candidate(api_key, member)
         if not candidate_id:
-            return "skipped"
+            if self.verbose:
+                self.stderr.write(f"  SKIP {member.full_name}: no FEC candidate found")
+            return "skip_no_candidate"
 
         # Step 2: Fetch financial totals
+        effective_cycle = cycle
         totals = self._fetch_candidate_totals(api_key, candidate_id, cycle)
+        if not totals and fallback_cycle:
+            totals = self._fetch_candidate_totals(api_key, candidate_id, fallback_cycle)
+            if totals:
+                effective_cycle = fallback_cycle
+                if self.verbose:
+                    self.stdout.write(
+                        f"  {member.full_name}: using fallback cycle {fallback_cycle}"
+                    )
         if not totals:
-            return "skipped"
+            if self.verbose:
+                self.stderr.write(
+                    f"  SKIP {member.full_name}: no totals for cycle {cycle}"
+                    + (f" or {fallback_cycle}" if fallback_cycle else "")
+                )
+            return "skip_no_totals"
 
         # Step 3: Save CandidateFinance record
         finance, was_created = CandidateFinance.objects.update_or_create(
             member=member,
-            cycle=cycle,
+            cycle=effective_cycle,
             defaults={
                 "fec_candidate_id": candidate_id,
                 "total_receipts": totals.get("receipts", 0) or 0,
@@ -139,46 +188,58 @@ class Command(BaseCommand):
         )
 
         # Step 4: Fetch top contributors (by committee)
-        self._fetch_top_contributors(api_key, finance, candidate_id, cycle)
+        self._fetch_top_contributors(api_key, finance, candidate_id, effective_cycle)
 
         return "created" if was_created else "updated"
 
     def _find_fec_candidate(self, api_key: str, member: Member) -> str | None:
-        """Search FEC for a candidate matching this member."""
-        # Map chamber to FEC office type
+        """Search FEC for a candidate matching this member.
+
+        Tries two strategies:
+        1. Search with is_active_candidate=true (current filers)
+        2. If no result, search without that filter (catches members who
+           haven't filed for the new cycle yet)
+        """
         office = "H" if member.chamber == "house" else "S"
         state = member.state.upper()
 
-        params: dict[str, str | int] = {
+        base_params: dict[str, str | int] = {
             "api_key": api_key,
             "name": f"{member.last_name}, {member.first_name}",
             "state": state,
             "office": office,
-            "is_active_candidate": "true",
             "sort": "-election_years",
             "per_page": 5,
         }
 
-        for attempt in range(3):
-            try:
-                time.sleep(0.5 if attempt == 0 else 2.0)
-                response = requests.get(
-                    f"{FEC_API_BASE}/candidates/search/",
-                    params=params,
-                    timeout=30,
-                )
-                response.raise_for_status()
-                data = response.json()
-                results = data.get("results", [])
-                if results:
-                    return results[0].get("candidate_id")
-                return None
-            except Exception as e:
-                if attempt == 2:
-                    self.stderr.write(
-                        f"  Failed to find FEC candidate for "
-                        f"{member.full_name}: {e}"
+        # Try active candidates first, then fall back to all candidates
+        for active_filter in ("true", None):
+            params = {**base_params}
+            if active_filter:
+                params["is_active_candidate"] = active_filter
+
+            for attempt in range(3):
+                try:
+                    time.sleep(0.5 if attempt == 0 else 2.0)
+                    response = requests.get(
+                        f"{FEC_API_BASE}/candidates/search/",
+                        params=params,
+                        timeout=30,
                     )
+                    response.raise_for_status()
+                    data = response.json()
+                    results = data.get("results", [])
+                    if results:
+                        return results[0].get("candidate_id")
+                    break  # No results, try next filter
+                except Exception as e:
+                    if attempt == 2:
+                        self.stderr.write(
+                            f"  Failed to find FEC candidate for "
+                            f"{member.full_name}: {e}"
+                        )
+                        break  # Move to next filter on final failure
+
         return None
 
     def _fetch_candidate_totals(

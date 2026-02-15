@@ -149,10 +149,11 @@ JOB_REGISTRY = {
     },
     "generate_committee_summaries": {
         "label": "Generate Committee Summaries",
-        "task": "tasks.ai.generate_committee_summaries",
+        "task": "apps.jobs.tasks.run_generate_committee_summaries",
         "queue": "ai",
         "description": (
-            "Generate AI summaries for committees that need them (up to 50 per run)."
+            "Generate AI summaries for all committees missing one "
+            "or with outdated prompt version."
         ),
     },
 }

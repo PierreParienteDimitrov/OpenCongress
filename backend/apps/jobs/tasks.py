@@ -494,6 +494,7 @@ def run_seed_finance(self, job_run_id: int):
         "Seeding finance data from FEC OpenFEC API...",
         progress_total=0,
         cycle=2026,
+        fallback_cycle=2024,
     )
 
 
@@ -507,6 +508,66 @@ def run_seed_industry_contributions(self, job_run_id: int):
         progress_total=0,
         cycle=2026,
     )
+
+
+@shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
+def run_generate_committee_summaries(self, job_run_id: int):
+    """Generate summaries for ALL committees needing them."""
+    from apps.congress.models import Committee
+    from prompts import COMMITTEE_SUMMARY_VERSION
+    from tasks.ai import _generate_committee_summary_core as generate_committee_summary
+
+    try:
+        committees = list(
+            Committee.objects.filter(parent_committee__isnull=True)
+            .filter(
+                Q(ai_summary="")
+                | ~Q(ai_summary_prompt_version=COMMITTEE_SUMMARY_VERSION)
+            )
+            .values_list("committee_id", "name")
+        )
+
+        _start_job(job_run_id, len(committees))
+
+        if not committees:
+            _complete_job(job_run_id, 0, 0, {"message": "No committees need summaries"})
+            return
+
+        succeeded = 0
+        failed = 0
+        errors = []
+
+        for i, (committee_id, name) in enumerate(committees, 1):
+            if i % 10 == 1 and _is_cancelled(job_run_id):
+                _append_log(job_run_id, f"Cancelled at item {i}/{len(committees)}")
+                return
+
+            _update_progress(
+                job_run_id,
+                i - 1,
+                f"[{i}/{len(committees)}] Summarizing: {name[:60]}",
+            )
+            try:
+                result = generate_committee_summary(committee_id)
+                if result.get("success"):
+                    succeeded += 1
+                else:
+                    failed += 1
+                    errors.append(
+                        {"id": committee_id, "error": result.get("error", "Unknown")}
+                    )
+            except Exception as e:
+                failed += 1
+                errors.append({"id": committee_id, "error": str(e)})
+                logger.error(f"Job {job_run_id}: error on {committee_id}: {e}")
+
+            _update_progress(job_run_id, i, f"Done: {name[:60]}")
+
+        _complete_job(job_run_id, succeeded, failed, {"errors": errors[:50]})
+
+    except Exception as e:
+        logger.error(f"Job {job_run_id} crashed: {e}\n{traceback.format_exc()}")
+        _fail_job(job_run_id, str(e))
 
 
 @shared_task(bind=True, time_limit=7200, soft_time_limit=7000)
