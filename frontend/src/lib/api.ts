@@ -10,6 +10,7 @@ import type {
   BillListItem,
   CommitteeDetail,
   CommitteeListItem,
+  DailySummary,
   MemberDetail,
   MemberListItem,
   PaginatedResponse,
@@ -233,6 +234,38 @@ export async function getWeeklySummaries(): Promise<
     "/content/weekly-summaries/",
     { next: { revalidate: 900 } }
   );
+}
+
+// Daily summary endpoints
+export async function getCurrentDailySummaries(): Promise<DailySummary[]> {
+  const data = await fetchAPI<DailySummary[]>(
+    "/content/daily-summaries/current/",
+    { next: { revalidate: 900 } } // 15 minutes
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getDailySummaryByDate(
+  year: number,
+  month: number,
+  day: number
+): Promise<DailySummary[]> {
+  const data = await fetchAPI<DailySummary[]>(
+    `/content/daily-summaries/date/${year}/${month}/${day}/`,
+    { next: { revalidate: 86400 } } // 24 hours
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getDailySummariesByRange(
+  startDate: string,
+  endDate: string
+): Promise<DailySummary[]> {
+  const data = await fetchAPI<DailySummary[]>(
+    `/content/daily-summaries/range/${startDate}/${endDate}/`,
+    { next: { revalidate: 3600 } } // 1 hour
+  );
+  return Array.isArray(data) ? data : [];
 }
 
 // Committee endpoints

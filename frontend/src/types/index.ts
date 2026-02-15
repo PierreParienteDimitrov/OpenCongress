@@ -193,6 +193,23 @@ export interface WeeklySummaryListItem {
   created_at: string;
 }
 
+// Daily summary types
+export type DailySummaryType = "recap" | "preview";
+
+export interface DailySummary {
+  id: number;
+  date: string;
+  summary_type: DailySummaryType;
+  summary_type_display: string;
+  content: string;
+  model_used: string;
+  prompt_version: string;
+  tokens_used: number;
+  votes_included: string[];
+  bills_included: string[];
+  created_at: string;
+}
+
 // Seat types (for hemicycle visualization)
 export interface SeatMember {
   bioguide_id: string;
