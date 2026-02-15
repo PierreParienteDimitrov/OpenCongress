@@ -1,0 +1,7 @@
+# CLA Assistant configuration
+# Install the bot at: https://github.com/apps/cla-assistant
+
+allowlist:
+  - bot*
+  - dependabot*
+  - github-actions*
